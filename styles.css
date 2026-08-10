@@ -344,7 +344,8 @@ input, button, select, textarea {
 .sort-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  right: 0;
+  left: auto;
   width: 210px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
