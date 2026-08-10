@@ -571,6 +571,27 @@ const initEventHandlers = () => {
       }
     });
   }
+
+  const formCurrencySelect = document.getElementById('item-currency');
+  if (formCurrencySelect) {
+    let lastCurrency = formCurrencySelect.value;
+    formCurrencySelect.addEventListener('change', (e) => {
+      const newCurr = e.target.value;
+      const priceEl = document.getElementById('item-price');
+      const savedEl = document.getElementById('item-saved');
+      const priceVal = parseFloat(priceEl?.value) || 0;
+      const savedVal = parseFloat(savedEl?.value) || 0;
+      
+      if (lastCurrency === 'IDR' && newCurr === 'USD') {
+        if (priceEl && priceVal > 0) priceEl.value = Math.round(priceVal / EXCHANGE_RATE);
+        if (savedEl && savedVal > 0) savedEl.value = Math.round(savedVal / EXCHANGE_RATE);
+      } else if (lastCurrency === 'USD' && newCurr === 'IDR') {
+        if (priceEl && priceVal > 0) priceEl.value = Math.round(priceVal * EXCHANGE_RATE);
+        if (savedEl && savedVal > 0) savedEl.value = Math.round(savedVal * EXCHANGE_RATE);
+      }
+      lastCurrency = newCurr;
+    });
+  }
   const sortDropdown = document.getElementById('sort-dropdown');
   const sortTrigger = document.getElementById('sort-dropdown-trigger');
   const sortMenu = document.getElementById('sort-dropdown-menu');
@@ -880,31 +901,35 @@ const initEventHandlers = () => {
     itemForm.addEventListener('submit', (e) => {
       e.preventDefault();
       
+      const selectedCurrency = document.getElementById('item-currency')?.value || state.currency;
       const brand = document.getElementById('item-brand')?.value.trim() || '';
       const name = document.getElementById('item-name').value.trim();
       const inputPrice = parseFloat(document.getElementById('item-price').value) || 0;
       const inputSaved = parseFloat(document.getElementById('item-saved').value) || 0;
-      const price = toBaseIdr(inputPrice);
-      const saved = toBaseIdr(inputSaved);
+      
+      const basePrice = selectedCurrency === 'USD' ? Math.round(inputPrice * EXCHANGE_RATE) : Math.round(inputPrice);
+      const baseSaved = selectedCurrency === 'USD' ? Math.round(inputSaved * EXCHANGE_RATE) : Math.round(inputSaved);
+      
       const imageUrl = document.getElementById('item-image').value.trim();
       const link = document.getElementById('item-link').value.trim();
       
-      if (!name || price <= 0) {
+      if (!name || basePrice <= 0) {
         showToast('Valid name and target price required');
         return;
       }
       
-      const isAchieved = saved >= price;
+      const isAchieved = baseSaved >= basePrice;
       let triggeredAchieved = false;
       
       if (state.editingId) {
         const item = state.items.find(i => i.id === state.editingId);
         if (item) {
           const wasAchieved = item.saved >= item.price;
+          item.currency = selectedCurrency;
           item.brand = brand;
           item.name = name;
-          item.price = price;
-          item.saved = saved;
+          item.price = basePrice;
+          item.saved = baseSaved;
           item.imageUrl = imageUrl;
           item.imageData = currentImageData;
           item.link = link;
@@ -918,10 +943,11 @@ const initEventHandlers = () => {
       } else {
         const newItem = {
           id: generateId(),
+          currency: selectedCurrency,
           brand,
           name,
-          price,
-          saved,
+          price: basePrice,
+          saved: baseSaved,
           imageUrl,
           imageData: currentImageData,
           link,
@@ -974,15 +1000,23 @@ const openModal = (id) => {
   if (preview) preview.style.display = 'none';
   if (uploadArea) uploadArea.style.display = 'flex';
   
+  const currencySelect = document.getElementById('item-currency');
+  
   if (id) {
     title.textContent = 'Edit Item';
     const item = state.items.find(i => i.id === id);
     if (item) {
+      const itemCurr = item.currency || state.currency;
+      if (currencySelect) currencySelect.value = itemCurr;
+      
       const brandInput = document.getElementById('item-brand');
       if (brandInput) brandInput.value = item.brand || '';
       document.getElementById('item-name').value = item.name;
-      document.getElementById('item-price').value = toDisplayAmount(item.price);
-      document.getElementById('item-saved').value = toDisplayAmount(item.saved);
+      
+      const displayPrice = itemCurr === 'USD' ? Math.round(item.price / EXCHANGE_RATE) : item.price;
+      const displaySaved = itemCurr === 'USD' ? Math.round(item.saved / EXCHANGE_RATE) : item.saved;
+      document.getElementById('item-price').value = displayPrice;
+      document.getElementById('item-saved').value = displaySaved;
       document.getElementById('item-image').value = item.imageUrl || '';
       document.getElementById('item-link').value = item.link || '';
       currentPriority = item.priority || 1;
@@ -1001,6 +1035,7 @@ const openModal = (id) => {
     }
   } else {
     title.textContent = 'Add Wish';
+    if (currencySelect) currencySelect.value = state.currency;
   }
   
   updatePriorityUI();

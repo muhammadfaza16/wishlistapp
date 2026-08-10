@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=45">
+  <link rel="stylesheet" href="styles.css?v=46">
 </head>
 <body>
   <div id="app">
@@ -175,13 +175,20 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label for="item-price">Target Price (IDR) <span class="required">*</span></label>
-            <input type="number" id="item-price" required placeholder="0" min="0" step="1000">
+          <div class="form-group form-group-sm">
+            <label for="item-currency">Currency</label>
+            <select id="item-currency" class="form-select">
+              <option value="IDR">IDR (Rp)</option>
+              <option value="USD">USD ($)</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="item-saved">Current Savings (IDR)</label>
-            <input type="number" id="item-saved" placeholder="0" min="0" step="1000">
+            <label for="item-price" id="item-price-label">Target Price <span class="required">*</span></label>
+            <input type="number" id="item-price" required placeholder="0" min="0" step="any">
+          </div>
+          <div class="form-group">
+            <label for="item-saved" id="item-saved-label">Current Savings</label>
+            <input type="number" id="item-saved" placeholder="0" min="0" step="any">
           </div>
         </div>
         <div class="form-group">
@@ -287,6 +294,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=45"></script>
+  <script src="app.js?v=46"></script>
 </body>
 </html>
