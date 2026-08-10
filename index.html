@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=42">
+  <link rel="stylesheet" href="styles.css?v=43">
 </head>
 <body>
   <div id="app">
@@ -23,6 +23,10 @@
           </svg>
         </div>
         <div class="header-meta">
+          <div class="currency-toggle-pill" id="currency-toggle" title="Switch Currency">
+            <button type="button" class="currency-btn active" data-currency="IDR">IDR</button>
+            <button type="button" class="currency-btn" data-currency="USD">USD</button>
+          </div>
           <div id="item-count" class="header-count-pill">
             <i data-lucide="layers"></i>
             <span>0 Items</span>
@@ -283,6 +287,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=43"></script>
 </body>
 </html>

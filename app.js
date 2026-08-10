@@ -3,12 +3,21 @@
 const generateId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
 const formatCurrency = (amount) => {
+  const num = Number(amount) || 0;
+  if (state.currency === 'USD') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(num);
+  }
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(amount);
+  }).format(num);
 };
 
 const getProgress = (item) => {
@@ -21,6 +30,7 @@ let state = {
   items: [],
   view: 'grid',
   sort: 'priority',
+  currency: 'IDR',
   filters: [],
   search: '',
   editingId: null,
@@ -99,6 +109,7 @@ const loadPreferences = () => {
       const prefs = JSON.parse(stored);
       state.view = prefs.view || 'grid';
       state.sort = prefs.sort || 'priority';
+      state.currency = prefs.currency || 'IDR';
     }
   } catch (e) {
     // Ignore
@@ -108,7 +119,8 @@ const loadPreferences = () => {
 const savePreferences = () => {
   localStorage.setItem('wishlist_state', JSON.stringify({
     view: state.view,
-    sort: state.sort
+    sort: state.sort,
+    currency: state.currency
   }));
 };
 
@@ -510,8 +522,36 @@ const updateSortUI = () => {
   });
 };
 
+const updateCurrencyUI = () => {
+  const container = document.getElementById('currency-toggle');
+  if (!container) return;
+  const btns = container.querySelectorAll('.currency-btn');
+  btns.forEach(btn => {
+    const curr = btn.getAttribute('data-currency');
+    if (curr === state.currency) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+};
+
 // Event Handlers
 const initEventHandlers = () => {
+  const currencyToggle = document.getElementById('currency-toggle');
+  if (currencyToggle) {
+    currencyToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.currency-btn');
+      if (!btn) return;
+      const curr = btn.getAttribute('data-currency');
+      if (curr && curr !== state.currency) {
+        state.currency = curr;
+        updateCurrencyUI();
+        savePreferences();
+        render();
+      }
+    });
+  }
   const sortDropdown = document.getElementById('sort-dropdown');
   const sortTrigger = document.getElementById('sort-dropdown-trigger');
   const sortMenu = document.getElementById('sort-dropdown-menu');
@@ -1016,6 +1056,7 @@ const init = () => {
   
   initEventHandlers();
   updateSortUI();
+  updateCurrencyUI();
   render();
 };
 
