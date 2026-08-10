@@ -2,22 +2,41 @@
 
 const generateId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-const formatCurrency = (amount) => {
-  const num = Number(amount) || 0;
+const EXCHANGE_RATE = 16000;
+
+const toDisplayAmount = (amountIdr) => {
+  const num = Number(amountIdr) || 0;
   if (state.currency === 'USD') {
+    return Math.round(num / EXCHANGE_RATE);
+  }
+  return Math.round(num);
+};
+
+const toBaseIdr = (amountInput) => {
+  const num = Number(amountInput) || 0;
+  if (state.currency === 'USD') {
+    return Math.round(num * EXCHANGE_RATE);
+  }
+  return Math.round(num);
+};
+
+const formatCurrency = (amountIdr) => {
+  const numIdr = Number(amountIdr) || 0;
+  if (state.currency === 'USD') {
+    const amountUsd = numIdr / EXCHANGE_RATE;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(num);
+    }).format(amountUsd);
   }
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(num);
+  }).format(numIdr);
 };
 
 const getProgress = (item) => {
@@ -718,7 +737,8 @@ const initEventHandlers = () => {
       const item = state.items.find(i => i.id === state.progressId);
       if (item) {
         const input = document.getElementById('quick-saved');
-        const newSaved = parseFloat(input.value) || 0;
+        const inputSaved = parseFloat(input.value) || 0;
+        const newSaved = toBaseIdr(inputSaved);
         const oldSaved = item.saved;
         item.saved = newSaved;
         item.updatedAt = new Date().toISOString();
@@ -862,8 +882,10 @@ const initEventHandlers = () => {
       
       const brand = document.getElementById('item-brand')?.value.trim() || '';
       const name = document.getElementById('item-name').value.trim();
-      const price = parseFloat(document.getElementById('item-price').value) || 0;
-      const saved = parseFloat(document.getElementById('item-saved').value) || 0;
+      const inputPrice = parseFloat(document.getElementById('item-price').value) || 0;
+      const inputSaved = parseFloat(document.getElementById('item-saved').value) || 0;
+      const price = toBaseIdr(inputPrice);
+      const saved = toBaseIdr(inputSaved);
       const imageUrl = document.getElementById('item-image').value.trim();
       const link = document.getElementById('item-link').value.trim();
       
@@ -959,8 +981,8 @@ const openModal = (id) => {
       const brandInput = document.getElementById('item-brand');
       if (brandInput) brandInput.value = item.brand || '';
       document.getElementById('item-name').value = item.name;
-      document.getElementById('item-price').value = item.price;
-      document.getElementById('item-saved').value = item.saved;
+      document.getElementById('item-price').value = toDisplayAmount(item.price);
+      document.getElementById('item-saved').value = toDisplayAmount(item.saved);
       document.getElementById('item-image').value = item.imageUrl || '';
       document.getElementById('item-link').value = item.link || '';
       currentPriority = item.priority || 1;
@@ -1004,7 +1026,7 @@ const openProgressModal = (id) => {
   if (!item) return;
   
   nameEl.textContent = item.name;
-  inputEl.value = item.saved;
+  inputEl.value = toDisplayAmount(item.saved);
   
   const p = getProgress(item);
   if (fillEl) fillEl.style.width = `${p}%`;
@@ -1013,9 +1035,10 @@ const openProgressModal = (id) => {
   modal.classList.remove('hidden');
   
   const handleInput = (e) => {
-    const val = parseFloat(e.target.value) || 0;
+    const valInput = parseFloat(e.target.value) || 0;
+    const valBase = toBaseIdr(valInput);
     const itemPrice = item.price || 1;
-    let newP = (val / itemPrice) * 100;
+    let newP = (valBase / itemPrice) * 100;
     if (newP > 100) newP = 100;
     if (fillEl) fillEl.style.width = `${newP}%`;
     if (textEl) textEl.textContent = `${Math.round(newP)}%`;
