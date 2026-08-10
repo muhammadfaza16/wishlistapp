@@ -110,6 +110,8 @@ input, button, select, textarea {
   letter-spacing: 0.05em;
   display: inline-flex;
   align-items: center;
+}
+
 .header-meta {
   display: flex;
   align-items: center;
