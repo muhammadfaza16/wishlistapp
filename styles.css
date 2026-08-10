@@ -175,12 +175,13 @@ input, button, select, textarea {
   height: 32px;
   color: var(--text-primary);
   display: block;
-  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
   cursor: pointer;
 }
 
 .seamless-logo-mark:hover {
-  transform: scale(1.08) rotate(45deg);
+  transform: translateY(-1px) scale(1.04);
+  opacity: 0.85;
 }
 
 /* Financial Metrics Grid — Bespoke Stat Cards */
