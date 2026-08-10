@@ -2,46 +2,93 @@
 
 const generateId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-const EXCHANGE_RATE = 16000;
+let liveExchangeRateUSDToIDR = 16000;
 
-const toDisplayAmount = (amountIdr) => {
-  const num = Number(amountIdr) || 0;
-  if (state.currency === 'USD') {
-    return Math.round(num / EXCHANGE_RATE);
+const fetchLiveExchangeRate = async () => {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.rates && data.rates.IDR) {
+        liveExchangeRateUSDToIDR = data.rates.IDR;
+        console.log('Live Exchange Rate updated: 1 USD =', liveExchangeRateUSDToIDR, 'IDR');
+        if (typeof render === 'function') render();
+      }
+    }
+  } catch (e) {
+    console.warn('Using default exchange rate fallback:', liveExchangeRateUSDToIDR);
   }
-  return Math.round(num);
 };
 
-const toBaseIdr = (amountInput) => {
-  const num = Number(amountInput) || 0;
-  if (state.currency === 'USD') {
-    return Math.round(num * EXCHANGE_RATE);
+const convertCurrency = (amount, fromCurrency, toCurrency) => {
+  const num = Number(amount) || 0;
+  const from = fromCurrency || 'IDR';
+  const to = toCurrency || 'IDR';
+  if (from === to) return num;
+  if (from === 'USD' && to === 'IDR') {
+    return num * liveExchangeRateUSDToIDR;
   }
-  return Math.round(num);
+  if (from === 'IDR' && to === 'USD') {
+    return num / liveExchangeRateUSDToIDR;
+  }
+  return num;
 };
 
-const formatCurrency = (amountIdr) => {
-  const numIdr = Number(amountIdr) || 0;
-  if (state.currency === 'USD') {
-    const amountUsd = numIdr / EXCHANGE_RATE;
+const getItemDisplayPrice = (item, targetCurrency = state.currency) => {
+  const srcCurrency = item.currency || 'IDR';
+  const srcPrice = item.originalPrice !== undefined ? item.originalPrice : item.price;
+  return convertCurrency(srcPrice, srcCurrency, targetCurrency);
+};
+
+const getItemDisplaySaved = (item, targetCurrency = state.currency) => {
+  const srcCurrency = item.currency || 'IDR';
+  const srcSaved = item.originalSaved !== undefined ? item.originalSaved : item.saved;
+  return convertCurrency(srcSaved, srcCurrency, targetCurrency);
+};
+
+const formatCurrencyValue = (amount, currencyCode = state.currency) => {
+  const num = Number(amount) || 0;
+  if (currencyCode === 'USD') {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amountUsd);
+      maximumFractionDigits: num % 1 === 0 ? 0 : 2
+    }).format(num);
   }
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(numIdr);
+  }).format(num);
+};
+
+const formatItemPrice = (item) => {
+  const val = getItemDisplayPrice(item);
+  return formatCurrencyValue(val, state.currency);
+};
+
+const formatItemSaved = (item) => {
+  const val = getItemDisplaySaved(item);
+  return formatCurrencyValue(val, state.currency);
+};
+
+const formatCurrency = (amountIdr) => {
+  const numIdr = Number(amountIdr) || 0;
+  if (state.currency === 'USD') {
+    const amountUsd = numIdr / liveExchangeRateUSDToIDR;
+    return formatCurrencyValue(amountUsd, 'USD');
+  }
+  return formatCurrencyValue(numIdr, 'IDR');
 };
 
 const getProgress = (item) => {
-  if (!item || !item.price || item.price <= 0) return 0;
-  const p = (item.saved / item.price) * 100;
+  if (!item) return 0;
+  const pVal = getItemDisplayPrice(item, 'IDR');
+  const sVal = getItemDisplaySaved(item, 'IDR');
+  if (pVal <= 0) return 0;
+  const p = (sVal / pVal) * 100;
   return p > 100 ? 100 : p;
 };
 
@@ -63,8 +110,11 @@ const defaultItems = [
     id: 'sample-3',
     brand: 'Daisy',
     name: 'Daisy One Headphones',
+    currency: 'USD',
+    originalPrice: 400,
+    originalSaved: 260,
     price: 6400000,
-    saved: 4200000,
+    saved: 4160000,
     imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
     imageData: null,
     link: 'https://curated.supply',
@@ -78,7 +128,10 @@ const defaultItems = [
     id: 'sample-1',
     brand: 'Teenage Engineering',
     name: 'OP-1 Field Synthesizer',
-    price: 32500000,
+    currency: 'USD',
+    originalPrice: 1999,
+    originalSaved: 1125,
+    price: 31984000,
     saved: 18000000,
     imageUrl: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&auto=format&fit=crop&q=80',
     imageData: null,
@@ -93,6 +146,9 @@ const defaultItems = [
     id: 'sample-2',
     brand: 'Leica',
     name: 'M11 Rangefinder Camera',
+    currency: 'IDR',
+    originalPrice: 135000000,
+    originalSaved: 45000000,
     price: 135000000,
     saved: 45000000,
     imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80',
@@ -295,8 +351,8 @@ const renderHeader = (activeItems) => {
   let tSaved = 0;
   
   activeItems.forEach(item => {
-    tValue += Number(item.price) || 0;
-    tSaved += Number(item.saved) || 0;
+    tValue += getItemDisplayPrice(item, state.currency);
+    tSaved += getItemDisplaySaved(item, state.currency);
   });
   
   const tRemaining = Math.max(0, tValue - tSaved);
@@ -307,9 +363,9 @@ const renderHeader = (activeItems) => {
     itemCount.innerHTML = `<i data-lucide="layers"></i><span>${activeItems.length} ${activeItems.length === 1 ? 'Item' : 'Items'}</span>`;
     if (window.lucide) lucide.createIcons();
   }
-  if (totalValue) totalValue.textContent = formatCurrency(tValue);
-  if (totalSaved) totalSaved.textContent = formatCurrency(tSaved);
-  if (totalRemaining) totalRemaining.textContent = formatCurrency(tRemaining);
+  if (totalValue) totalValue.textContent = formatCurrencyValue(tValue, state.currency);
+  if (totalSaved) totalSaved.textContent = formatCurrencyValue(tSaved, state.currency);
+  if (totalRemaining) totalRemaining.textContent = formatCurrencyValue(tRemaining, state.currency);
   
   if (overallProgressFill) overallProgressFill.style.width = `${clampedP}%`;
   if (overallProgressText) overallProgressText.textContent = `${Math.round(clampedP)}%`;
@@ -426,7 +482,7 @@ const renderItemCard = (item) => {
     <!-- Main Title & Price Pair -->
     <div class="card-main-row">
       <h3 class="card-title">${item.name}</h3>
-      <div class="card-price mono-text">${formatCurrency(item.price)}</div>
+      <div class="card-price mono-text">${formatItemPrice(item)}</div>
     </div>
 
     <!-- Ultra-Subtle Minimalist Progress Bar -->
@@ -435,7 +491,7 @@ const renderItemCard = (item) => {
       <div class="progress-bar"><div class="progress-fill" style="width:${getProgress(item)}%"></div></div>
       <div class="progress-info">
         <div class="progress-saved-group">
-          <span class="progress-saved">${formatCurrency(item.saved)} saved</span>
+          <span class="progress-saved">${formatItemSaved(item)} saved</span>
           <button type="button" class="progress-inline-btn action-btn" data-action="progress" data-id="${item.id}" title="Update savings">
             <i data-lucide="plus"></i>
           </button>
@@ -907,25 +963,27 @@ const initEventHandlers = () => {
       const inputPrice = parseFloat(document.getElementById('item-price').value) || 0;
       const inputSaved = parseFloat(document.getElementById('item-saved').value) || 0;
       
-      const basePrice = selectedCurrency === 'USD' ? Math.round(inputPrice * EXCHANGE_RATE) : Math.round(inputPrice);
-      const baseSaved = selectedCurrency === 'USD' ? Math.round(inputSaved * EXCHANGE_RATE) : Math.round(inputSaved);
+      const basePrice = convertCurrency(inputPrice, selectedCurrency, 'IDR');
+      const baseSaved = convertCurrency(inputSaved, selectedCurrency, 'IDR');
       
       const imageUrl = document.getElementById('item-image').value.trim();
       const link = document.getElementById('item-link').value.trim();
       
-      if (!name || basePrice <= 0) {
+      if (!name || inputPrice <= 0) {
         showToast('Valid name and target price required');
         return;
       }
       
-      const isAchieved = baseSaved >= basePrice;
+      const isAchieved = inputSaved >= inputPrice;
       let triggeredAchieved = false;
       
       if (state.editingId) {
         const item = state.items.find(i => i.id === state.editingId);
         if (item) {
-          const wasAchieved = item.saved >= item.price;
+          const wasAchieved = getItemDisplaySaved(item) >= getItemDisplayPrice(item);
           item.currency = selectedCurrency;
+          item.originalPrice = inputPrice;
+          item.originalSaved = inputSaved;
           item.brand = brand;
           item.name = name;
           item.price = basePrice;
@@ -944,6 +1002,8 @@ const initEventHandlers = () => {
         const newItem = {
           id: generateId(),
           currency: selectedCurrency,
+          originalPrice: inputPrice,
+          originalSaved: inputSaved,
           brand,
           name,
           price: basePrice,
@@ -1006,17 +1066,18 @@ const openModal = (id) => {
     title.textContent = 'Edit Item';
     const item = state.items.find(i => i.id === id);
     if (item) {
-      const itemCurr = item.currency || state.currency;
+      const itemCurr = item.currency || 'IDR';
       if (currencySelect) currencySelect.value = itemCurr;
       
       const brandInput = document.getElementById('item-brand');
       if (brandInput) brandInput.value = item.brand || '';
       document.getElementById('item-name').value = item.name;
       
-      const displayPrice = itemCurr === 'USD' ? Math.round(item.price / EXCHANGE_RATE) : item.price;
-      const displaySaved = itemCurr === 'USD' ? Math.round(item.saved / EXCHANGE_RATE) : item.saved;
-      document.getElementById('item-price').value = displayPrice;
-      document.getElementById('item-saved').value = displaySaved;
+      const srcPrice = item.originalPrice !== undefined ? item.originalPrice : item.price;
+      const srcSaved = item.originalSaved !== undefined ? item.originalSaved : item.saved;
+      
+      document.getElementById('item-price').value = srcPrice;
+      document.getElementById('item-saved').value = srcSaved;
       document.getElementById('item-image').value = item.imageUrl || '';
       document.getElementById('item-link').value = item.link || '';
       currentPriority = item.priority || 1;
@@ -1116,6 +1177,7 @@ const init = () => {
   updateSortUI();
   updateCurrencyUI();
   render();
+  fetchLiveExchangeRate();
 };
 
 document.addEventListener('DOMContentLoaded', init);
