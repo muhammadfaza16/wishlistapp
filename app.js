@@ -80,9 +80,9 @@ const defaultItems = [
 const loadItems = () => {
   try {
     const stored = localStorage.getItem('wishlist_items');
-    if (!stored) return defaultItems;
+    if (stored === null) return defaultItems;
     const parsed = JSON.parse(stored);
-    return (Array.isArray(parsed) && parsed.length > 0) ? parsed : defaultItems;
+    return Array.isArray(parsed) ? parsed : defaultItems;
   } catch {
     return defaultItems;
   }
