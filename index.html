@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WISHLIST — Aspirations Catalog</title>
+  <meta name="description" content="A curated personal aspiration and wishlist tracker. Minimalist design, precise savings tracking.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2318181b%22/><text x=%2250%25%22 y=%2262%25%22 font-family=%22monospace%22 font-size=%2250%22 font-weight=%22bold%22 fill=%22white%22 text-anchor=%22middle%22>W</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=39">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="app-header">
+      <div class="header-top">
+        <div class="brand">
+          <svg class="seamless-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" title="Wishlist">
+            <path d="M18 4C18 11.732 11.732 18 4 18C11.732 18 18 24.268 18 32C18 24.268 24.268 18 32 18C24.268 18 18 11.732 18 4Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="header-meta">
+          <div id="item-count" class="header-count-pill">
+            <i data-lucide="layers"></i>
+            <span>0 Items</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Metrics Grid -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-label">TOTAL GOAL</span>
+          <span class="stat-value" id="total-value">Rp 0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">ACCUMULATED</span>
+          <span class="stat-value" id="total-saved">Rp 0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">REMAINING</span>
+          <span class="stat-value" id="total-remaining">Rp 0</span>
+        </div>
+      </div>
+
+      <!-- Master Progress Bar -->
+      <div class="overall-progress">
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="overall-progress-fill"></div>
+          </div>
+        </div>
+        <span class="progress-text mono-text" id="overall-progress-text">0%</span>
+      </div>
+    </header>
+
+    <!-- Controls Bar -->
+    <div id="toolbar">
+      <div class="toolbar-left">
+        <!-- Search Input -->
+        <div class="search-wrapper">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="search-input" placeholder="Search wishlist..." autocomplete="off">
+        </div>
+
+        <!-- Custom Styled Sort Dropdown Popover -->
+        <div class="sort-dropdown-custom" id="sort-dropdown">
+          <button type="button" class="sort-dropdown-btn" id="sort-dropdown-trigger" aria-haspopup="true">
+            <i data-lucide="arrow-up-down"></i>
+            <span id="sort-current-label">Sort: Priority</span>
+            <i data-lucide="chevron-down" class="sort-chevron"></i>
+          </button>
+          <div class="sort-dropdown-menu hidden" id="sort-dropdown-menu">
+            <button type="button" class="sort-menu-item active" data-sort="priority">
+              <span>Priority (P1 → P3)</span>
+              <i data-lucide="check" class="sort-check"></i>
+            </button>
+            <button type="button" class="sort-menu-item" data-sort="price-desc">
+              <span>Price: High → Low</span>
+              <i data-lucide="check" class="sort-check"></i>
+            </button>
+            <button type="button" class="sort-menu-item" data-sort="price-asc">
+              <span>Price: Low → High</span>
+              <i data-lucide="check" class="sort-check"></i>
+            </button>
+            <button type="button" class="sort-menu-item" data-sort="progress">
+              <span>Goal Progress</span>
+              <i data-lucide="check" class="sort-check"></i>
+            </button>
+            <button type="button" class="sort-menu-item" data-sort="name">
+              <span>Alphabetical</span>
+              <i data-lucide="check" class="sort-check"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button id="add-item-btn" class="btn-primary desktop-only">
+          <i data-lucide="plus"></i>
+          <span>New Wish</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Category / Tag Filters -->
+    <div id="tag-filters"></div>
+
+    <!-- Items Container -->
+    <main id="items-container" class="grid-view"></main>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden">
+      <div class="empty-icon">
+        <i data-lucide="plus-circle"></i>
+      </div>
+      <h2>No Aspirations Cataloged</h2>
+      <p>Start defining the objects and experiences you thrive for.</p>
+      <button class="btn-primary empty-add-btn" id="empty-add-btn">
+        <i data-lucide="plus"></i>
+        <span>Add First Wish</span>
+      </button>
+    </div>
+
+    <!-- Achieved Section -->
+    <section id="achieved-section" class="hidden">
+      <button id="achieved-toggle">
+        <div class="achieved-toggle-left">
+          <i data-lucide="check-square"></i>
+          <span>ACQUIRED / ACHIEVED</span>
+          <span class="achieved-badge mono-badge" id="achieved-count">0</span>
+        </div>
+        <i data-lucide="chevron-down" class="achieved-chevron"></i>
+      </button>
+      <div id="achieved-items" class="grid-view collapsed"></div>
+    </section>
+  </div>
+
+  <!-- Floating Mobile Action Bar -->
+  <div id="mobile-floating-bar" class="mobile-only">
+    <div class="floating-bar-content">
+      <button id="mobile-add-btn" class="floating-primary-btn">
+        <i data-lucide="plus"></i>
+        <span>New Wish</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add/Edit Item Modal -->
+  <div id="item-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2 id="modal-title">Add Wish</h2>
+        <button id="modal-close-btn" class="modal-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="item-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="item-brand">Brand / Maker <span class="optional">(optional)</span></label>
+            <input type="text" id="item-brand" placeholder="e.g. Teenage Engineering" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="item-name">Item Name <span class="required">*</span></label>
+            <input type="text" id="item-name" required placeholder="e.g. OP-1 Field" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="item-price">Target Price (IDR) <span class="required">*</span></label>
+            <input type="number" id="item-price" required placeholder="0" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label for="item-saved">Current Savings (IDR)</label>
+            <input type="number" id="item-saved" placeholder="0" min="0" step="1000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Priority Level</label>
+          <div class="priority-options" id="priority-options">
+            <button type="button" class="priority-btn active" data-priority="1">
+              <span class="priority-badge">P1</span>
+              <span class="priority-label">High Priority</span>
+            </button>
+            <button type="button" class="priority-btn" data-priority="2">
+              <span class="priority-badge">P2</span>
+              <span class="priority-label">Medium</span>
+            </button>
+            <button type="button" class="priority-btn" data-priority="3">
+              <span class="priority-badge">P3</span>
+              <span class="priority-label">Low</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Image Representation <span class="optional">(optional)</span></label>
+          <input type="url" id="item-image" placeholder="Image URL (https://...)" autocomplete="off">
+          <div class="upload-divider"><span>OR UPLOAD</span></div>
+          <div class="upload-area" id="upload-area">
+            <i data-lucide="arrow-up-circle" class="upload-icon"></i>
+            <span>Select or drop image file</span>
+            <input type="file" id="item-image-upload" accept="image/*">
+          </div>
+          <div id="image-preview" class="hidden">
+            <img id="preview-img" alt="Preview">
+            <button type="button" id="remove-preview" class="btn-icon">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="item-link">Reference Link <span class="optional">(optional)</span></label>
+          <input type="url" id="item-link" placeholder="https://..." autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Tags / Categories <span class="optional">(optional)</span></label>
+          <div class="tag-input-wrapper" id="tag-input-wrapper">
+            <div id="selected-tags"></div>
+            <input type="text" id="item-tags" placeholder="Type tag & press Enter" autocomplete="off">
+          </div>
+          <div id="tag-suggestions" class="hidden"></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="modal-save-btn" class="btn-primary">Save Wish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick Progress Modal -->
+  <div id="progress-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2>Update Savings</h2>
+        <button class="modal-close progress-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <p class="progress-item-name" id="progress-item-name"></p>
+      <div class="progress-modal-bar">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-modal-fill"></div>
+        </div>
+        <span class="progress-text mono-text" id="progress-modal-text">0%</span>
+      </div>
+      <div class="form-group">
+        <label for="quick-saved">New Savings Amount (IDR)</label>
+        <input type="number" id="quick-saved" min="0" step="1000" placeholder="0">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary progress-close">Cancel</button>
+        <button type="button" id="quick-save-btn" class="btn-primary">Update Savings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2>Delete Item</h2>
+        <button class="modal-close delete-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <p id="delete-message">Are you sure you want to remove this item from your wishlist?</p>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary delete-close">Cancel</button>
+        <button type="button" id="delete-confirm-btn" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="app.js?v=39"></script>
+</body>
+</html>
