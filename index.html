@@ -9,18 +9,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=48">
+  <link rel="stylesheet" href="styles.css?v=49">
 </head>
 <body>
   <div id="app">
     <!-- Header -->
     <header id="app-header">
       <div class="header-top">
-        <div class="brand">
-          <svg class="seamless-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" title="Wishlist">
-            <path d="M6 11L12 26L18 15L24 26L30 11" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="18" cy="8" r="1.75" fill="currentColor"/>
-          </svg>
+        <div class="header-top-left">
+          <div class="brand">
+            <svg class="seamless-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" title="Wishlist">
+              <path d="M6 11L12 26L18 15L24 26L30 11" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="18" cy="8" r="1.75" fill="currentColor"/>
+            </svg>
+          </div>
+          <!-- App Nav Tabs -->
+          <div class="app-nav-tabs" id="app-nav-tabs">
+            <button type="button" class="nav-tab-btn active" data-tab="catalog">
+              <i data-lucide="layout-grid"></i>
+              <span>Catalog</span>
+            </button>
+            <button type="button" class="nav-tab-btn" data-tab="notes">
+              <i data-lucide="file-text"></i>
+              <span>Quick Notes</span>
+            </button>
+          </div>
         </div>
         <div class="header-meta">
           <div class="currency-toggle-pill" id="currency-toggle" title="Switch Currency">
@@ -61,86 +74,165 @@
       </div>
     </header>
 
-    <!-- Controls Bar -->
-    <div id="toolbar">
-      <div class="toolbar-left">
-        <!-- Search Input -->
-        <div class="search-wrapper">
-          <i data-lucide="search" class="search-icon"></i>
-          <input type="text" id="search-input" placeholder="Search wishlist..." autocomplete="off">
+    <!-- Catalog View Container -->
+    <div id="catalog-view">
+      <!-- Controls Bar -->
+      <div id="toolbar">
+        <div class="toolbar-left">
+          <!-- Search Input -->
+          <div class="search-wrapper">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" id="search-input" placeholder="Search wishlist..." autocomplete="off">
+          </div>
+
+          <!-- Custom Styled Sort Dropdown Popover -->
+          <div class="sort-dropdown-custom" id="sort-dropdown">
+            <button type="button" class="sort-dropdown-btn" id="sort-dropdown-trigger" aria-haspopup="true">
+              <i data-lucide="arrow-up-down"></i>
+              <span id="sort-current-label">Sort: Priority</span>
+              <i data-lucide="chevron-down" class="sort-chevron"></i>
+            </button>
+            <div class="sort-dropdown-menu hidden" id="sort-dropdown-menu">
+              <button type="button" class="sort-menu-item active" data-sort="priority">
+                <span>Priority (P1 → P3)</span>
+                <i data-lucide="check" class="sort-check"></i>
+              </button>
+              <button type="button" class="sort-menu-item" data-sort="price-desc">
+                <span>Price: High → Low</span>
+                <i data-lucide="check" class="sort-check"></i>
+              </button>
+              <button type="button" class="sort-menu-item" data-sort="price-asc">
+                <span>Price: Low → High</span>
+                <i data-lucide="check" class="sort-check"></i>
+              </button>
+              <button type="button" class="sort-menu-item" data-sort="progress">
+                <span>Goal Progress</span>
+                <i data-lucide="check" class="sort-check"></i>
+              </button>
+              <button type="button" class="sort-menu-item" data-sort="name">
+                <span>Alphabetical</span>
+                <i data-lucide="check" class="sort-check"></i>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Custom Styled Sort Dropdown Popover -->
-        <div class="sort-dropdown-custom" id="sort-dropdown">
-          <button type="button" class="sort-dropdown-btn" id="sort-dropdown-trigger" aria-haspopup="true">
-            <i data-lucide="arrow-up-down"></i>
-            <span id="sort-current-label">Sort: Priority</span>
-            <i data-lucide="chevron-down" class="sort-chevron"></i>
+        <div class="toolbar-right">
+          <button id="add-item-btn" class="btn-primary desktop-only">
+            <i data-lucide="plus"></i>
+            <span>New Wish</span>
           </button>
-          <div class="sort-dropdown-menu hidden" id="sort-dropdown-menu">
-            <button type="button" class="sort-menu-item active" data-sort="priority">
-              <span>Priority (P1 → P3)</span>
-              <i data-lucide="check" class="sort-check"></i>
+        </div>
+      </div>
+
+      <!-- Category / Tag Filters -->
+      <div id="tag-filters"></div>
+
+      <!-- Items Container -->
+      <main id="items-container" class="grid-view"></main>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden">
+        <div class="empty-icon">
+          <i data-lucide="plus-circle"></i>
+        </div>
+        <h2>No Aspirations Cataloged</h2>
+        <p>Start defining the objects and experiences you thrive for.</p>
+        <button class="btn-primary empty-add-btn" id="empty-add-btn">
+          <i data-lucide="plus"></i>
+          <span>Add First Wish</span>
+        </button>
+      </div>
+
+      <!-- Achieved Section -->
+      <section id="achieved-section" class="hidden">
+        <button id="achieved-toggle">
+          <div class="achieved-toggle-left">
+            <i data-lucide="check-square"></i>
+            <span>ACQUIRED / ACHIEVED</span>
+            <span class="achieved-badge mono-badge" id="achieved-count">0</span>
+          </div>
+          <i data-lucide="chevron-down" class="achieved-chevron"></i>
+        </button>
+        <div id="achieved-items" class="grid-view collapsed"></div>
+      </section>
+    </div>
+
+    <!-- Quick Notes / Simple Text View Container -->
+    <div id="notes-view" class="hidden">
+      <!-- Notes Accumulator Summary -->
+      <div class="notes-summary-bar">
+        <div class="stat-card">
+          <span class="stat-label">TOTAL ESTIMATED</span>
+          <span class="stat-value" id="notes-total-value">Rp 0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">CHECKED / ACQUIRED</span>
+          <span class="stat-value" id="notes-checked-value">Rp 0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">REMAINING NEEDED</span>
+          <span class="stat-value" id="notes-remaining-value">Rp 0</span>
+        </div>
+      </div>
+
+      <!-- Notes Accumulator Progress Bar -->
+      <div class="overall-progress notes-progress-container">
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="notes-progress-fill"></div>
+          </div>
+        </div>
+        <span class="progress-text mono-text" id="notes-progress-text">0%</span>
+      </div>
+
+      <!-- Notes Editor Box -->
+      <div class="notes-editor-container">
+        <!-- Mode Switcher Header -->
+        <div class="notes-mode-header">
+          <div class="notes-mode-tabs" id="notes-mode-tabs">
+            <button type="button" class="notes-mode-btn active" data-mode="list">
+              <i data-lucide="list-todo"></i>
+              <span>Interactive List</span>
             </button>
-            <button type="button" class="sort-menu-item" data-sort="price-desc">
-              <span>Price: High → Low</span>
-              <i data-lucide="check" class="sort-check"></i>
+            <button type="button" class="notes-mode-btn" data-mode="raw">
+              <i data-lucide="edit-3"></i>
+              <span>Raw Notepad</span>
             </button>
-            <button type="button" class="sort-menu-item" data-sort="price-asc">
-              <span>Price: Low → High</span>
-              <i data-lucide="check" class="sort-check"></i>
-            </button>
-            <button type="button" class="sort-menu-item" data-sort="progress">
-              <span>Goal Progress</span>
-              <i data-lucide="check" class="sort-check"></i>
-            </button>
-            <button type="button" class="sort-menu-item" data-sort="name">
-              <span>Alphabetical</span>
-              <i data-lucide="check" class="sort-check"></i>
+          </div>
+          <div class="notes-mode-actions">
+            <button type="button" id="clear-notes-btn" class="btn-subtle" title="Clear all notes">
+              <i data-lucide="trash-2"></i>
+              <span>Clear Notes</span>
             </button>
           </div>
         </div>
-      </div>
 
-      <div class="toolbar-right">
-        <button id="add-item-btn" class="btn-primary desktop-only">
-          <i data-lucide="plus"></i>
-          <span>New Wish</span>
-        </button>
-      </div>
-    </div>
+        <!-- Mode 1: Interactive Quick List -->
+        <div id="notes-list-mode" class="notes-mode-content">
+          <form id="quick-note-form" class="quick-note-form">
+            <div class="quick-note-inputs">
+              <input type="text" id="quick-note-title" placeholder="Wish item name (e.g. Mechanical Keyboard)" required autocomplete="off">
+              <input type="number" id="quick-note-price" placeholder="Price" min="0" step="any" autocomplete="off">
+              <button type="submit" class="btn-primary">
+                <i data-lucide="plus"></i>
+                <span>Add Line</span>
+              </button>
+            </div>
+          </form>
 
-    <!-- Category / Tag Filters -->
-    <div id="tag-filters"></div>
-
-    <!-- Items Container -->
-    <main id="items-container" class="grid-view"></main>
-
-    <!-- Empty State -->
-    <div id="empty-state" class="hidden">
-      <div class="empty-icon">
-        <i data-lucide="plus-circle"></i>
-      </div>
-      <h2>No Aspirations Cataloged</h2>
-      <p>Start defining the objects and experiences you thrive for.</p>
-      <button class="btn-primary empty-add-btn" id="empty-add-btn">
-        <i data-lucide="plus"></i>
-        <span>Add First Wish</span>
-      </button>
-    </div>
-
-    <!-- Achieved Section -->
-    <section id="achieved-section" class="hidden">
-      <button id="achieved-toggle">
-        <div class="achieved-toggle-left">
-          <i data-lucide="check-square"></i>
-          <span>ACQUIRED / ACHIEVED</span>
-          <span class="achieved-badge mono-badge" id="achieved-count">0</span>
+          <div id="quick-notes-list" class="quick-notes-list"></div>
         </div>
-        <i data-lucide="chevron-down" class="achieved-chevron"></i>
-      </button>
-      <div id="achieved-items" class="grid-view collapsed"></div>
-    </section>
+
+        <!-- Mode 2: Raw Text Notepad -->
+        <div id="notes-raw-mode" class="notes-mode-content hidden">
+          <div class="raw-notepad-help">
+            <span>Format: Type line by line. Example: <code>Keyboard - 1500000</code> or <code>Chair - 4500000 [x]</code></span>
+          </div>
+          <textarea id="raw-notepad-input" placeholder="Type or paste your simple wishlist here...&#10;Keychron Keyboard - 1500000&#10;Monitor Light Bar - 650000 [x]&#10;Ergonomic Chair - 4500000" rows="12"></textarea>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Floating Mobile Action Bar -->
@@ -294,6 +386,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=48"></script>
+  <script src="app.js?v=49"></script>
 </body>
 </html>

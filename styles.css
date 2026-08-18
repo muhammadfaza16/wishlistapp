@@ -214,6 +214,58 @@ input, button, select, textarea {
   margin-bottom: 20px;
 }
 
+.header-top-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* App Nav Tabs (Catalog vs Quick Notes) */
+.app-nav-tabs {
+  background: #F4F4F6;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-tab-btn {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  padding: 5px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  transition: all var(--transition);
+  outline: none;
+}
+
+.nav-tab-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.nav-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.nav-tab-btn.active {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+}
+
 .seamless-logo-mark {
   width: 32px;
   height: 32px;
@@ -226,6 +278,272 @@ input, button, select, textarea {
 .seamless-logo-mark:hover {
   transform: translateY(-1px) scale(1.04);
   opacity: 0.85;
+}
+
+/* Notes View Layout */
+.notes-summary-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.notes-progress-container {
+  margin-bottom: 24px;
+}
+
+.notes-editor-container {
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.notes-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.notes-mode-tabs {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.notes-mode-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: #F4F4F6;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition);
+}
+
+.notes-mode-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.notes-mode-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.notes-mode-btn.active {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.btn-subtle {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color var(--transition);
+}
+
+.btn-subtle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.btn-subtle:hover {
+  color: var(--danger);
+}
+
+.quick-note-form {
+  margin-bottom: 18px;
+}
+
+.quick-note-inputs {
+  display: flex;
+  gap: 10px;
+}
+
+.quick-note-inputs input[type="text"] {
+  flex: 2;
+  height: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.quick-note-inputs input[type="number"] {
+  flex: 1;
+  height: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.quick-note-inputs input:focus {
+  border-color: var(--text-primary);
+}
+
+/* Quick Notes List Rows */
+.quick-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  transition: all var(--transition-fast);
+}
+
+.quick-note-row.checked {
+  opacity: 0.6;
+  background: #F4F4F2;
+}
+
+.quick-note-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-note-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.quick-note-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-note-row.checked .quick-note-title {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.quick-note-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.quick-note-price {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.quick-note-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-icon-subtle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon-subtle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-icon-subtle:hover {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.btn-icon-subtle.convert-btn:hover {
+  background: #2563EB;
+  border-color: #2563EB;
+}
+
+.btn-icon-subtle.delete-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Raw Notepad Textarea */
+.raw-notepad-help {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.raw-notepad-help code {
+  font-family: var(--font-mono);
+  background: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+textarea#raw-notepad-input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition);
+}
+
+textarea#raw-notepad-input:focus {
+  border-color: var(--text-primary);
+  background: #FFFFFF;
 }
 
 /* Financial Metrics Grid — Bespoke Stat Cards */
