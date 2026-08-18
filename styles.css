@@ -207,17 +207,24 @@ input, button, select, textarea {
   padding-bottom: 24px;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .header-top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 14px;
   margin-bottom: 20px;
 }
 
 .header-top-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 /* App Nav Tabs (Catalog vs Quick Notes) */
@@ -302,8 +309,10 @@ input, button, select, textarea {
 
 .notes-mode-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 18px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border-light);
@@ -312,6 +321,7 @@ input, button, select, textarea {
 .notes-mode-tabs {
   display: inline-flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .notes-mode-btn {
@@ -321,7 +331,7 @@ input, button, select, textarea {
   color: var(--text-secondary);
   background: #F4F4F6;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
   cursor: pointer;
   display: inline-flex;
@@ -347,16 +357,18 @@ input, button, select, textarea {
 }
 
 .btn-subtle {
-  background: transparent;
-  border: none;
+  background: #F4F4F6;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  transition: color var(--transition);
+  transition: all var(--transition);
 }
 
 .btn-subtle svg {
@@ -365,7 +377,9 @@ input, button, select, textarea {
 }
 
 .btn-subtle:hover {
+  background: var(--danger-light);
   color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.2);
 }
 
 .quick-note-form {
@@ -374,11 +388,13 @@ input, button, select, textarea {
 
 .quick-note-inputs {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .quick-note-inputs input[type="text"] {
-  flex: 2;
+  flex: 2 1 180px;
+  min-width: 0;
   height: 40px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -390,7 +406,8 @@ input, button, select, textarea {
 }
 
 .quick-note-inputs input[type="number"] {
-  flex: 1;
+  flex: 1 1 110px;
+  min-width: 0;
   height: 40px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -399,6 +416,10 @@ input, button, select, textarea {
   font-size: 13px;
   outline: none;
   transition: border-color var(--transition);
+}
+
+.quick-note-inputs button[type="submit"] {
+  flex: 0 0 auto;
 }
 
 .quick-note-inputs input:focus {
