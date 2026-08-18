@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=50">
+  <link rel="stylesheet" href="styles.css?v=101">
 </head>
 <body>
   <div id="app">
@@ -23,31 +23,24 @@
               <circle cx="18" cy="8" r="1.75" fill="currentColor"/>
             </svg>
           </div>
-          <!-- App Nav Tabs -->
-          <div class="app-nav-tabs" id="app-nav-tabs">
-            <button type="button" class="nav-tab-btn active" data-tab="catalog">
-              <i data-lucide="layout-grid"></i>
-              <span>Catalog</span>
-            </button>
-            <button type="button" class="nav-tab-btn" data-tab="notes">
-              <i data-lucide="file-text"></i>
-              <span>Quick Notes</span>
-            </button>
-          </div>
         </div>
-        <div class="header-meta">
-          <div class="currency-toggle-pill" id="currency-toggle" title="Switch Currency">
-            <button type="button" class="currency-btn active" data-currency="IDR">IDR</button>
-            <button type="button" class="currency-btn" data-currency="USD">USD</button>
-          </div>
-          <div id="item-count" class="header-count-pill">
-            <i data-lucide="layers"></i>
-            <span>0 Items</span>
-          </div>
+        <!-- App Nav Tabs pushed to right edge -->
+        <div class="app-nav-tabs" id="app-nav-tabs">
+          <button type="button" class="nav-tab-btn active" data-tab="catalog">
+            <i data-lucide="layout-grid"></i>
+            <span>Catalog</span>
+          </button>
+          <button type="button" class="nav-tab-btn" data-tab="notes">
+            <i data-lucide="file-text"></i>
+            <span>Quick Notes</span>
+          </button>
         </div>
       </div>
+    </header>
 
-      <!-- Financial Metrics Grid -->
+    <!-- Catalog View Container -->
+    <div id="catalog-view">
+      <!-- Financial Metrics Grid (Catalog Only) -->
       <div class="stats-row">
         <div class="stat-card">
           <span class="stat-label">TOTAL GOAL</span>
@@ -63,7 +56,7 @@
         </div>
       </div>
 
-      <!-- Master Progress Bar -->
+      <!-- Master Progress Bar (Catalog Only) -->
       <div class="overall-progress">
         <div class="progress-bar-container">
           <div class="progress-bar">
@@ -72,10 +65,7 @@
         </div>
         <span class="progress-text mono-text" id="overall-progress-text">0%</span>
       </div>
-    </header>
 
-    <!-- Catalog View Container -->
-    <div id="catalog-view">
       <!-- Controls Bar -->
       <div id="toolbar">
         <div class="toolbar-left">
@@ -118,7 +108,7 @@
         </div>
 
         <div class="toolbar-right">
-          <button id="add-item-btn" class="btn-primary desktop-only">
+          <button id="add-item-btn" class="btn-subtle-pill desktop-only">
             <i data-lucide="plus"></i>
             <span>New Wish</span>
           </button>
@@ -186,50 +176,82 @@
         <span class="progress-text mono-text" id="notes-progress-text">0%</span>
       </div>
 
-      <!-- Notes Editor Box -->
-      <div class="notes-editor-container">
-        <!-- Mode Switcher Header -->
-        <div class="notes-mode-header">
-          <div class="notes-mode-tabs" id="notes-mode-tabs">
-            <button type="button" class="notes-mode-btn active" data-mode="list">
-              <i data-lucide="list-todo"></i>
-              <span>Interactive List</span>
-            </button>
-            <button type="button" class="notes-mode-btn" data-mode="raw">
-              <i data-lucide="edit-3"></i>
-              <span>Raw Notepad</span>
-            </button>
-          </div>
-          <div class="notes-mode-actions">
-            <button type="button" id="clear-notes-btn" class="btn-subtle" title="Clear all notes">
-              <i data-lucide="trash-2"></i>
-              <span>Clear Notes</span>
-            </button>
-          </div>
+      <!-- Clean Sub-Tabs Navigation -->
+      <div class="clean-sub-tabs-container">
+        <div class="clean-sub-tabs" id="notes-sub-tabs">
+          <button type="button" class="sub-tab-btn active" data-subtab="view">
+            <i data-lucide="list"></i>
+            <span>Wishlist View</span>
+          </button>
+          <button type="button" class="sub-tab-btn" data-subtab="manage">
+            <i data-lucide="plus-circle"></i>
+            <span>Add / Manage Items</span>
+          </button>
         </div>
+      </div>
 
-        <!-- Mode 1: Interactive Quick List -->
-        <div id="notes-list-mode" class="notes-mode-content">
-          <form id="quick-note-form" class="quick-note-form">
-            <div class="quick-note-inputs">
-              <input type="text" id="quick-note-title" placeholder="Wish item name (e.g. Mechanical Keyboard)" required autocomplete="off">
-              <input type="number" id="quick-note-price" placeholder="Price" min="0" step="any" autocomplete="off">
-              <button type="submit" class="btn-primary">
-                <i data-lucide="plus"></i>
-                <span>Add Line</span>
-              </button>
+      <!-- Tab 1: Clean View List (Read-Only Pristine Dashboard) -->
+      <div id="notes-subview-view" class="notes-subview-content">
+        <div class="clean-notes-card">
+          <div id="quick-notes-list" class="quick-notes-list"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Manage Items & Conventional Add Form -->
+      <div id="notes-subview-manage" class="notes-subview-content hidden">
+        <div class="clean-notes-card">
+          <div class="notes-card-header">
+            <button type="button" id="toggle-add-form-btn" class="btn-clean-action-primary">
+              <i data-lucide="plus"></i>
+              <span>Add Item</span>
+            </button>
+            <button type="button" id="clear-notes-btn" class="btn-clean-danger" title="Clear all notes">
+              <i data-lucide="trash-2"></i>
+              <span>Clear All</span>
+            </button>
+          </div>
+
+          <form id="quick-note-form" class="quick-note-form-clean hidden">
+            <div id="form-editing-badge" class="form-mode-banner hidden">
+              <span class="editing-tag"><i data-lucide="edit-3"></i> Editing Item</span>
+              <button type="button" id="cancel-edit-btn" class="btn-text-cancel">Cancel Edit</button>
+            </div>
+            <div class="form-row-clean">
+              <div class="form-group-clean flex-2">
+                <label class="clean-label">Item Name</label>
+                <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
+              </div>
+              <div class="form-group-clean flex-1">
+                <label class="clean-label">Price</label>
+                <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
+              </div>
+              <div class="form-group-clean flex-checkbox">
+                <label class="clean-label">&nbsp;</label>
+                <label class="checkbox-inline-label" title="Mark item as completed / acquired">
+                  <input type="checkbox" id="quick-note-checked-input">
+                  <span>Completed</span>
+                </label>
+              </div>
+              <div class="form-group-clean flex-btn">
+                <label class="clean-label">&nbsp;</label>
+                <div class="form-btn-group">
+                  <button type="submit" class="btn-primary-clean">
+                    <i data-lucide="plus"></i>
+                    <span>Add Item</span>
+                  </button>
+                  <button type="button" id="quick-note-convert-btn" class="btn-subtle-convert hidden" title="Add item to Catalog">
+                    <i data-lucide="box"></i>
+                    <span>To Catalog</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
 
-          <div id="quick-notes-list" class="quick-notes-list"></div>
-        </div>
-
-        <!-- Mode 2: Raw Text Notepad -->
-        <div id="notes-raw-mode" class="notes-mode-content hidden">
-          <div class="raw-notepad-help">
-            <span>Format: Type line by line. Example: <code>Keyboard - 1500000</code> or <code>Chair - 4500000 [x]</code></span>
+          <div class="notes-manage-section">
+            <span class="notes-manage-title">Existing Items</span>
+            <div id="quick-notes-manage-list" class="quick-notes-manage-list"></div>
           </div>
-          <textarea id="raw-notepad-input" placeholder="Type or paste your simple wishlist here...&#10;Keychron Keyboard - 1500000&#10;Monitor Light Bar - 650000 [x]&#10;Ergonomic Chair - 4500000" rows="12"></textarea>
         </div>
       </div>
     </div>
@@ -237,12 +259,9 @@
 
   <!-- Floating Mobile Action Bar -->
   <div id="mobile-floating-bar" class="mobile-only">
-    <div class="floating-bar-content">
-      <button id="mobile-add-btn" class="floating-primary-btn">
-        <i data-lucide="plus"></i>
-        <span>New Wish</span>
-      </button>
-    </div>
+    <button id="mobile-add-btn" class="floating-primary-btn" title="Add Wish">
+      <i data-lucide="plus"></i>
+    </button>
   </div>
 
   <!-- Add/Edit Item Modal -->
@@ -386,6 +405,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=101"></script>
 </body>
 </html>

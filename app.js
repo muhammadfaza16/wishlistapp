@@ -399,7 +399,12 @@ const renderHeader = (activeItems) => {
   const clampedP = Math.min(100, p);
   
   if (itemCount) {
-    itemCount.innerHTML = `<i data-lucide="layers"></i><span>${activeItems.length} ${activeItems.length === 1 ? 'Item' : 'Items'}</span>`;
+    if (state.activeTab === 'notes') {
+      const notesCount = state.notesItems ? state.notesItems.length : 0;
+      itemCount.innerHTML = `<i data-lucide="file-text"></i><span>${notesCount} ${notesCount === 1 ? 'Note' : 'Notes'}</span>`;
+    } else {
+      itemCount.innerHTML = `<i data-lucide="layers"></i><span>${activeItems.length} ${activeItems.length === 1 ? 'Item' : 'Items'}</span>`;
+    }
     if (window.lucide) lucide.createIcons();
   }
   if (totalValue) totalValue.textContent = formatCurrencyValue(tValue, state.currency);
@@ -642,27 +647,55 @@ const renderQuickNotesList = () => {
   if (!container) return;
   
   if (!state.notesItems || state.notesItems.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:28px 14px;color:var(--text-tertiary);font-size:13px;">No quick note items yet. Type an item name and price above to add!</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:28px 14px;color:var(--text-tertiary);font-size:13px;">No wishlist items yet. Switch to <b>Add / Manage Items</b> tab above to add items!</div>`;
+    return;
+  }
+  
+  container.innerHTML = state.notesItems.map((item, index) => {
+    const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+    const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+    const itemNum = String(index + 1).padStart(2, '0');
+    
+    return `
+      <div class="quick-note-row" data-id="${item.id}">
+        <div class="quick-note-left">
+          <span class="quick-note-index">${itemNum}</span>
+          <span class="quick-note-title">${item.title}</span>
+        </div>
+        <div class="quick-note-right">
+          <span class="quick-note-price">${formattedPrice}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+const renderQuickNotesManageList = () => {
+  const container = document.getElementById('quick-notes-manage-list');
+  if (!container) return;
+  
+  if (!state.notesItems || state.notesItems.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary);font-size:12.5px;">No items in your wishlist list.</div>`;
     return;
   }
   
   container.innerHTML = state.notesItems.map(item => {
     const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
     const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+    const isEditing = state.editingNoteId === item.id;
     
     return `
-      <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+      <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
         <div class="quick-note-left">
-          <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note" data-id="${item.id}" ${item.checked ? 'checked' : ''}>
           <span class="quick-note-title">${item.title}</span>
         </div>
         <div class="quick-note-right">
           <span class="quick-note-price">${formattedPrice}</span>
-          <div class="quick-note-actions">
-            <button type="button" class="btn-icon-subtle convert-btn" data-action="convert-note" data-id="${item.id}" title="Convert to Catalog Wish Card">
-              <i data-lucide="sparkles"></i>
+          <div class="quick-note-actions-always">
+            <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item fields">
+              <i data-lucide="edit-2"></i>
             </button>
-            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete line">
+            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
               <i data-lucide="trash-2"></i>
             </button>
           </div>
@@ -675,30 +708,29 @@ const renderQuickNotesList = () => {
 };
 
 const renderNotesView = () => {
-  const listModeEl = document.getElementById('notes-list-mode');
-  const rawModeEl = document.getElementById('notes-raw-mode');
-  const modeBtns = document.querySelectorAll('.notes-mode-btn');
-  const rawTextarea = document.getElementById('raw-notepad-input');
+  const subTabBtns = document.querySelectorAll('#notes-sub-tabs .sub-tab-btn');
+  const viewSubView = document.getElementById('notes-subview-view');
+  const manageSubView = document.getElementById('notes-subview-manage');
   
-  modeBtns.forEach(btn => {
-    const mode = btn.getAttribute('data-mode');
-    if (mode === state.notesMode) {
+  const currentSubTab = state.notesSubTab || 'view';
+  
+  subTabBtns.forEach(btn => {
+    const subtab = btn.getAttribute('data-subtab');
+    if (subtab === currentSubTab) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
     }
   });
   
-  if (state.notesMode === 'list') {
-    if (listModeEl) listModeEl.classList.remove('hidden');
-    if (rawModeEl) rawModeEl.classList.add('hidden');
+  if (currentSubTab === 'view') {
+    if (viewSubView) viewSubView.classList.remove('hidden');
+    if (manageSubView) manageSubView.classList.add('hidden');
     renderQuickNotesList();
   } else {
-    if (listModeEl) listModeEl.classList.add('hidden');
-    if (rawModeEl) rawModeEl.classList.remove('hidden');
-    if (rawTextarea && rawTextarea.value !== state.rawNotepadText) {
-      rawTextarea.value = state.rawNotepadText;
-    }
+    if (viewSubView) viewSubView.classList.add('hidden');
+    if (manageSubView) manageSubView.classList.remove('hidden');
+    renderQuickNotesManageList();
   }
   
   calculateNotesAccumulator();
@@ -707,6 +739,7 @@ const renderNotesView = () => {
 const renderTabUI = () => {
   const catalogView = document.getElementById('catalog-view');
   const notesView = document.getElementById('notes-view');
+  const mobileFloatingBar = document.getElementById('mobile-floating-bar');
   const navBtns = document.querySelectorAll('.nav-tab-btn');
   
   navBtns.forEach(btn => {
@@ -721,9 +754,11 @@ const renderTabUI = () => {
   if (state.activeTab === 'catalog') {
     if (catalogView) catalogView.classList.remove('hidden');
     if (notesView) notesView.classList.add('hidden');
+    if (mobileFloatingBar) mobileFloatingBar.classList.remove('hidden');
   } else {
     if (catalogView) catalogView.classList.add('hidden');
     if (notesView) notesView.classList.remove('hidden');
+    if (mobileFloatingBar) mobileFloatingBar.classList.add('hidden');
     renderNotesView();
   }
 };
@@ -874,81 +909,175 @@ const initEventHandlers = () => {
     });
   }
 
-  // Notes Mode Tabs (Interactive List vs Raw Notepad)
-  const notesModeTabs = document.getElementById('notes-mode-tabs');
-  if (notesModeTabs) {
-    notesModeTabs.addEventListener('click', (e) => {
-      const btn = e.target.closest('.notes-mode-btn');
+  // Notes Sub Tabs Handler (Wishlist View vs Manage / Add)
+  const notesSubTabs = document.getElementById('notes-sub-tabs');
+  if (notesSubTabs) {
+    notesSubTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.sub-tab-btn');
       if (!btn) return;
-      const mode = btn.getAttribute('data-mode');
-      if (mode && mode !== state.notesMode) {
-        state.notesMode = mode;
+      const subtab = btn.getAttribute('data-subtab');
+      if (subtab && subtab !== state.notesSubTab) {
+        state.notesSubTab = subtab;
         savePreferences();
         renderNotesView();
       }
     });
   }
 
-  // Quick Note Add Line Form
-  const quickNoteForm = document.getElementById('quick-note-form');
-  if (quickNoteForm) {
-    quickNoteForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const titleInput = document.getElementById('quick-note-title');
-      const priceInput = document.getElementById('quick-note-price');
-      const title = titleInput?.value.trim();
-      const price = parseFloat(priceInput?.value) || 0;
+  // Toggle Add Form Button
+  const toggleAddFormBtn = document.getElementById('toggle-add-form-btn');
+  if (toggleAddFormBtn) {
+    toggleAddFormBtn.addEventListener('click', () => {
+      const form = document.getElementById('quick-note-form');
+      if (!form) return;
       
-      if (!title) return;
+      if (state.editingNoteId) {
+        resetFormState(false);
+        form.classList.remove('hidden');
+        const titleInput = document.getElementById('quick-note-title-input');
+        titleInput?.focus();
+        renderNotesView();
+        return;
+      }
       
-      const newNote = {
-        id: generateId(),
-        title,
-        price,
-        currency: state.currency,
-        checked: false
-      };
+      const badge = document.getElementById('form-editing-badge');
+      if (badge) badge.classList.add('hidden');
+      form.classList.remove('editing-mode');
       
-      state.notesItems.unshift(newNote);
-      saveNotes();
-      titleInput.value = '';
-      if (priceInput) priceInput.value = '';
-      showToast('Line added to Quick Notes');
+      form.classList.toggle('hidden');
+      if (!form.classList.contains('hidden')) {
+        const titleInput = document.getElementById('quick-note-title-input');
+        titleInput?.focus();
+      }
+    });
+  }
+
+  const resetFormState = (closeForm = true) => {
+    state.editingNoteId = null;
+    const form = document.getElementById('quick-note-form');
+    const titleInput = document.getElementById('quick-note-title-input');
+    const priceInput = document.getElementById('quick-note-price-input');
+    const checkedInput = document.getElementById('quick-note-checked-input');
+    const convertBtn = document.getElementById('quick-note-convert-btn');
+    const badge = document.getElementById('form-editing-badge');
+    const submitBtnSpan = document.querySelector('#quick-note-form button[type="submit"] span');
+
+    if (titleInput) titleInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (checkedInput) checkedInput.checked = false;
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
+    if (convertBtn) convertBtn.classList.add('hidden');
+    if (badge) badge.classList.add('hidden');
+    if (form) {
+      form.classList.remove('editing-mode');
+      if (closeForm) form.classList.add('hidden');
+    }
+  };
+
+  const cancelEditBtn = document.getElementById('cancel-edit-btn');
+  if (cancelEditBtn) {
+    cancelEditBtn.addEventListener('click', () => {
+      resetFormState(true);
       renderNotesView();
     });
   }
 
-  // Quick Notes List Delegation
-  const quickNotesList = document.getElementById('quick-notes-list');
-  if (quickNotesList) {
-    quickNotesList.addEventListener('click', (e) => {
-      const toggleCheck = e.target.closest('[data-action="toggle-note"]');
-      if (toggleCheck) {
-        const id = toggleCheck.getAttribute('data-id');
+  // Quick Note Conventional Add / Edit Form Handler
+  const quickNoteForm = document.getElementById('quick-note-form');
+  if (quickNoteForm) {
+    quickNoteForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const titleInput = document.getElementById('quick-note-title-input');
+      const priceInput = document.getElementById('quick-note-price-input');
+      const checkedInput = document.getElementById('quick-note-checked-input');
+      const title = titleInput?.value.trim();
+      const price = parseFloat(priceInput?.value) || 0;
+      const checked = !!checkedInput?.checked;
+      
+      if (!title) return;
+      
+      if (state.editingNoteId) {
+        const item = state.notesItems.find(n => n.id === state.editingNoteId);
+        if (item) {
+          item.title = title;
+          item.price = price;
+          item.checked = checked;
+        }
+        showToast('Item updated');
+      } else {
+        const newNote = {
+          id: generateId(),
+          title: title,
+          price: price,
+          currency: state.currency,
+          checked: checked
+        };
+        state.notesItems.unshift(newNote);
+        showToast('Added to Wishlist');
+      }
+      
+      saveNotes();
+      resetFormState();
+      renderNotesView();
+    });
+  }
+
+  // Quick Note Convert Button Inside Form Handler
+  const quickNoteConvertBtn = document.getElementById('quick-note-convert-btn');
+  if (quickNoteConvertBtn) {
+    quickNoteConvertBtn.addEventListener('click', () => {
+      if (state.editingNoteId) {
+        convertNoteToCatalog(state.editingNoteId);
+        resetFormState();
+        renderNotesView();
+      }
+    });
+  }
+
+  // Quick Notes Manage List Delegation (Manage Tab - Edit & Delete)
+  const quickNotesManageList = document.getElementById('quick-notes-manage-list');
+  if (quickNotesManageList) {
+    quickNotesManageList.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('[data-action="edit-note"]');
+      if (editBtn) {
+        const id = editBtn.getAttribute('data-id');
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
-          item.checked = toggleCheck.checked;
-          saveNotes();
+          state.editingNoteId = id;
+          const form = document.getElementById('quick-note-form');
+          const titleInput = document.getElementById('quick-note-title-input');
+          const priceInput = document.getElementById('quick-note-price-input');
+          const checkedInput = document.getElementById('quick-note-checked-input');
+          const convertBtn = document.getElementById('quick-note-convert-btn');
+          const badge = document.getElementById('form-editing-badge');
+          const submitBtnSpan = document.querySelector('#quick-note-form button[type="submit"] span');
+          
+          if (form) {
+            form.classList.remove('hidden');
+            form.classList.add('editing-mode');
+          }
+          if (badge) badge.classList.remove('hidden');
+          if (titleInput) titleInput.value = item.title;
+          if (priceInput) priceInput.value = item.price || '';
+          if (checkedInput) checkedInput.checked = !!item.checked;
+          if (submitBtnSpan) submitBtnSpan.textContent = 'Update';
+          if (convertBtn) convertBtn.classList.remove('hidden');
+          if (titleInput) titleInput.focus();
           renderNotesView();
         }
-        return;
-      }
-
-      const convertBtn = e.target.closest('[data-action="convert-note"]');
-      if (convertBtn) {
-        const id = convertBtn.getAttribute('data-id');
-        convertNoteToCatalog(id);
         return;
       }
 
       const deleteBtn = e.target.closest('[data-action="delete-note"]');
       if (deleteBtn) {
         const id = deleteBtn.getAttribute('data-id');
-        state.notesItems = state.notesItems.filter(n => n.id !== id);
-        saveNotes();
-        renderNotesView();
-        showToast('Line deleted');
-        return;
+        if (id) {
+          if (state.editingNoteId === id) state.editingNoteId = null;
+          state.notesItems = state.notesItems.filter(item => item.id !== id);
+          saveNotes();
+          showToast('Item deleted');
+          renderNotesView();
+        }
       }
     });
   }
