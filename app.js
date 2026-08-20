@@ -1352,7 +1352,8 @@ const initEventHandlers = () => {
   const comboboxDropdownEl = document.getElementById('quick-note-title-dropdown');
 
   if (titleInputEl) {
-    titleInputEl.addEventListener('focus', () => {
+    titleInputEl.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (!state.editingNoteId) renderCustomComboboxDropdown(titleInputEl.value);
     });
 
