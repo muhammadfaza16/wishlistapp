@@ -309,10 +309,11 @@ const closeGroupModal = () => {
 const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
+  const titleLabel = document.querySelector('label[for="quick-note-title-input"]');
   const titleInput = document.getElementById('quick-note-title-input');
   const priceInput = document.getElementById('quick-note-price-input');
   const groupSelect = document.getElementById('quick-note-group-select');
-  const checkedInput = document.getElementById('quick-note-checked-input');
+  const rowFields = document.getElementById('quick-note-row-fields');
   const convertContainer = document.getElementById('quick-note-convert-container');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
@@ -325,43 +326,31 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
     const item = state.notesItems.find(n => n.id === noteId);
     if (item) {
       if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Folder' : 'Edit Note Item';
+      if (titleLabel) titleLabel.textContent = item.isGroup ? 'Folder Name' : 'Item Name';
       if (titleInput) titleInput.value = item.title;
-      if (priceInput) {
-        priceInput.value = item.isGroup ? '' : (item.price || '');
-        priceInput.disabled = !!item.isGroup;
+      
+      if (item.isGroup) {
+        if (rowFields) rowFields.classList.add('hidden');
+        if (convertContainer) convertContainer.classList.add('hidden');
+      } else {
+        if (rowFields) rowFields.classList.remove('hidden');
+        if (priceInput) priceInput.value = item.price || '';
+        populateGroupSelect(item.parentId || '');
+        if (groupSelect) groupSelect.value = item.parentId || '';
+        if (convertContainer) convertContainer.classList.remove('hidden');
       }
-      populateGroupSelect(item.parentId || '');
-      if (groupSelect) {
-        groupSelect.value = item.parentId || '';
-        groupSelect.disabled = !!item.isGroup;
-      }
-      if (checkedInput) {
-        checkedInput.checked = !!item.checked;
-        checkedInput.disabled = !!item.isGroup;
-      }
+      
       if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
       if (deleteBtn) deleteBtn.classList.remove('hidden');
-      if (convertContainer) {
-        if (item.isGroup) convertContainer.classList.add('hidden');
-        else convertContainer.classList.remove('hidden');
-      }
     }
   } else {
     if (titleEl) titleEl.textContent = preselectGroupId ? 'Add Item to Folder' : 'Add Note Item';
+    if (titleLabel) titleLabel.textContent = 'Item Name';
     if (titleInput) titleInput.value = '';
-    if (priceInput) {
-      priceInput.value = '';
-      priceInput.disabled = false;
-    }
+    if (rowFields) rowFields.classList.remove('hidden');
+    if (priceInput) priceInput.value = '';
     populateGroupSelect(preselectGroupId || '');
-    if (groupSelect) {
-      groupSelect.value = preselectGroupId || '';
-      groupSelect.disabled = false;
-    }
-    if (checkedInput) {
-      checkedInput.checked = false;
-      checkedInput.disabled = false;
-    }
+    if (groupSelect) groupSelect.value = preselectGroupId || '';
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (deleteBtn) deleteBtn.classList.add('hidden');
     if (convertContainer) convertContainer.classList.add('hidden');
@@ -1271,7 +1260,7 @@ const initEventHandlers = () => {
       state.notesItems.unshift(newGroup);
       saveNotes();
       closeGroupModal();
-      showToast(`Group '${groupName}' created`);
+      showToast(`Folder '${groupName}' created`);
       renderNotesView();
     });
   }
