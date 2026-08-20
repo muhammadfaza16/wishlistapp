@@ -352,7 +352,10 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
   const titleLabel = document.querySelector('label[for="quick-note-title-input"]');
+  const titleContainer = document.getElementById('quick-note-title-container');
   const titleInput = document.getElementById('quick-note-title-input');
+  const existingContainer = document.getElementById('quick-note-existing-container');
+  const existingSelect = document.getElementById('quick-note-existing-select');
   const priceInput = document.getElementById('quick-note-price-input');
   const groupSelect = document.getElementById('quick-note-group-select');
   const rowFields = document.getElementById('quick-note-row-fields');
@@ -365,53 +368,77 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   state.editingNoteId = noteId;
   state.currentPreselectGroupId = preselectGroupId;
   hideCustomComboboxDropdown();
-  
-  if (noteId) {
-    const item = state.notesItems.find(n => n.id === noteId);
-    if (item) {
-      if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Folder' : 'Edit Note Item';
-      if (titleLabel) titleLabel.textContent = item.isGroup ? 'Folder Name' : 'Item Name';
-      if (titleInput) titleInput.value = item.title;
-      
-      if (item.isGroup) {
-        if (rowFields) rowFields.classList.add('hidden');
-        if (convertContainer) convertContainer.classList.add('hidden');
-      } else {
-        if (rowFields) rowFields.classList.remove('hidden');
-        if (priceInput) priceInput.value = item.price || '';
-        const folderIdToSelect = item.parentId || preselectGroupId || state.activeFolderId || '';
-        populateGroupSelect(folderIdToSelect);
-        if (groupSelect) groupSelect.value = folderIdToSelect;
-        if (convertContainer) convertContainer.classList.remove('hidden');
-      }
-      
-      if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
-      if (deleteBtn) deleteBtn.classList.remove('hidden');
-    }
-  } else {
-    const folderIdToSelect = preselectGroupId || state.activeFolderId || '';
-    if (titleEl) titleEl.textContent = folderIdToSelect ? 'Add Item to Folder' : 'Add Note Item';
-    if (titleLabel) titleLabel.textContent = 'Item Name';
-    if (titleInput) titleInput.value = '';
-    if (rowFields) rowFields.classList.remove('hidden');
-    if (priceInput) priceInput.value = '';
-    populateGroupSelect(folderIdToSelect);
-    if (groupSelect) groupSelect.value = folderIdToSelect;
-    if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
-    if (deleteBtn) deleteBtn.classList.add('hidden');
+
+  const targetFolderId = preselectGroupId || state.activeFolderId;
+
+  if (!noteId && targetFolderId) {
+    // Single field mode: select existing wishlist item to add to folder
+    if (titleEl) titleEl.textContent = 'Add Item to Folder';
+    if (titleContainer) titleContainer.classList.add('hidden');
+    if (rowFields) rowFields.classList.add('hidden');
     if (convertContainer) convertContainer.classList.add('hidden');
+    if (deleteBtn) deleteBtn.classList.add('hidden');
+    if (existingContainer) existingContainer.classList.remove('hidden');
+
+    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
+    if (existingSelect) {
+      if (standaloneItems.length > 0) {
+        existingSelect.innerHTML = `<option value="">-- Select an existing item to add --</option>` +
+          standaloneItems.map(item => {
+            const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
+            return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
+          }).join('');
+      } else {
+        existingSelect.innerHTML = `<option value="" disabled>No standalone items available to add</option>`;
+      }
+    }
+
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Add to Folder';
+  } else {
+    // Mode A: Creating new standalone item or editing an item/folder
+    if (titleContainer) titleContainer.classList.remove('hidden');
+    if (existingContainer) existingContainer.classList.add('hidden');
+
+    if (noteId) {
+      const item = state.notesItems.find(n => n.id === noteId);
+      if (item) {
+        if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Folder' : 'Edit Note Item';
+        if (titleLabel) titleLabel.textContent = item.isGroup ? 'Folder Name' : 'Item Name';
+        if (titleInput) titleInput.value = item.title;
+        
+        if (item.isGroup) {
+          if (rowFields) rowFields.classList.add('hidden');
+          if (convertContainer) convertContainer.classList.add('hidden');
+        } else {
+          if (rowFields) rowFields.classList.remove('hidden');
+          if (priceInput) priceInput.value = item.price || '';
+          const folderIdToSelect = item.parentId || preselectGroupId || state.activeFolderId || '';
+          populateGroupSelect(folderIdToSelect);
+          if (groupSelect) groupSelect.value = folderIdToSelect;
+          if (convertContainer) convertContainer.classList.remove('hidden');
+        }
+        
+        if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
+        if (deleteBtn) deleteBtn.classList.remove('hidden');
+      }
+    } else {
+      if (titleEl) titleEl.textContent = 'Add Note Item';
+      if (titleLabel) titleLabel.textContent = 'Item Name';
+      if (titleInput) titleInput.value = '';
+      if (rowFields) rowFields.classList.remove('hidden');
+      if (priceInput) priceInput.value = '';
+      populateGroupSelect('');
+      if (groupSelect) groupSelect.value = '';
+      if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
+      if (deleteBtn) deleteBtn.classList.add('hidden');
+      if (convertContainer) convertContainer.classList.add('hidden');
+    }
   }
-  
+
   modal.classList.remove('hidden');
-  
-  const targetFolderId = noteId 
-    ? (state.notesItems.find(n => n.id === noteId)?.parentId || state.activeFolderId || '')
-    : (preselectGroupId || state.activeFolderId || '');
-  if (groupSelect && targetFolderId) {
-    groupSelect.value = String(targetFolderId).trim();
+  if (!(!noteId && targetFolderId)) {
+    setTimeout(() => titleInput?.focus(), 100);
   }
-  
-  setTimeout(() => titleInput?.focus(), 100);
 };
 
 const closeQuickNoteModal = () => {
@@ -1465,35 +1492,46 @@ const initEventHandlers = () => {
   if (quickNoteForm) {
     quickNoteForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const titleInput = document.getElementById('quick-note-title-input');
-      const priceInput = document.getElementById('quick-note-price-input');
-      const groupSelect = document.getElementById('quick-note-group-select');
-      const checkedInput = document.getElementById('quick-note-checked-input');
-      const title = titleInput?.value.trim();
-      const price = parseFloat(priceInput?.value) || 0;
-      const parentId = groupSelect?.value || null;
-      const checked = !!checkedInput?.checked;
       
-      if (!title) return;
-      
-      if (state.editingNoteId) {
-        const item = state.notesItems.find(n => n.id === state.editingNoteId);
-        if (item) {
-          item.title = title;
-          if (!item.isGroup) {
-            item.price = price;
-            item.parentId = parentId;
-            item.checked = checked;
-          }
+      const existingContainer = document.getElementById('quick-note-existing-container');
+      const isExistingMode = existingContainer && !existingContainer.classList.contains('hidden');
+
+      if (isExistingMode) {
+        const existingSelect = document.getElementById('quick-note-existing-select');
+        const selectedId = existingSelect?.value;
+        if (!selectedId) {
+          showToast('Please select an existing item to add');
+          return;
         }
-        showToast('Item updated');
+        const item = state.notesItems.find(n => n.id === selectedId);
+        const targetFolder = state.currentPreselectGroupId || state.activeFolderId;
+        if (item && targetFolder) {
+          item.parentId = targetFolder;
+          showToast(`Added '${item.title}' to folder`);
+        }
       } else {
-        // Check if user selected an existing standalone item to assign to folder
-        const existingItem = state.notesItems.find(n => !n.isGroup && !n.parentId && n.title.trim().toLowerCase() === title.toLowerCase());
-        if (existingItem) {
-          existingItem.price = price || existingItem.price;
-          existingItem.parentId = parentId;
-          showToast(`Moved '${existingItem.title}' to folder`);
+        const titleInput = document.getElementById('quick-note-title-input');
+        const priceInput = document.getElementById('quick-note-price-input');
+        const groupSelect = document.getElementById('quick-note-group-select');
+        const checkedInput = document.getElementById('quick-note-checked-input');
+        const title = titleInput?.value.trim();
+        const price = parseFloat(priceInput?.value) || 0;
+        const parentId = groupSelect?.value || null;
+        const checked = !!checkedInput?.checked;
+        
+        if (!title) return;
+        
+        if (state.editingNoteId) {
+          const item = state.notesItems.find(n => n.id === state.editingNoteId);
+          if (item) {
+            item.title = title;
+            if (!item.isGroup) {
+              item.price = price;
+              item.parentId = parentId;
+              item.checked = checked;
+            }
+          }
+          showToast('Item updated');
         } else {
           const newNote = {
             id: generateId(),
