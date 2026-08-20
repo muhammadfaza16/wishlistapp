@@ -379,6 +379,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
         if (priceInput) priceInput.value = item.price || '';
         const folderIdToSelect = item.parentId || preselectGroupId || state.activeFolderId || '';
         populateGroupSelect(folderIdToSelect);
+        if (groupSelect) groupSelect.value = folderIdToSelect;
         if (convertContainer) convertContainer.classList.remove('hidden');
       }
       
@@ -393,6 +394,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
     if (rowFields) rowFields.classList.remove('hidden');
     if (priceInput) priceInput.value = '';
     populateGroupSelect(folderIdToSelect);
+    if (groupSelect) groupSelect.value = folderIdToSelect;
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (deleteBtn) deleteBtn.classList.add('hidden');
     if (convertContainer) convertContainer.classList.add('hidden');
@@ -760,17 +762,28 @@ const isGroupChecked = (groupId) => {
   return children.every(item => item.checked);
 };
 
-const populateGroupSelect = (selectedParentId = '') => {
+const populateGroupSelect = (selectedParentId = null) => {
   const select = document.getElementById('quick-note-group-select');
   if (!select) return;
+  
+  let targetId = selectedParentId;
+  if (targetId === null || targetId === undefined) {
+    if (state.editingNoteId) {
+      const item = state.notesItems.find(n => n.id === state.editingNoteId);
+      targetId = item ? (item.parentId || '') : '';
+    } else {
+      targetId = state.activeFolderId || '';
+    }
+  }
+  
   const groups = state.notesItems.filter(item => item.isGroup);
   let html = `<option value="">None (Standalone)</option>`;
   groups.forEach(g => {
-    const isSel = String(g.id) === String(selectedParentId);
+    const isSel = String(g.id) === String(targetId);
     html += `<option value="${g.id}" ${isSel ? 'selected="selected"' : ''}>📁 ${g.title}</option>`;
   });
   select.innerHTML = html;
-  select.value = selectedParentId || '';
+  select.value = targetId || '';
 };
 
 const calculateNotesAccumulator = () => {
