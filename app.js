@@ -980,6 +980,18 @@ const renderQuickNotesManageList = () => {
     }
     
     const children = getGroupChildren(state.activeFolderId);
+    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
+    
+    let selectOptions = '';
+    if (standaloneItems.length > 0) {
+      selectOptions = `<option value="">+ Select existing item to add...</option>` +
+        standaloneItems.map(item => {
+          const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
+          return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
+        }).join('');
+    } else {
+      selectOptions = `<option value="" disabled>No standalone items available to add</option>`;
+    }
     
     html += `
       <div class="folder-navigation-header">
@@ -992,12 +1004,22 @@ const renderQuickNotesManageList = () => {
           <i data-lucide="edit-2"></i>
         </button>
       </div>
+
+      <div class="add-to-folder-bar" style="display: flex; gap: 8px; margin-bottom: 14px; padding: 8px 10px; background: #FAFAF9; border: 1px solid #E5E5EA; border-radius: 8px;">
+        <select id="select-existing-item-to-add" class="clean-select" style="flex: 1; font-size: 12.5px;">
+          ${selectOptions}
+        </select>
+        <button type="button" id="btn-add-existing-to-folder" class="btn-primary" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
+          <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
+          <span>Add</span>
+        </button>
+      </div>
     `;
     
     if (children.length === 0) {
       html += `
-        <div style="text-align:center;padding:24px 12px;color:var(--text-tertiary);font-size:12.5px;">
-          Folder is empty. Click <b>+ Add Item</b> above to add an item into this folder.
+        <div style="text-align:center;padding:20px 12px;color:var(--text-tertiary);font-size:12.5px;">
+          Folder is empty. Select an existing item above to add it into this folder.
         </div>
       `;
     } else {
@@ -1545,6 +1567,25 @@ const initEventHandlers = () => {
       if (exitFolderBtn) {
         state.activeFolderId = null;
         renderNotesView();
+        return;
+      }
+
+      // Add Existing Item to Active Folder
+      const addExistingBtn = e.target.closest('#btn-add-existing-to-folder');
+      if (addExistingBtn) {
+        const select = document.getElementById('select-existing-item-to-add');
+        const selectedId = select?.value;
+        if (!selectedId) {
+          showToast('Please select an existing item first');
+          return;
+        }
+        const item = state.notesItems.find(n => n.id === selectedId);
+        if (item && state.activeFolderId) {
+          item.parentId = state.activeFolderId;
+          saveNotes();
+          showToast(`Added '${item.title}' to folder`);
+          renderNotesView();
+        }
         return;
       }
 
