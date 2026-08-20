@@ -585,9 +585,9 @@ input, button, select, textarea {
 .checkbox-inline-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 12px;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
   background: #F4F4F6;
   border: 1px solid #E5E5EA;
   border-radius: 8px;
@@ -598,6 +598,8 @@ input, button, select, textarea {
   cursor: pointer;
   user-select: none;
   transition: all 150ms ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .checkbox-inline-label:hover {
