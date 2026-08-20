@@ -107,7 +107,8 @@ let state = {
   deleteId: null,
   progressId: null,
   achievedOpen: false,
-  activeFolderId: null
+  activeFolderId: null,
+  currentPreselectGroupId: null
 };
 
 const defaultNotesItems = [
@@ -362,6 +363,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   if (!modal) return;
   
   state.editingNoteId = noteId;
+  state.currentPreselectGroupId = preselectGroupId;
   hideCustomComboboxDropdown();
   
   if (noteId) {
@@ -408,6 +410,7 @@ const closeQuickNoteModal = () => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
   state.editingNoteId = null;
+  state.currentPreselectGroupId = null;
 };
 
 const getFilteredItems = () => {
