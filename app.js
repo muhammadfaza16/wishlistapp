@@ -844,8 +844,7 @@ const renderQuickNotesList = () => {
     html = rootItems.map(item => {
       if (item.isGroup) {
         const children = getGroupChildren(item.id);
-        const groupPrice = getGroupTotalPrice(item.id);
-        const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
+        if (children.length === 0) return '';
         
         return `
           <div class="quick-note-row group-row-folder" data-action="open-folder" data-id="${item.id}" title="Open ${item.title} folder" style="cursor: pointer;">
@@ -878,6 +877,10 @@ const renderQuickNotesList = () => {
         `;
       }
     }).join('');
+    
+    if (!html.trim()) {
+      html = `<div style="text-align:center;padding:28px 14px;color:var(--text-tertiary);font-size:13px;">No wishlist items yet. Switch to <b>Add / Manage Items</b> tab above to add items!</div>`;
+    }
   }
   
   container.innerHTML = html;
