@@ -306,6 +306,16 @@ const closeGroupModal = () => {
   if (modal) modal.classList.add('hidden');
 };
 
+const populateExistingItemsDatalist = () => {
+  const datalist = document.getElementById('existing-items-datalist');
+  if (!datalist) return;
+  const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
+  datalist.innerHTML = standaloneItems.map(item => {
+    const formattedVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
+    return `<option value="${item.title}">${formattedVal}</option>`;
+  }).join('');
+};
+
 const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
@@ -321,6 +331,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   if (!modal) return;
   
   state.editingNoteId = noteId;
+  populateExistingItemsDatalist();
   
   if (noteId) {
     const item = state.notesItems.find(n => n.id === noteId);
@@ -1304,6 +1315,21 @@ const initEventHandlers = () => {
     });
   });
 
+  // Title input auto-fill price when selecting existing item
+  const titleInputEl = document.getElementById('quick-note-title-input');
+  const priceInputEl = document.getElementById('quick-note-price-input');
+  if (titleInputEl) {
+    titleInputEl.addEventListener('input', () => {
+      if (!state.editingNoteId) {
+        const val = titleInputEl.value.trim().toLowerCase();
+        const matched = state.notesItems.find(n => !n.isGroup && !n.parentId && n.title.trim().toLowerCase() === val);
+        if (matched && priceInputEl) {
+          priceInputEl.value = matched.price || '';
+        }
+      }
+    });
+  }
+
   // Quick Note Form Submit Handler Inside Centered Modal
   const quickNoteForm = document.getElementById('quick-note-form');
   if (quickNoteForm) {
@@ -1332,16 +1358,24 @@ const initEventHandlers = () => {
         }
         showToast('Item updated');
       } else {
-        const newNote = {
-          id: generateId(),
-          title: title,
-          price: price,
-          currency: state.currency,
-          checked: checked,
-          parentId: parentId
-        };
-        state.notesItems.unshift(newNote);
-        showToast('Added to Wishlist');
+        // Check if user selected an existing standalone item to assign to folder
+        const existingItem = state.notesItems.find(n => !n.isGroup && !n.parentId && n.title.trim().toLowerCase() === title.toLowerCase());
+        if (existingItem) {
+          existingItem.price = price || existingItem.price;
+          existingItem.parentId = parentId;
+          showToast(`Moved '${existingItem.title}' to folder`);
+        } else {
+          const newNote = {
+            id: generateId(),
+            title: title,
+            price: price,
+            currency: state.currency,
+            checked: checked,
+            parentId: parentId
+          };
+          state.notesItems.unshift(newNote);
+          showToast('Added to Wishlist');
+        }
       }
       
       saveNotes();
