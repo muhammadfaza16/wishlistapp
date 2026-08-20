@@ -887,6 +887,112 @@ input, button, select, textarea {
   color: #DC2626;
 }
 
+/* Quick Notes Grouping & Accordion Dropdown Styles */
+.notes-header-left-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clean-select {
+  height: 38px;
+  background: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #09090B;
+  outline: none;
+  cursor: pointer;
+  transition: all 150ms ease;
+  width: 100%;
+}
+
+.clean-select:focus {
+  border-color: #09090B;
+}
+
+.quick-note-row.group-row {
+  background: #FAFAF9;
+  border-bottom: 1px solid #EAEAEA;
+}
+
+.quick-note-row.group-row:hover {
+  background: #F4F4F6;
+}
+
+.btn-group-toggle {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: #52525B;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 150ms ease;
+  margin-right: 2px;
+}
+
+.btn-group-toggle:hover {
+  background: #E4E4E7;
+  color: #09090B;
+}
+
+.btn-group-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 180ms ease;
+}
+
+.btn-group-toggle.expanded svg {
+  transform: rotate(90deg);
+}
+
+.group-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+  flex: 1;
+}
+
+.group-folder-icon {
+  width: 14px;
+  height: 14px;
+  color: #09090B;
+  flex-shrink: 0;
+}
+
+.group-badge-pill {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  background: #E4E4E7;
+  color: #27272A;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+.quick-note-group-dropdown {
+  margin-left: 18px;
+  padding-left: 10px;
+  border-left: 2px solid #E5E5EA;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-note-group-dropdown .quick-note-row {
+  padding: 8px 4px;
+}
+
 .btn-icon-subtle {
   background: transparent;
   border: 1px solid var(--border-subtle);

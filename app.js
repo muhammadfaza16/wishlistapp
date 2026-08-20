@@ -110,8 +110,9 @@ let state = {
 };
 
 const defaultNotesItems = [
-  { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false },
-  { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true },
+  { id: 'group-sample-1', title: 'Desk Setup Gear', isGroup: true, expanded: true },
+  { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false, parentId: 'group-sample-1' },
+  { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true, parentId: 'group-sample-1' },
   { id: 'note-3', title: 'Ergonomic Mesh Chair', price: 4500000, currency: 'IDR', checked: false }
 ];
 
@@ -593,15 +594,47 @@ const renderAchieved = (achievedItems) => {
   }
 };
 
+const getGroupChildren = (groupId) => {
+  return state.notesItems.filter(item => item.parentId === groupId);
+};
+
+const getGroupTotalPrice = (groupId) => {
+  const children = getGroupChildren(groupId);
+  return children.reduce((sum, item) => {
+    const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+    return sum + displayPrice;
+  }, 0);
+};
+
+const isGroupChecked = (groupId) => {
+  const children = getGroupChildren(groupId);
+  if (children.length === 0) return false;
+  return children.every(item => item.checked);
+};
+
+const populateGroupSelect = (selectedParentId = '') => {
+  const select = document.getElementById('quick-note-group-select');
+  if (!select) return;
+  const groups = state.notesItems.filter(item => item.isGroup);
+  let html = `<option value="">None (Standalone)</option>`;
+  groups.forEach(g => {
+    html += `<option value="${g.id}">📁 ${g.title}</option>`;
+  });
+  select.innerHTML = html;
+  select.value = selectedParentId || '';
+};
+
 const calculateNotesAccumulator = () => {
   let totalCost = 0;
   let checkedCost = 0;
   
   if (state.notesMode === 'list') {
     state.notesItems.forEach(item => {
-      const val = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-      totalCost += val;
-      if (item.checked) checkedCost += val;
+      if (!item.isGroup) {
+        const val = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+        totalCost += val;
+        if (item.checked) checkedCost += val;
+      }
     });
   } else {
     const text = state.rawNotepadText || '';
@@ -651,57 +684,207 @@ const renderQuickNotesList = () => {
     return;
   }
   
-  container.innerHTML = state.notesItems.map((item, index) => {
-    const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-    const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-    const itemNum = String(index + 1).padStart(2, '0');
-    
-    return `
-      <div class="quick-note-row" data-id="${item.id}">
-        <div class="quick-note-left">
-          <span class="quick-note-index">${itemNum}</span>
-          <span class="quick-note-title">${item.title}</span>
+  const rootItems = state.notesItems.filter(item => !item.parentId);
+  let globalIndex = 0;
+  
+  container.innerHTML = rootItems.map(item => {
+    if (item.isGroup) {
+      const children = getGroupChildren(item.id);
+      const groupPrice = getGroupTotalPrice(item.id);
+      const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
+      const isExpanded = !!item.expanded;
+      
+      let childrenHtml = '';
+      if (isExpanded && children.length > 0) {
+        childrenHtml = `
+          <div class="quick-note-group-dropdown">
+            ${children.map((child) => {
+              globalIndex++;
+              const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
+              const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
+              const childNum = String(globalIndex).padStart(2, '0');
+              return `
+                <div class="quick-note-row ${child.checked ? 'checked' : ''}" data-id="${child.id}">
+                  <div class="quick-note-left">
+                    <span class="quick-note-index">${childNum}</span>
+                    <span class="quick-note-title">${child.title}</span>
+                  </div>
+                  <div class="quick-note-right">
+                    <span class="quick-note-price">${formattedChildPrice}</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="quick-note-group-container">
+          <div class="quick-note-row group-row" data-id="${item.id}">
+            <div class="quick-note-left">
+              <button type="button" class="btn-group-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-group" data-id="${item.id}" title="Toggle group dropdown">
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <div class="group-title-wrapper" data-action="toggle-group" data-id="${item.id}">
+                <i data-lucide="folder" class="group-folder-icon"></i>
+                <span class="quick-note-title">${item.title}</span>
+                <span class="group-badge-pill">${children.length} items</span>
+              </div>
+            </div>
+            <div class="quick-note-right">
+              <span class="quick-note-price">${formattedPrice}</span>
+            </div>
+          </div>
+          ${childrenHtml}
         </div>
-        <div class="quick-note-right">
-          <span class="quick-note-price">${formattedPrice}</span>
+      `;
+    } else {
+      globalIndex++;
+      const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+      const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+      const itemNum = String(globalIndex).padStart(2, '0');
+      
+      return `
+        <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+          <div class="quick-note-left">
+            <span class="quick-note-index">${itemNum}</span>
+            <span class="quick-note-title">${item.title}</span>
+          </div>
+          <div class="quick-note-right">
+            <span class="quick-note-price">${formattedPrice}</span>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }).join('');
+
+  if (window.lucide) lucide.createIcons();
 };
 
 const renderQuickNotesManageList = () => {
   const container = document.getElementById('quick-notes-manage-list');
   if (!container) return;
   
+  populateGroupSelect();
+  
   if (!state.notesItems || state.notesItems.length === 0) {
     container.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary);font-size:12.5px;">No items in your wishlist list.</div>`;
     return;
   }
   
-  container.innerHTML = state.notesItems.map(item => {
-    const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-    const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-    const isEditing = state.editingNoteId === item.id;
-    
-    return `
-      <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
-        <div class="quick-note-left">
-          <span class="quick-note-title">${item.title}</span>
+  const rootItems = state.notesItems.filter(item => !item.parentId);
+  
+  container.innerHTML = rootItems.map(item => {
+    if (item.isGroup) {
+      const children = getGroupChildren(item.id);
+      const groupPrice = getGroupTotalPrice(item.id);
+      const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
+      const groupChecked = isGroupChecked(item.id);
+      const isExpanded = !!item.expanded;
+      const isEditing = state.editingNoteId === item.id;
+      
+      let childrenHtml = '';
+      if (isExpanded) {
+        if (children.length === 0) {
+          childrenHtml = `
+            <div class="quick-note-group-dropdown">
+              <div style="padding: 8px 6px; color: var(--text-tertiary); font-size: 11.5px;">Group is empty. Click + above to add items to this group.</div>
+            </div>
+          `;
+        } else {
+          childrenHtml = `
+            <div class="quick-note-group-dropdown">
+              ${children.map(child => {
+                const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
+                const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
+                const isChildEditing = state.editingNoteId === child.id;
+                
+                return `
+                  <div class="quick-note-row ${child.checked ? 'checked' : ''} ${isChildEditing ? 'editing-row' : ''}" data-id="${child.id}">
+                    <div class="quick-note-left">
+                      <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${child.id}" ${child.checked ? 'checked' : ''} title="Mark completed">
+                      <span class="quick-note-title">${child.title}</span>
+                    </div>
+                    <div class="quick-note-right">
+                      <span class="quick-note-price">${formattedChildPrice}</span>
+                      <div class="quick-note-actions-always">
+                        <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${child.id}" title="Edit item">
+                          <i data-lucide="edit-2"></i>
+                        </button>
+                        <button type="button" class="btn-icon-subtle ungroup-btn" data-action="ungroup-note" data-id="${child.id}" title="Remove from group">
+                          <i data-lucide="corner-up-left"></i>
+                        </button>
+                        <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${child.id}" title="Delete item">
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
+      }
+      
+      return `
+        <div class="quick-note-group-container">
+          <div class="quick-note-row group-row ${groupChecked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
+            <div class="quick-note-left">
+              <button type="button" class="btn-group-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-group" data-id="${item.id}" title="Toggle dropdown">
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-group-checked" data-id="${item.id}" ${groupChecked ? 'checked' : ''} title="Toggle all group items">
+              <div class="group-title-wrapper" data-action="toggle-group" data-id="${item.id}">
+                <i data-lucide="folder" class="group-folder-icon"></i>
+                <span class="quick-note-title">${item.title}</span>
+                <span class="group-badge-pill">${children.length} items</span>
+              </div>
+            </div>
+            <div class="quick-note-right">
+              <span class="quick-note-price">${formattedPrice}</span>
+              <div class="quick-note-actions-always">
+                <button type="button" class="btn-icon-subtle add-child-btn" data-action="add-child-note" data-group-id="${item.id}" title="Add item to this group">
+                  <i data-lucide="plus"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit group title">
+                  <i data-lucide="edit-2"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete group">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          ${childrenHtml}
         </div>
-        <div class="quick-note-right">
-          <span class="quick-note-price">${formattedPrice}</span>
-          <div class="quick-note-actions-always">
-            <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item fields">
-              <i data-lucide="edit-2"></i>
-            </button>
-            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
-              <i data-lucide="trash-2"></i>
-            </button>
+      `;
+    } else {
+      const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+      const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+      const isEditing = state.editingNoteId === item.id;
+      
+      return `
+        <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
+          <div class="quick-note-left">
+            <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
+            <span class="quick-note-title">${item.title}</span>
+          </div>
+          <div class="quick-note-right">
+            <span class="quick-note-price">${formattedPrice}</span>
+            <div class="quick-note-actions-always">
+              <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
+                <i data-lucide="edit-2"></i>
+              </button>
+              <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }).join('');
   
   if (window.lucide) lucide.createIcons();
@@ -952,19 +1135,49 @@ const initEventHandlers = () => {
     });
   }
 
+  // Create New Group Button Handler
+  const createGroupBtn = document.getElementById('create-group-btn');
+  if (createGroupBtn) {
+    createGroupBtn.addEventListener('click', () => {
+      const groupName = prompt('Enter New Group Name (e.g. Desk Setup):');
+      if (!groupName || !groupName.trim()) return;
+      const newGroup = {
+        id: generateId(),
+        title: groupName.trim(),
+        isGroup: true,
+        expanded: true
+      };
+      state.notesItems.unshift(newGroup);
+      saveNotes();
+      showToast(`Group '${groupName.trim()}' created`);
+      renderNotesView();
+    });
+  }
+
   const resetFormState = (closeForm = true) => {
     state.editingNoteId = null;
     const form = document.getElementById('quick-note-form');
     const titleInput = document.getElementById('quick-note-title-input');
     const priceInput = document.getElementById('quick-note-price-input');
+    const groupSelect = document.getElementById('quick-note-group-select');
     const checkedInput = document.getElementById('quick-note-checked-input');
     const convertBtn = document.getElementById('quick-note-convert-btn');
     const badge = document.getElementById('form-editing-badge');
     const submitBtnSpan = document.querySelector('#quick-note-form button[type="submit"] span');
 
     if (titleInput) titleInput.value = '';
-    if (priceInput) priceInput.value = '';
-    if (checkedInput) checkedInput.checked = false;
+    if (priceInput) {
+      priceInput.value = '';
+      priceInput.disabled = false;
+    }
+    if (groupSelect) {
+      groupSelect.value = '';
+      groupSelect.disabled = false;
+    }
+    if (checkedInput) {
+      checkedInput.checked = false;
+      checkedInput.disabled = false;
+    }
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (convertBtn) convertBtn.classList.add('hidden');
     if (badge) badge.classList.add('hidden');
@@ -989,9 +1202,11 @@ const initEventHandlers = () => {
       e.preventDefault();
       const titleInput = document.getElementById('quick-note-title-input');
       const priceInput = document.getElementById('quick-note-price-input');
+      const groupSelect = document.getElementById('quick-note-group-select');
       const checkedInput = document.getElementById('quick-note-checked-input');
       const title = titleInput?.value.trim();
       const price = parseFloat(priceInput?.value) || 0;
+      const parentId = groupSelect?.value || null;
       const checked = !!checkedInput?.checked;
       
       if (!title) return;
@@ -1000,8 +1215,11 @@ const initEventHandlers = () => {
         const item = state.notesItems.find(n => n.id === state.editingNoteId);
         if (item) {
           item.title = title;
-          item.price = price;
-          item.checked = checked;
+          if (!item.isGroup) {
+            item.price = price;
+            item.parentId = parentId;
+            item.checked = checked;
+          }
         }
         showToast('Item updated');
       } else {
@@ -1010,7 +1228,8 @@ const initEventHandlers = () => {
           title: title,
           price: price,
           currency: state.currency,
-          checked: checked
+          checked: checked,
+          parentId: parentId
         };
         state.notesItems.unshift(newNote);
         showToast('Added to Wishlist');
@@ -1034,10 +1253,100 @@ const initEventHandlers = () => {
     });
   }
 
-  // Quick Notes Manage List Delegation (Manage Tab - Edit & Delete)
+  // Quick Notes List Delegation (Wishlist View Tab - Toggle Group)
+  const quickNotesList = document.getElementById('quick-notes-list');
+  if (quickNotesList) {
+    quickNotesList.addEventListener('click', (e) => {
+      const groupToggleBtn = e.target.closest('[data-action="toggle-group"]');
+      if (groupToggleBtn) {
+        const id = groupToggleBtn.getAttribute('data-id');
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
+          item.expanded = !item.expanded;
+          saveNotes();
+          renderNotesView();
+        }
+      }
+    });
+  }
+
+  // Quick Notes Manage List Delegation (Manage Tab - Edit, Delete, Grouping)
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
     quickNotesManageList.addEventListener('click', (e) => {
+      // Toggle Group Accordion
+      const groupToggleBtn = e.target.closest('[data-action="toggle-group"]');
+      if (groupToggleBtn) {
+        const id = groupToggleBtn.getAttribute('data-id');
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
+          item.expanded = !item.expanded;
+          saveNotes();
+          renderNotesView();
+        }
+        return;
+      }
+
+      // Toggle Group Checked All
+      const toggleGroupChecked = e.target.closest('[data-action="toggle-group-checked"]');
+      if (toggleGroupChecked) {
+        const id = toggleGroupChecked.getAttribute('data-id');
+        const isChecked = toggleGroupChecked.checked;
+        const children = getGroupChildren(id);
+        children.forEach(c => c.checked = isChecked);
+        saveNotes();
+        renderNotesView();
+        return;
+      }
+
+      // Toggle Individual Note Checked
+      const toggleNoteChecked = e.target.closest('[data-action="toggle-note-checked"]');
+      if (toggleNoteChecked) {
+        const id = toggleNoteChecked.getAttribute('data-id');
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
+          item.checked = toggleNoteChecked.checked;
+          saveNotes();
+          renderNotesView();
+        }
+        return;
+      }
+
+      // Add Child Note directly into Group
+      const addChildBtn = e.target.closest('[data-action="add-child-note"]');
+      if (addChildBtn) {
+        const groupId = addChildBtn.getAttribute('data-group-id');
+        const groupItem = state.notesItems.find(n => n.id === groupId);
+        if (groupItem) groupItem.expanded = true;
+        
+        resetFormState(false);
+        const form = document.getElementById('quick-note-form');
+        const titleInput = document.getElementById('quick-note-title-input');
+        const groupSelect = document.getElementById('quick-note-group-select');
+        
+        if (form) form.classList.remove('hidden');
+        populateGroupSelect(groupId);
+        if (groupSelect) groupSelect.value = groupId;
+        if (titleInput) titleInput.focus();
+        renderNotesView();
+        return;
+      }
+
+      // Ungroup Note
+      const ungroupBtn = e.target.closest('[data-action="ungroup-note"]');
+      if (ungroupBtn) {
+        const id = ungroupBtn.getAttribute('data-id');
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
+          item.parentId = null;
+          saveNotes();
+          showToast('Removed from group');
+          renderNotesView();
+        }
+        return;
+      }
+
+      // Edit Note or Group
       const editBtn = e.target.closest('[data-action="edit-note"]');
       if (editBtn) {
         const id = editBtn.getAttribute('data-id');
@@ -1047,6 +1356,7 @@ const initEventHandlers = () => {
           const form = document.getElementById('quick-note-form');
           const titleInput = document.getElementById('quick-note-title-input');
           const priceInput = document.getElementById('quick-note-price-input');
+          const groupSelect = document.getElementById('quick-note-group-select');
           const checkedInput = document.getElementById('quick-note-checked-input');
           const convertBtn = document.getElementById('quick-note-convert-btn');
           const badge = document.getElementById('form-editing-badge');
@@ -1058,25 +1368,50 @@ const initEventHandlers = () => {
           }
           if (badge) badge.classList.remove('hidden');
           if (titleInput) titleInput.value = item.title;
-          if (priceInput) priceInput.value = item.price || '';
-          if (checkedInput) checkedInput.checked = !!item.checked;
+          if (priceInput) {
+            priceInput.value = item.isGroup ? '' : (item.price || '');
+            priceInput.disabled = !!item.isGroup;
+          }
+          populateGroupSelect(item.parentId || '');
+          if (groupSelect) {
+            groupSelect.value = item.parentId || '';
+            groupSelect.disabled = !!item.isGroup;
+          }
+          if (checkedInput) {
+            checkedInput.checked = !!item.checked;
+            checkedInput.disabled = !!item.isGroup;
+          }
           if (submitBtnSpan) submitBtnSpan.textContent = 'Update';
-          if (convertBtn) convertBtn.classList.remove('hidden');
+          if (convertBtn) {
+            if (item.isGroup) convertBtn.classList.add('hidden');
+            else convertBtn.classList.remove('hidden');
+          }
           if (titleInput) titleInput.focus();
           renderNotesView();
         }
         return;
       }
 
+      // Delete Note or Group
       const deleteBtn = e.target.closest('[data-action="delete-note"]');
       if (deleteBtn) {
         const id = deleteBtn.getAttribute('data-id');
-        if (id) {
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
           if (state.editingNoteId === id) state.editingNoteId = null;
-          state.notesItems = state.notesItems.filter(item => item.id !== id);
-          saveNotes();
-          showToast('Item deleted');
-          renderNotesView();
+          if (item.isGroup) {
+            if (confirm(`Delete group '${item.title}' and all its items?`)) {
+              state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
+              saveNotes();
+              showToast('Group deleted');
+              renderNotesView();
+            }
+          } else {
+            state.notesItems = state.notesItems.filter(n => n.id !== id);
+            saveNotes();
+            showToast('Item deleted');
+            renderNotesView();
+          }
         }
       }
     });

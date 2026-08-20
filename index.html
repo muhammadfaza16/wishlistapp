@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=104">
+  <link rel="stylesheet" href="styles.css?v=105">
 </head>
 <body>
   <div id="app">
@@ -201,10 +201,16 @@
       <div id="notes-subview-manage" class="notes-subview-content hidden">
         <div class="clean-notes-card">
           <div class="notes-card-header">
-            <button type="button" id="toggle-add-form-btn" class="btn-clean-action-primary">
-              <i data-lucide="plus"></i>
-              <span>Add Item</span>
-            </button>
+            <div class="notes-header-left-btns">
+              <button type="button" id="toggle-add-form-btn" class="btn-clean-action-primary">
+                <i data-lucide="plus"></i>
+                <span>Add Item</span>
+              </button>
+              <button type="button" id="create-group-btn" class="btn-clean-action" title="Create a new Group folder">
+                <i data-lucide="folder-plus"></i>
+                <span>New Group</span>
+              </button>
+            </div>
             <button type="button" id="clear-notes-btn" class="btn-clean-danger" title="Clear all notes">
               <i data-lucide="trash-2"></i>
               <span>Clear All</span>
@@ -224,6 +230,12 @@
               <div class="form-group-clean flex-1">
                 <label class="clean-label">Price</label>
                 <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
+              </div>
+              <div class="form-group-clean flex-1">
+                <label class="clean-label">Group</label>
+                <select id="quick-note-group-select" class="clean-select">
+                  <option value="">None (Standalone)</option>
+                </select>
               </div>
               <div class="form-group-clean flex-checkbox">
                 <label class="clean-label">&nbsp;</label>
@@ -405,6 +417,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=104"></script>
+  <script src="app.js?v=105"></script>
 </body>
 </html>
