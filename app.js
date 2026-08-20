@@ -403,6 +403,14 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   }
   
   modal.classList.remove('hidden');
+  
+  const targetFolderId = noteId 
+    ? (state.notesItems.find(n => n.id === noteId)?.parentId || state.activeFolderId || '')
+    : (preselectGroupId || state.activeFolderId || '');
+  if (groupSelect && targetFolderId) {
+    groupSelect.value = String(targetFolderId).trim();
+  }
+  
   setTimeout(() => titleInput?.focus(), 100);
 };
 
@@ -773,20 +781,24 @@ const populateGroupSelect = (selectedParentId = null) => {
   if (targetId === null || targetId === undefined) {
     if (state.editingNoteId) {
       const item = state.notesItems.find(n => n.id === state.editingNoteId);
-      targetId = item ? (item.parentId || '') : '';
+      targetId = item ? (item.parentId || state.activeFolderId || '') : '';
     } else {
-      targetId = state.activeFolderId || '';
+      targetId = state.currentPreselectGroupId || state.activeFolderId || '';
     }
   }
   
+  const cleanTargetId = targetId ? String(targetId).trim() : '';
+
   const groups = state.notesItems.filter(item => item.isGroup);
   let html = `<option value="">None (Standalone)</option>`;
   groups.forEach(g => {
-    const isSel = String(g.id) === String(targetId);
-    html += `<option value="${g.id}" ${isSel ? 'selected="selected"' : ''}>📁 ${g.title}</option>`;
+    const gId = String(g.id).trim();
+    const isSel = gId === cleanTargetId;
+    html += `<option value="${gId}" ${isSel ? 'selected="selected"' : ''}>📁 ${g.title}</option>`;
   });
+  
   select.innerHTML = html;
-  select.value = targetId || '';
+  select.value = cleanTargetId;
 };
 
 const calculateNotesAccumulator = () => {
@@ -1336,6 +1348,7 @@ const initEventHandlers = () => {
         expanded: true
       };
       state.notesItems.unshift(newGroup);
+      state.activeFolderId = newGroup.id;
       saveNotes();
       closeGroupModal();
       showToast(`Folder '${groupName}' created`);
