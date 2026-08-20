@@ -327,7 +327,7 @@ input, button, select, textarea {
 /* Clean Sub-Tabs Navigation */
 .clean-sub-tabs-container {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 16px;
 }
 
