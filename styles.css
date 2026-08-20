@@ -1050,6 +1050,71 @@ input, button, select, textarea {
   min-width: 0;
 }
 
+/* Add Option Choice Cards */
+.add-option-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #FAFAF9;
+  border: 1px solid #E5E5EA;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 150ms ease;
+  width: 100%;
+}
+
+.add-option-card:hover {
+  background: #F4F4F6;
+  border-color: #09090B;
+}
+
+.option-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #09090B;
+  flex-shrink: 0;
+}
+
+.option-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.option-card-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-card-title {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #09090B;
+}
+
+.option-card-desc {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: #71717A;
+}
+
+.option-card-arrow {
+  width: 16px;
+  height: 16px;
+  color: #A1A1AA;
+  flex-shrink: 0;
+}
+
 .quick-note-row.group-row:hover {
   background: #F4F4F6;
 }

@@ -1227,18 +1227,34 @@ const initEventHandlers = () => {
     });
   }
 
-  // Toggle Add Form Button (Opens Centered Modal)
-  const toggleAddFormBtn = document.getElementById('toggle-add-form-btn');
-  if (toggleAddFormBtn) {
-    toggleAddFormBtn.addEventListener('click', () => {
+  // Main Add Option Button & Modal Handlers
+  const mainAddOptionBtn = document.getElementById('main-add-option-btn');
+  const addOptionModal = document.getElementById('add-option-modal');
+  const optionAddItemBtn = document.getElementById('option-add-item-btn');
+  const optionAddFolderBtn = document.getElementById('option-add-folder-btn');
+
+  if (mainAddOptionBtn && addOptionModal) {
+    mainAddOptionBtn.addEventListener('click', () => {
+      addOptionModal.classList.remove('hidden');
+    });
+  }
+
+  document.querySelectorAll('.add-option-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (addOptionModal) addOptionModal.classList.add('hidden');
+    });
+  });
+
+  if (optionAddItemBtn) {
+    optionAddItemBtn.addEventListener('click', () => {
+      if (addOptionModal) addOptionModal.classList.add('hidden');
       openQuickNoteModal(null, state.activeFolderId);
     });
   }
 
-  // Create New Group Button & Modal Handler
-  const createGroupBtn = document.getElementById('create-group-btn');
-  if (createGroupBtn) {
-    createGroupBtn.addEventListener('click', () => {
+  if (optionAddFolderBtn) {
+    optionAddFolderBtn.addEventListener('click', () => {
+      if (addOptionModal) addOptionModal.classList.add('hidden');
       openGroupModal();
     });
   }

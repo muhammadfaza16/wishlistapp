@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=131">
+  <link rel="stylesheet" href="styles.css?v=132">
 </head>
 <body>
   <div id="app">
@@ -202,13 +202,10 @@
         <div class="clean-notes-card">
           <div class="notes-card-header">
             <div class="notes-header-left-btns">
-              <button type="button" id="toggle-add-form-btn" class="btn-clean-action-primary">
+              <button type="button" id="main-add-option-btn" class="btn-clean-action-primary" title="Add Item or Folder">
                 <i data-lucide="plus"></i>
-                <span>Add Item</span>
-              </button>
-              <button type="button" id="create-group-btn" class="btn-clean-action" title="Create a new Group folder">
-                <i data-lucide="folder-plus"></i>
-                <span>New Group</span>
+                <span>Add New</span>
+                <i data-lucide="chevron-down" style="width: 12px; height: 12px; margin-left: 2px;"></i>
               </button>
             </div>
           </div>
@@ -365,6 +362,42 @@
     </div>
   </div>
 
+  <!-- Select Add Option Modal -->
+  <div id="add-option-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2>Create New...</h2>
+        <button type="button" class="modal-close add-option-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" id="option-add-item-btn" class="add-option-card">
+          <div class="option-card-icon">
+            <i data-lucide="plus-circle"></i>
+          </div>
+          <div class="option-card-info">
+            <span class="option-card-title">Wishlist Item</span>
+            <span class="option-card-desc">Add a new item with price & details</span>
+          </div>
+          <i data-lucide="chevron-right" class="option-card-arrow"></i>
+        </button>
+        
+        <button type="button" id="option-add-folder-btn" class="add-option-card">
+          <div class="option-card-icon">
+            <i data-lucide="folder-plus"></i>
+          </div>
+          <div class="option-card-info">
+            <span class="option-card-title">New Folder</span>
+            <span class="option-card-desc">Create a folder to organize items</span>
+          </div>
+          <i data-lucide="chevron-right" class="option-card-arrow"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Create Group / Folder Modal -->
   <div id="group-modal" class="modal-overlay hidden">
     <div class="modal modal-sm">
@@ -458,6 +491,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=131"></script>
+  <script src="app.js?v=132"></script>
 </body>
 </html>
