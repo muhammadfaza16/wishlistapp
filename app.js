@@ -872,8 +872,18 @@ const renderQuickNotesList = () => {
     }
     
     const children = getGroupChildren(state.activeFolderId);
-    const groupPrice = getGroupTotalPrice(state.activeFolderId);
-    const formattedGroupPrice = formatCurrencyValue(groupPrice, state.currency);
+    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
+    
+    let selectOptions = '';
+    if (standaloneItems.length > 0) {
+      selectOptions = `<option value="">+ Select existing item to add to folder...</option>` +
+        standaloneItems.map(item => {
+          const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
+          return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
+        }).join('');
+    } else {
+      selectOptions = `<option value="" disabled>No standalone items available to add</option>`;
+    }
     
     html += `
       <div class="folder-navigation-header" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
@@ -883,10 +893,20 @@ const renderQuickNotesList = () => {
           <span class="group-badge-pill">${children.length} items</span>
         </div>
       </div>
+
+      <div class="add-to-folder-bar" style="display: flex; gap: 8px; margin-bottom: 14px; padding: 8px 10px; background: #FAFAF9; border: 1px solid #E5E5EA; border-radius: 8px;">
+        <select class="clean-select select-existing-item-to-add" style="flex: 1; font-size: 12.5px;">
+          ${selectOptions}
+        </select>
+        <button type="button" class="btn-primary btn-add-existing-to-folder" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
+          <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
+          <span>Add</span>
+        </button>
+      </div>
     `;
     
     if (children.length === 0) {
-      html += `<div style="text-align:center;padding:24px 12px;color:var(--text-tertiary);font-size:12.5px;">This folder is empty.</div>`;
+      html += `<div style="text-align:center;padding:20px 12px;color:var(--text-tertiary);font-size:12.5px;">Folder is empty. Select an existing item above to add it into this folder.</div>`;
     } else {
       let idx = 0;
       html += children.map(child => {
@@ -1006,10 +1026,10 @@ const renderQuickNotesManageList = () => {
       </div>
 
       <div class="add-to-folder-bar" style="display: flex; gap: 8px; margin-bottom: 14px; padding: 8px 10px; background: #FAFAF9; border: 1px solid #E5E5EA; border-radius: 8px;">
-        <select id="select-existing-item-to-add" class="clean-select" style="flex: 1; font-size: 12.5px;">
+        <select class="clean-select select-existing-item-to-add" style="flex: 1; font-size: 12.5px;">
           ${selectOptions}
         </select>
-        <button type="button" id="btn-add-existing-to-folder" class="btn-primary" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
+        <button type="button" class="btn-primary btn-add-existing-to-folder" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
           <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
           <span>Add</span>
         </button>
@@ -1528,10 +1548,33 @@ const initEventHandlers = () => {
     });
   }
 
+  // Helper handler for adding existing item into active folder
+  const handleAddExistingToFolderClick = (e) => {
+    const btn = e.target.closest('.btn-add-existing-to-folder');
+    if (!btn) return false;
+    const bar = btn.closest('.add-to-folder-bar');
+    const select = bar?.querySelector('.select-existing-item-to-add');
+    const selectedId = select?.value;
+    if (!selectedId) {
+      showToast('Please select an existing item first');
+      return true;
+    }
+    const item = state.notesItems.find(n => n.id === selectedId);
+    if (item && state.activeFolderId) {
+      item.parentId = state.activeFolderId;
+      saveNotes();
+      showToast(`Added '${item.title}' to folder`);
+      renderNotesView();
+    }
+    return true;
+  };
+
   // Quick Notes List Delegation (Wishlist View Tab)
   const quickNotesList = document.getElementById('quick-notes-list');
   if (quickNotesList) {
     quickNotesList.addEventListener('click', (e) => {
+      if (handleAddExistingToFolderClick(e)) return;
+
       const openFolderBtn = e.target.closest('[data-action="open-folder"]');
       if (openFolderBtn) {
         const id = openFolderBtn.getAttribute('data-id');
@@ -1553,6 +1596,8 @@ const initEventHandlers = () => {
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
     quickNotesManageList.addEventListener('click', (e) => {
+      if (handleAddExistingToFolderClick(e)) return;
+
       // Open Folder
       const openFolderBtn = e.target.closest('[data-action="open-folder"]');
       if (openFolderBtn && !e.target.closest('.btn-icon-subtle')) {
@@ -1567,25 +1612,6 @@ const initEventHandlers = () => {
       if (exitFolderBtn) {
         state.activeFolderId = null;
         renderNotesView();
-        return;
-      }
-
-      // Add Existing Item to Active Folder
-      const addExistingBtn = e.target.closest('#btn-add-existing-to-folder');
-      if (addExistingBtn) {
-        const select = document.getElementById('select-existing-item-to-add');
-        const selectedId = select?.value;
-        if (!selectedId) {
-          showToast('Please select an existing item first');
-          return;
-        }
-        const item = state.notesItems.find(n => n.id === selectedId);
-        if (item && state.activeFolderId) {
-          item.parentId = state.activeFolderId;
-          saveNotes();
-          showToast(`Added '${item.title}' to folder`);
-          renderNotesView();
-        }
         return;
       }
 
