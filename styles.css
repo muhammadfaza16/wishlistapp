@@ -2370,8 +2370,8 @@ input#search-input:focus {
   height: 20px;
 }
 
-form#item-form {
-  padding: 24px 28px 28px;
+.modal form, .modal-body {
+  padding: 20px 28px 28px;
 }
 
 .form-group {
@@ -2993,8 +2993,8 @@ input#item-tags {
     padding: 16px 20px 0;
   }
 
-  form#item-form {
-    padding: 20px;
+  .modal form, .modal-body {
+    padding: 16px 20px 24px;
   }
 
   .form-row {
