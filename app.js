@@ -107,6 +107,7 @@ let state = {
   deleteId: null,
   progressId: null,
   achievedOpen: false,
+  activeFolderId: null
 };
 
 const defaultNotesItems = [
@@ -797,81 +798,103 @@ const renderQuickNotesList = () => {
     return;
   }
   
-  const rootItems = state.notesItems.filter(item => !item.parentId);
-  let globalIndex = 0;
+  let html = '';
   
-  container.innerHTML = rootItems.map(item => {
-    if (item.isGroup) {
-      const children = getGroupChildren(item.id);
-      const groupPrice = getGroupTotalPrice(item.id);
-      const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
-      const isExpanded = !!item.expanded;
-      
-      let childrenHtml = '';
-      if (isExpanded && children.length > 0) {
-        childrenHtml = `
-          <div class="quick-note-group-dropdown">
-            ${children.map((child) => {
-              globalIndex++;
-              const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
-              const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
-              const childNum = String(globalIndex).padStart(2, '0');
-              return `
-                <div class="quick-note-row ${child.checked ? 'checked' : ''}" data-id="${child.id}">
-                  <div class="quick-note-left">
-                    <span class="quick-note-index">${childNum}</span>
-                    <span class="quick-note-title">${child.title}</span>
-                  </div>
-                  <div class="quick-note-right">
-                    <span class="quick-note-price">${formattedChildPrice}</span>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+  if (state.activeFolderId) {
+    const activeFolder = state.notesItems.find(n => n.id === state.activeFolderId);
+    if (!activeFolder) {
+      state.activeFolderId = null;
+      renderQuickNotesList();
+      return;
+    }
+    
+    const children = getGroupChildren(state.activeFolderId);
+    const groupPrice = getGroupTotalPrice(state.activeFolderId);
+    const formattedGroupPrice = formatCurrencyValue(groupPrice, state.currency);
+    
+    html += `
+      <div class="folder-navigation-header">
+        <button type="button" class="btn-folder-back" data-action="exit-folder" title="Back to All Notes">
+          <i data-lucide="arrow-left"></i>
+          <span>All Notes</span>
+        </button>
+        <div class="folder-title-display">
+          <i data-lucide="folder-open" class="folder-open-icon"></i>
+          <span class="folder-title-text">${activeFolder.title}</span>
+          <span class="group-badge-pill">${children.length} items</span>
+        </div>
+        <span class="quick-note-price">${formattedGroupPrice}</span>
+      </div>
+    `;
+    
+    if (children.length === 0) {
+      html += `<div style="text-align:center;padding:24px 12px;color:var(--text-tertiary);font-size:12.5px;">This folder is empty.</div>`;
+    } else {
+      let idx = 0;
+      html += children.map(child => {
+        idx++;
+        const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
+        const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
+        const num = String(idx).padStart(2, '0');
+        return `
+          <div class="quick-note-row ${child.checked ? 'checked' : ''}" data-id="${child.id}">
+            <div class="quick-note-left">
+              <span class="quick-note-index">${num}</span>
+              <span class="quick-note-title">${child.title}</span>
+            </div>
+            <div class="quick-note-right">
+              <span class="quick-note-price">${formattedChildPrice}</span>
+            </div>
           </div>
         `;
-      }
-      
-      return `
-        <div class="quick-note-group-container">
-          <div class="quick-note-row group-row" data-id="${item.id}">
+      }).join('');
+    }
+  } else {
+    // Root View
+    const rootItems = state.notesItems.filter(item => !item.parentId);
+    let globalIndex = 0;
+    
+    html = rootItems.map(item => {
+      if (item.isGroup) {
+        const children = getGroupChildren(item.id);
+        const groupPrice = getGroupTotalPrice(item.id);
+        const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
+        
+        return `
+          <div class="quick-note-row group-row-folder" data-action="open-folder" data-id="${item.id}" title="Open ${item.title} folder" style="cursor: pointer;">
             <div class="quick-note-left">
-              <button type="button" class="btn-group-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-group" data-id="${item.id}" title="Toggle group dropdown">
-                <i data-lucide="chevron-right"></i>
-              </button>
-              <div class="group-title-wrapper" data-action="toggle-group" data-id="${item.id}">
-                <i data-lucide="folder" class="group-folder-icon"></i>
-                <span class="quick-note-title">${item.title}</span>
-                <span class="group-badge-pill">${children.length} items</span>
-              </div>
+              <i data-lucide="folder" class="group-folder-icon"></i>
+              <span class="quick-note-title">${item.title}</span>
+              <span class="group-badge-pill">${children.length} items</span>
+            </div>
+            <div class="quick-note-right">
+              <span class="quick-note-price">${formattedPrice}</span>
+              <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-tertiary); margin-left: 4px;"></i>
+            </div>
+          </div>
+        `;
+      } else {
+        globalIndex++;
+        const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+        const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+        const itemNum = String(globalIndex).padStart(2, '0');
+        
+        return `
+          <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+            <div class="quick-note-left">
+              <span class="quick-note-index">${itemNum}</span>
+              <span class="quick-note-title">${item.title}</span>
             </div>
             <div class="quick-note-right">
               <span class="quick-note-price">${formattedPrice}</span>
             </div>
           </div>
-          ${childrenHtml}
-        </div>
-      `;
-    } else {
-      globalIndex++;
-      const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-      const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-      const itemNum = String(globalIndex).padStart(2, '0');
-      
-      return `
-        <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
-          <div class="quick-note-left">
-            <span class="quick-note-index">${itemNum}</span>
-            <span class="quick-note-title">${item.title}</span>
-          </div>
-          <div class="quick-note-right">
-            <span class="quick-note-price">${formattedPrice}</span>
-          </div>
-        </div>
-      `;
-    }
-  }).join('');
-
+        `;
+      }
+    }).join('');
+  }
+  
+  container.innerHTML = html;
   if (window.lucide) lucide.createIcons();
 };
 
@@ -886,119 +909,131 @@ const renderQuickNotesManageList = () => {
     return;
   }
   
-  const rootItems = state.notesItems.filter(item => !item.parentId);
+  let html = '';
   
-  container.innerHTML = rootItems.map(item => {
-    if (item.isGroup) {
-      const children = getGroupChildren(item.id);
-      const groupPrice = getGroupTotalPrice(item.id);
-      const formattedPrice = formatCurrencyValue(groupPrice, state.currency);
-      const groupChecked = isGroupChecked(item.id);
-      const isExpanded = !!item.expanded;
-      const isEditing = state.editingNoteId === item.id;
-      
-      let childrenHtml = '';
-      if (isExpanded) {
-        if (children.length === 0) {
-          childrenHtml = `
-            <div class="quick-note-group-dropdown">
-              <div style="padding: 8px 6px; color: var(--text-tertiary); font-size: 11.5px;">Group is empty. Click + above to add items to this group.</div>
-            </div>
-          `;
-        } else {
-          childrenHtml = `
-            <div class="quick-note-group-dropdown">
-              ${children.map(child => {
-                const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
-                const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
-                const isChildEditing = state.editingNoteId === child.id;
-                
-                return `
-                  <div class="quick-note-row ${child.checked ? 'checked' : ''} ${isChildEditing ? 'editing-row' : ''}" data-id="${child.id}">
-                    <div class="quick-note-left">
-                      <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${child.id}" ${child.checked ? 'checked' : ''} title="Mark completed">
-                      <span class="quick-note-title">${child.title}</span>
-                    </div>
-                    <div class="quick-note-right">
-                      <span class="quick-note-price">${formattedChildPrice}</span>
-                      <div class="quick-note-actions-always">
-                        <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${child.id}" title="Edit item">
-                          <i data-lucide="edit-2"></i>
-                        </button>
-                        <button type="button" class="btn-icon-subtle ungroup-btn" data-action="ungroup-note" data-id="${child.id}" title="Remove from group">
-                          <i data-lucide="corner-up-left"></i>
-                        </button>
-                        <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${child.id}" title="Delete item">
-                          <i data-lucide="trash-2"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        }
-      }
-      
-      return `
-        <div class="quick-note-group-container">
-          <div class="quick-note-row group-row ${groupChecked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
+  if (state.activeFolderId) {
+    const activeFolder = state.notesItems.find(n => n.id === state.activeFolderId);
+    if (!activeFolder) {
+      state.activeFolderId = null;
+      renderQuickNotesManageList();
+      return;
+    }
+    
+    const children = getGroupChildren(state.activeFolderId);
+    
+    html += `
+      <div class="folder-navigation-header">
+        <button type="button" class="btn-folder-back" data-action="exit-folder" title="Back to All Notes">
+          <i data-lucide="arrow-left"></i>
+          <span>All Notes</span>
+        </button>
+        <div class="folder-title-display">
+          <i data-lucide="folder-open" class="folder-open-icon"></i>
+          <span class="folder-title-text">${activeFolder.title}</span>
+          <span class="group-badge-pill">${children.length} items</span>
+        </div>
+        <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${activeFolder.id}" title="Edit folder title">
+          <i data-lucide="edit-2"></i>
+        </button>
+      </div>
+    `;
+    
+    if (children.length === 0) {
+      html += `
+        <div style="text-align:center;padding:24px 12px;color:var(--text-tertiary);font-size:12.5px;">
+          Folder is empty. Click <b>+ Add Item</b> above to add an item into this folder.
+        </div>
+      `;
+    } else {
+      html += children.map(child => {
+        const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
+        const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
+        const isChildEditing = state.editingNoteId === child.id;
+        
+        return `
+          <div class="quick-note-row ${child.checked ? 'checked' : ''} ${isChildEditing ? 'editing-row' : ''}" data-id="${child.id}">
             <div class="quick-note-left">
-              <button type="button" class="btn-group-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-group" data-id="${item.id}" title="Toggle dropdown">
-                <i data-lucide="chevron-right"></i>
-              </button>
-              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-group-checked" data-id="${item.id}" ${groupChecked ? 'checked' : ''} title="Toggle all group items">
-              <div class="group-title-wrapper" data-action="toggle-group" data-id="${item.id}">
-                <i data-lucide="folder" class="group-folder-icon"></i>
-                <span class="quick-note-title">${item.title}</span>
-                <span class="group-badge-pill">${children.length} items</span>
-              </div>
+              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${child.id}" ${child.checked ? 'checked' : ''} title="Mark completed">
+              <span class="quick-note-title">${child.title}</span>
             </div>
             <div class="quick-note-right">
+              <span class="quick-note-price">${formattedChildPrice}</span>
               <div class="quick-note-actions-always">
-                <button type="button" class="btn-icon-subtle add-child-btn" data-action="add-child-note" data-group-id="${item.id}" title="Add item to this group">
-                  <i data-lucide="plus"></i>
-                </button>
-                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit group title">
+                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${child.id}" title="Edit item">
                   <i data-lucide="edit-2"></i>
                 </button>
-                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete group">
+                <button type="button" class="btn-icon-subtle ungroup-btn" data-action="ungroup-note" data-id="${child.id}" title="Remove from folder">
+                  <i data-lucide="corner-up-left"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${child.id}" title="Delete item">
                   <i data-lucide="trash-2"></i>
                 </button>
               </div>
             </div>
           </div>
-          ${childrenHtml}
-        </div>
-      `;
-    } else {
-      const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-      const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-      const isEditing = state.editingNoteId === item.id;
-      
-      return `
-        <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
-          <div class="quick-note-left">
-            <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
-            <span class="quick-note-title">${item.title}</span>
-          </div>
-          <div class="quick-note-right">
-            <span class="quick-note-price">${formattedPrice}</span>
-            <div class="quick-note-actions-always">
-              <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
-                <i data-lucide="edit-2"></i>
-              </button>
-              <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
-                <i data-lucide="trash-2"></i>
-              </button>
+        `;
+      }).join('');
+    }
+  } else {
+    // Root Manage View
+    const rootItems = state.notesItems.filter(item => !item.parentId);
+    
+    html = rootItems.map(item => {
+      if (item.isGroup) {
+        const children = getGroupChildren(item.id);
+        const isEditing = state.editingNoteId === item.id;
+        
+        return `
+          <div class="quick-note-row group-row-folder ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
+            <div class="quick-note-left" data-action="open-folder" data-id="${item.id}" style="cursor: pointer;">
+              <i data-lucide="folder" class="group-folder-icon"></i>
+              <span class="quick-note-title">${item.title}</span>
+              <span class="group-badge-pill">${children.length} items</span>
+            </div>
+            <div class="quick-note-right">
+              <div class="quick-note-actions-always">
+                <button type="button" class="btn-icon-subtle add-child-btn" data-action="add-child-note" data-group-id="${item.id}" title="Add item to this folder">
+                  <i data-lucide="plus"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit folder name">
+                  <i data-lucide="edit-2"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete folder">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      `;
-    }
-  }).join('');
+        `;
+      } else {
+        const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+        const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+        const isEditing = state.editingNoteId === item.id;
+        
+        return `
+          <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
+            <div class="quick-note-left">
+              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
+              <span class="quick-note-title">${item.title}</span>
+            </div>
+            <div class="quick-note-right">
+              <span class="quick-note-price">${formattedPrice}</span>
+              <div class="quick-note-actions-always">
+                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
+                  <i data-lucide="edit-2"></i>
+                </button>
+                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+  }
   
+  container.innerHTML = html;
   if (window.lucide) lucide.createIcons();
 };
 
@@ -1335,48 +1370,44 @@ const initEventHandlers = () => {
     });
   }
 
-  // Quick Notes List Delegation (Wishlist View Tab - Toggle Group)
+  // Quick Notes List Delegation (Wishlist View Tab)
   const quickNotesList = document.getElementById('quick-notes-list');
   if (quickNotesList) {
     quickNotesList.addEventListener('click', (e) => {
-      const groupToggleBtn = e.target.closest('[data-action="toggle-group"]');
-      if (groupToggleBtn) {
-        const id = groupToggleBtn.getAttribute('data-id');
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          item.expanded = !item.expanded;
-          saveNotes();
-          renderNotesView();
-        }
+      const openFolderBtn = e.target.closest('[data-action="open-folder"]');
+      if (openFolderBtn) {
+        const id = openFolderBtn.getAttribute('data-id');
+        state.activeFolderId = id;
+        renderNotesView();
+        return;
+      }
+
+      const exitFolderBtn = e.target.closest('[data-action="exit-folder"]');
+      if (exitFolderBtn) {
+        state.activeFolderId = null;
+        renderNotesView();
+        return;
       }
     });
   }
 
-  // Quick Notes Manage List Delegation (Manage Tab - Edit, Delete, Grouping)
+  // Quick Notes Manage List Delegation (Manage Tab - Edit, Delete, Folder Nav)
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
     quickNotesManageList.addEventListener('click', (e) => {
-      // Toggle Group Accordion
-      const groupToggleBtn = e.target.closest('[data-action="toggle-group"]');
-      if (groupToggleBtn) {
-        const id = groupToggleBtn.getAttribute('data-id');
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          item.expanded = !item.expanded;
-          saveNotes();
-          renderNotesView();
-        }
+      // Open Folder
+      const openFolderBtn = e.target.closest('[data-action="open-folder"]');
+      if (openFolderBtn) {
+        const id = openFolderBtn.getAttribute('data-id');
+        state.activeFolderId = id;
+        renderNotesView();
         return;
       }
 
-      // Toggle Group Checked All
-      const toggleGroupChecked = e.target.closest('[data-action="toggle-group-checked"]');
-      if (toggleGroupChecked) {
-        const id = toggleGroupChecked.getAttribute('data-id');
-        const isChecked = toggleGroupChecked.checked;
-        const children = getGroupChildren(id);
-        children.forEach(c => c.checked = isChecked);
-        saveNotes();
+      // Exit Folder
+      const exitFolderBtn = e.target.closest('[data-action="exit-folder"]');
+      if (exitFolderBtn) {
+        state.activeFolderId = null;
         renderNotesView();
         return;
       }
@@ -1394,12 +1425,10 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Add Child Note directly into Group
+      // Add Child Note directly into Group / Folder
       const addChildBtn = e.target.closest('[data-action="add-child-note"]');
       if (addChildBtn) {
         const groupId = addChildBtn.getAttribute('data-group-id');
-        const groupItem = state.notesItems.find(n => n.id === groupId);
-        if (groupItem) groupItem.expanded = true;
         openQuickNoteModal(null, groupId);
         renderNotesView();
         return;
@@ -1413,7 +1442,7 @@ const initEventHandlers = () => {
         if (item) {
           item.parentId = null;
           saveNotes();
-          showToast('Removed from group');
+          showToast('Removed from folder');
           renderNotesView();
         }
         return;
