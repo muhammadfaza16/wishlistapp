@@ -312,7 +312,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   const priceInput = document.getElementById('quick-note-price-input');
   const groupSelect = document.getElementById('quick-note-group-select');
   const checkedInput = document.getElementById('quick-note-checked-input');
-  const convertBtn = document.getElementById('quick-note-convert-btn');
+  const convertContainer = document.getElementById('quick-note-convert-container');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
   
   if (!modal) return;
@@ -338,9 +338,9 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
         checkedInput.disabled = !!item.isGroup;
       }
       if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
-      if (convertBtn) {
-        if (item.isGroup) convertBtn.classList.add('hidden');
-        else convertBtn.classList.remove('hidden');
+      if (convertContainer) {
+        if (item.isGroup) convertContainer.classList.add('hidden');
+        else convertContainer.classList.remove('hidden');
       }
     }
   } else {
@@ -360,7 +360,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
       checkedInput.disabled = false;
     }
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
-    if (convertBtn) convertBtn.classList.add('hidden');
+    if (convertContainer) convertContainer.classList.add('hidden');
   }
   
   modal.classList.remove('hidden');

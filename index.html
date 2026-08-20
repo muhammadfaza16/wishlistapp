@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=117">
+  <link rel="stylesheet" href="styles.css?v=118">
 </head>
 <body>
   <div id="app">
@@ -439,11 +439,13 @@
             <span>Completed</span>
           </label>
         </div>
-        <div class="form-actions">
-          <button type="button" id="quick-note-convert-btn" class="btn-secondary hidden" title="Convert item to Catalog">
-            <i data-lucide="box" style="width: 14px; height: 14px; margin-right: 4px;"></i>
-            <span>To Catalog</span>
+        <div id="quick-note-convert-container" class="form-group hidden" style="margin-bottom: 16px;">
+          <button type="button" id="quick-note-convert-btn" class="btn-subtle-convert-card" title="Convert item to Wishlist Catalog">
+            <i data-lucide="box"></i>
+            <span>Transfer to Wishlist Catalog</span>
           </button>
+        </div>
+        <div class="form-actions">
           <button type="submit" id="quick-note-submit-btn" class="btn-primary">
             <span>Save Item</span>
           </button>
@@ -456,6 +458,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
 </body>
 </html>
