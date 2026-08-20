@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=127">
+  <link rel="stylesheet" href="styles.css?v=129">
 </head>
 <body>
   <div id="app">
@@ -439,8 +439,12 @@
             <span>Transfer to Wishlist Catalog</span>
           </button>
         </div>
-        <div class="form-actions">
-          <button type="submit" id="quick-note-submit-btn" class="btn-primary">
+        <div class="form-actions" style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" id="quick-note-delete-btn" class="btn-danger hidden" style="padding: 10px 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            <span>Delete</span>
+          </button>
+          <button type="submit" id="quick-note-submit-btn" class="btn-primary" style="flex: 1;">
             <span>Save Item</span>
           </button>
         </div>
@@ -452,6 +456,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=127"></script>
+  <script src="app.js?v=129"></script>
 </body>
 </html>

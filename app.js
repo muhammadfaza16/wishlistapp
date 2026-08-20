@@ -314,6 +314,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   const groupSelect = document.getElementById('quick-note-group-select');
   const checkedInput = document.getElementById('quick-note-checked-input');
   const convertContainer = document.getElementById('quick-note-convert-container');
+  const deleteBtn = document.getElementById('quick-note-delete-btn');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
   
   if (!modal) return;
@@ -323,7 +324,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   if (noteId) {
     const item = state.notesItems.find(n => n.id === noteId);
     if (item) {
-      if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Group' : 'Edit Note Item';
+      if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Folder' : 'Edit Note Item';
       if (titleInput) titleInput.value = item.title;
       if (priceInput) {
         priceInput.value = item.isGroup ? '' : (item.price || '');
@@ -339,13 +340,14 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
         checkedInput.disabled = !!item.isGroup;
       }
       if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
+      if (deleteBtn) deleteBtn.classList.remove('hidden');
       if (convertContainer) {
         if (item.isGroup) convertContainer.classList.add('hidden');
         else convertContainer.classList.remove('hidden');
       }
     }
   } else {
-    if (titleEl) titleEl.textContent = preselectGroupId ? 'Add Item to Group' : 'Add Note Item';
+    if (titleEl) titleEl.textContent = preselectGroupId ? 'Add Item to Folder' : 'Add Note Item';
     if (titleInput) titleInput.value = '';
     if (priceInput) {
       priceInput.value = '';
@@ -361,6 +363,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
       checkedInput.disabled = false;
     }
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
+    if (deleteBtn) deleteBtn.classList.add('hidden');
     if (convertContainer) convertContainer.classList.add('hidden');
   }
   
@@ -955,9 +958,6 @@ const renderQuickNotesManageList = () => {
                 <button type="button" class="btn-icon-subtle ungroup-btn" data-action="ungroup-note" data-id="${child.id}" title="Remove from folder">
                   <i data-lucide="corner-up-left"></i>
                 </button>
-                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${child.id}" title="Delete item">
-                  <i data-lucide="trash-2"></i>
-                </button>
               </div>
             </div>
           </div>
@@ -988,9 +988,6 @@ const renderQuickNotesManageList = () => {
                 <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit folder name">
                   <i data-lucide="edit-2"></i>
                 </button>
-                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete folder">
-                  <i data-lucide="trash-2"></i>
-                </button>
               </div>
             </div>
           </div>
@@ -1011,9 +1008,6 @@ const renderQuickNotesManageList = () => {
               <div class="quick-note-actions-always">
                 <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
                   <i data-lucide="edit-2"></i>
-                </button>
-                <button type="button" class="btn-icon-subtle delete-btn" data-action="delete-note" data-id="${item.id}" title="Delete item">
-                  <i data-lucide="trash-2"></i>
                 </button>
               </div>
             </div>
@@ -1046,13 +1040,13 @@ const renderNotesView = () => {
   if (currentSubTab === 'view') {
     if (viewSubView) viewSubView.classList.remove('hidden');
     if (manageSubView) manageSubView.classList.add('hidden');
-    renderQuickNotesList();
   } else {
     if (viewSubView) viewSubView.classList.add('hidden');
     if (manageSubView) manageSubView.classList.remove('hidden');
-    renderQuickNotesManageList();
   }
   
+  renderQuickNotesList();
+  renderQuickNotesManageList();
   calculateNotesAccumulator();
 };
 
@@ -1348,14 +1342,36 @@ const initEventHandlers = () => {
     });
   }
 
-  // Quick Note Convert Button Inside Modal Handler
-  const quickNoteConvertBtn = document.getElementById('quick-note-convert-btn');
-  if (quickNoteConvertBtn) {
-    quickNoteConvertBtn.addEventListener('click', () => {
+  // Quick Note Delete Button Inside Modal Handler
+  const quickNoteDeleteBtn = document.getElementById('quick-note-delete-btn');
+  if (quickNoteDeleteBtn) {
+    quickNoteDeleteBtn.addEventListener('click', () => {
       if (state.editingNoteId) {
-        convertNoteToCatalog(state.editingNoteId);
-        closeQuickNoteModal();
-        renderNotesView();
+        const id = state.editingNoteId;
+        const item = state.notesItems.find(n => n.id === id);
+        if (item) {
+          if (state.activeFolderId === id) state.activeFolderId = null;
+          if (item.isGroup) {
+            showConfirmDialog({
+              title: 'Delete Folder',
+              message: `Are you sure you want to delete folder '${item.title}' and all its items?`,
+              confirmText: 'Delete Folder',
+              onConfirm: () => {
+                state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
+                saveNotes();
+                closeQuickNoteModal();
+                showToast('Folder deleted');
+                renderNotesView();
+              }
+            });
+          } else {
+            state.notesItems = state.notesItems.filter(n => n.id !== id);
+            saveNotes();
+            closeQuickNoteModal();
+            showToast('Item deleted');
+            renderNotesView();
+          }
+        }
       }
     });
   }
@@ -1457,6 +1473,7 @@ const initEventHandlers = () => {
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
           if (state.editingNoteId === id) state.editingNoteId = null;
+          if (state.activeFolderId === id) state.activeFolderId = null;
           if (item.isGroup) {
             showConfirmDialog({
               title: 'Delete Group',
