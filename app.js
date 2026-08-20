@@ -813,17 +813,13 @@ const renderQuickNotesList = () => {
     const formattedGroupPrice = formatCurrencyValue(groupPrice, state.currency);
     
     html += `
-      <div class="folder-navigation-header">
-        <button type="button" class="btn-folder-back" data-action="exit-folder" title="Back to All Notes">
-          <i data-lucide="arrow-left"></i>
-          <span>All Notes</span>
-        </button>
+      <div class="folder-navigation-header" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
         <div class="folder-title-display">
+          <i data-lucide="arrow-left" class="folder-back-arrow-icon"></i>
           <i data-lucide="folder-open" class="folder-open-icon"></i>
           <span class="folder-title-text">${activeFolder.title}</span>
           <span class="group-badge-pill">${children.length} items</span>
         </div>
-        <span class="quick-note-price">${formattedGroupPrice}</span>
       </div>
     `;
     
@@ -868,7 +864,6 @@ const renderQuickNotesList = () => {
               <span class="group-badge-pill">${children.length} items</span>
             </div>
             <div class="quick-note-right">
-              <span class="quick-note-price">${formattedPrice}</span>
               <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-tertiary); margin-left: 4px;"></i>
             </div>
           </div>
@@ -923,11 +918,8 @@ const renderQuickNotesManageList = () => {
     
     html += `
       <div class="folder-navigation-header">
-        <button type="button" class="btn-folder-back" data-action="exit-folder" title="Back to All Notes">
-          <i data-lucide="arrow-left"></i>
-          <span>All Notes</span>
-        </button>
-        <div class="folder-title-display">
+        <div class="folder-title-display" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
+          <i data-lucide="arrow-left" class="folder-back-arrow-icon"></i>
           <i data-lucide="folder-open" class="folder-open-icon"></i>
           <span class="folder-title-text">${activeFolder.title}</span>
           <span class="group-badge-pill">${children.length} items</span>

@@ -1016,6 +1016,21 @@ input, button, select, textarea {
   overflow: hidden;
 }
 
+.folder-back-arrow-icon {
+  width: 14px;
+  height: 14px;
+  color: #71717A;
+  flex-shrink: 0;
+  margin-right: 2px;
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.folder-title-display:hover .folder-back-arrow-icon,
+.folder-navigation-header:hover .folder-back-arrow-icon {
+  color: #09090B;
+  transform: translateX(-2px);
+}
+
 .folder-open-icon {
   width: 15px;
   height: 15px;
