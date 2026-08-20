@@ -305,6 +305,74 @@ const closeGroupModal = () => {
   if (modal) modal.classList.add('hidden');
 };
 
+const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
+  const modal = document.getElementById('quick-note-modal');
+  const titleEl = document.getElementById('quick-note-modal-title');
+  const titleInput = document.getElementById('quick-note-title-input');
+  const priceInput = document.getElementById('quick-note-price-input');
+  const groupSelect = document.getElementById('quick-note-group-select');
+  const checkedInput = document.getElementById('quick-note-checked-input');
+  const convertBtn = document.getElementById('quick-note-convert-btn');
+  const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
+  
+  if (!modal) return;
+  
+  state.editingNoteId = noteId;
+  
+  if (noteId) {
+    const item = state.notesItems.find(n => n.id === noteId);
+    if (item) {
+      if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Group' : 'Edit Note Item';
+      if (titleInput) titleInput.value = item.title;
+      if (priceInput) {
+        priceInput.value = item.isGroup ? '' : (item.price || '');
+        priceInput.disabled = !!item.isGroup;
+      }
+      populateGroupSelect(item.parentId || '');
+      if (groupSelect) {
+        groupSelect.value = item.parentId || '';
+        groupSelect.disabled = !!item.isGroup;
+      }
+      if (checkedInput) {
+        checkedInput.checked = !!item.checked;
+        checkedInput.disabled = !!item.isGroup;
+      }
+      if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
+      if (convertBtn) {
+        if (item.isGroup) convertBtn.classList.add('hidden');
+        else convertBtn.classList.remove('hidden');
+      }
+    }
+  } else {
+    if (titleEl) titleEl.textContent = preselectGroupId ? 'Add Item to Group' : 'Add Note Item';
+    if (titleInput) titleInput.value = '';
+    if (priceInput) {
+      priceInput.value = '';
+      priceInput.disabled = false;
+    }
+    populateGroupSelect(preselectGroupId || '');
+    if (groupSelect) {
+      groupSelect.value = preselectGroupId || '';
+      groupSelect.disabled = false;
+    }
+    if (checkedInput) {
+      checkedInput.checked = false;
+      checkedInput.disabled = false;
+    }
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
+    if (convertBtn) convertBtn.classList.add('hidden');
+  }
+  
+  modal.classList.remove('hidden');
+  setTimeout(() => titleInput?.focus(), 100);
+};
+
+const closeQuickNoteModal = () => {
+  const modal = document.getElementById('quick-note-modal');
+  if (modal) modal.classList.add('hidden');
+  state.editingNoteId = null;
+};
+
 const getFilteredItems = () => {
   const activeItems = [];
   const achievedItems = [];
@@ -1152,31 +1220,11 @@ const initEventHandlers = () => {
     });
   }
 
-  // Toggle Add Form Button
+  // Toggle Add Form Button (Opens Centered Modal)
   const toggleAddFormBtn = document.getElementById('toggle-add-form-btn');
   if (toggleAddFormBtn) {
     toggleAddFormBtn.addEventListener('click', () => {
-      const form = document.getElementById('quick-note-form');
-      if (!form) return;
-      
-      if (state.editingNoteId) {
-        resetFormState(false);
-        form.classList.remove('hidden');
-        const titleInput = document.getElementById('quick-note-title-input');
-        titleInput?.focus();
-        renderNotesView();
-        return;
-      }
-      
-      const badge = document.getElementById('form-editing-badge');
-      if (badge) badge.classList.add('hidden');
-      form.classList.remove('editing-mode');
-      
-      form.classList.toggle('hidden');
-      if (!form.classList.contains('hidden')) {
-        const titleInput = document.getElementById('quick-note-title-input');
-        titleInput?.focus();
-      }
+      openQuickNoteModal();
     });
   }
 
@@ -1214,48 +1262,11 @@ const initEventHandlers = () => {
     btn.addEventListener('click', closeGroupModal);
   });
 
-  const resetFormState = (closeForm = true) => {
-    state.editingNoteId = null;
-    const form = document.getElementById('quick-note-form');
-    const titleInput = document.getElementById('quick-note-title-input');
-    const priceInput = document.getElementById('quick-note-price-input');
-    const groupSelect = document.getElementById('quick-note-group-select');
-    const checkedInput = document.getElementById('quick-note-checked-input');
-    const convertBtn = document.getElementById('quick-note-convert-btn');
-    const badge = document.getElementById('form-editing-badge');
-    const submitBtnSpan = document.querySelector('#quick-note-form button[type="submit"] span');
+  document.querySelectorAll('.quick-note-modal-close').forEach(btn => {
+    btn.addEventListener('click', closeQuickNoteModal);
+  });
 
-    if (titleInput) titleInput.value = '';
-    if (priceInput) {
-      priceInput.value = '';
-      priceInput.disabled = false;
-    }
-    if (groupSelect) {
-      groupSelect.value = '';
-      groupSelect.disabled = false;
-    }
-    if (checkedInput) {
-      checkedInput.checked = false;
-      checkedInput.disabled = false;
-    }
-    if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
-    if (convertBtn) convertBtn.classList.add('hidden');
-    if (badge) badge.classList.add('hidden');
-    if (form) {
-      form.classList.remove('editing-mode');
-      if (closeForm) form.classList.add('hidden');
-    }
-  };
-
-  const cancelEditBtn = document.getElementById('cancel-edit-btn');
-  if (cancelEditBtn) {
-    cancelEditBtn.addEventListener('click', () => {
-      resetFormState(true);
-      renderNotesView();
-    });
-  }
-
-  // Quick Note Conventional Add / Edit Form Handler
+  // Quick Note Form Submit Handler Inside Centered Modal
   const quickNoteForm = document.getElementById('quick-note-form');
   if (quickNoteForm) {
     quickNoteForm.addEventListener('submit', (e) => {
@@ -1296,18 +1307,18 @@ const initEventHandlers = () => {
       }
       
       saveNotes();
-      resetFormState();
+      closeQuickNoteModal();
       renderNotesView();
     });
   }
 
-  // Quick Note Convert Button Inside Form Handler
+  // Quick Note Convert Button Inside Modal Handler
   const quickNoteConvertBtn = document.getElementById('quick-note-convert-btn');
   if (quickNoteConvertBtn) {
     quickNoteConvertBtn.addEventListener('click', () => {
       if (state.editingNoteId) {
         convertNoteToCatalog(state.editingNoteId);
-        resetFormState();
+        closeQuickNoteModal();
         renderNotesView();
       }
     });
@@ -1378,16 +1389,7 @@ const initEventHandlers = () => {
         const groupId = addChildBtn.getAttribute('data-group-id');
         const groupItem = state.notesItems.find(n => n.id === groupId);
         if (groupItem) groupItem.expanded = true;
-        
-        resetFormState(false);
-        const form = document.getElementById('quick-note-form');
-        const titleInput = document.getElementById('quick-note-title-input');
-        const groupSelect = document.getElementById('quick-note-group-select');
-        
-        if (form) form.classList.remove('hidden');
-        populateGroupSelect(groupId);
-        if (groupSelect) groupSelect.value = groupId;
-        if (titleInput) titleInput.focus();
+        openQuickNoteModal(null, groupId);
         renderNotesView();
         return;
       }
@@ -1412,41 +1414,7 @@ const initEventHandlers = () => {
         const id = editBtn.getAttribute('data-id');
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
-          state.editingNoteId = id;
-          const form = document.getElementById('quick-note-form');
-          const titleInput = document.getElementById('quick-note-title-input');
-          const priceInput = document.getElementById('quick-note-price-input');
-          const groupSelect = document.getElementById('quick-note-group-select');
-          const checkedInput = document.getElementById('quick-note-checked-input');
-          const convertBtn = document.getElementById('quick-note-convert-btn');
-          const badge = document.getElementById('form-editing-badge');
-          const submitBtnSpan = document.querySelector('#quick-note-form button[type="submit"] span');
-          
-          if (form) {
-            form.classList.remove('hidden');
-            form.classList.add('editing-mode');
-          }
-          if (badge) badge.classList.remove('hidden');
-          if (titleInput) titleInput.value = item.title;
-          if (priceInput) {
-            priceInput.value = item.isGroup ? '' : (item.price || '');
-            priceInput.disabled = !!item.isGroup;
-          }
-          populateGroupSelect(item.parentId || '');
-          if (groupSelect) {
-            groupSelect.value = item.parentId || '';
-            groupSelect.disabled = !!item.isGroup;
-          }
-          if (checkedInput) {
-            checkedInput.checked = !!item.checked;
-            checkedInput.disabled = !!item.isGroup;
-          }
-          if (submitBtnSpan) submitBtnSpan.textContent = 'Update';
-          if (convertBtn) {
-            if (item.isGroup) convertBtn.classList.add('hidden');
-            else convertBtn.classList.remove('hidden');
-          }
-          if (titleInput) titleInput.focus();
+          openQuickNoteModal(id);
           renderNotesView();
         }
         return;

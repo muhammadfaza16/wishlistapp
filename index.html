@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=108">
+  <link rel="stylesheet" href="styles.css?v=109">
 </head>
 <body>
   <div id="app">
@@ -217,49 +217,6 @@
             </button>
           </div>
 
-          <form id="quick-note-form" class="quick-note-form-clean hidden">
-            <div id="form-editing-badge" class="form-mode-banner hidden">
-              <span class="editing-tag"><i data-lucide="edit-3"></i> Editing Item</span>
-              <button type="button" id="cancel-edit-btn" class="btn-text-cancel">Cancel Edit</button>
-            </div>
-            <div class="form-row-clean">
-              <div class="form-group-clean flex-2">
-                <label class="clean-label">Item Name</label>
-                <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
-              </div>
-              <div class="form-group-clean flex-1">
-                <label class="clean-label">Price</label>
-                <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
-              </div>
-              <div class="form-group-clean flex-1">
-                <label class="clean-label">Group</label>
-                <select id="quick-note-group-select" class="clean-select">
-                  <option value="">None (Standalone)</option>
-                </select>
-              </div>
-              <div class="form-group-clean flex-checkbox">
-                <label class="clean-label">&nbsp;</label>
-                <label class="checkbox-inline-label" title="Mark item as completed / acquired">
-                  <input type="checkbox" id="quick-note-checked-input">
-                  <span>Completed</span>
-                </label>
-              </div>
-              <div class="form-group-clean flex-btn">
-                <label class="clean-label">&nbsp;</label>
-                <div class="form-btn-group">
-                  <button type="submit" class="btn-primary-clean">
-                    <i data-lucide="plus"></i>
-                    <span>Add Item</span>
-                  </button>
-                  <button type="button" id="quick-note-convert-btn" class="btn-subtle-convert hidden" title="Add item to Catalog">
-                    <i data-lucide="box"></i>
-                    <span>To Catalog</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
-
           <div class="notes-manage-section">
             <span class="notes-manage-title">Existing Items</span>
             <div id="quick-notes-manage-list" class="quick-notes-manage-list"></div>
@@ -458,10 +415,57 @@
     </div>
   </div>
 
+  <!-- Quick Note Add / Edit Modal -->
+  <div id="quick-note-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2 id="quick-note-modal-title">Add Note Item</h2>
+        <button type="button" class="modal-close quick-note-modal-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="quick-note-form">
+        <div class="form-group">
+          <label for="quick-note-title-input">Item Name</label>
+          <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
+        </div>
+        <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label for="quick-note-price-input">Price</label>
+            <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
+          </div>
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label for="quick-note-group-select">Group (Optional)</label>
+            <select id="quick-note-group-select" class="clean-select">
+              <option value="">None (Standalone)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="checkbox-inline-label" style="cursor: pointer; font-size: 13px; font-weight: 500;" title="Mark item as completed / acquired">
+            <input type="checkbox" id="quick-note-checked-input" style="margin-right: 8px;">
+            <span>Mark as Completed / Acquired</span>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary quick-note-modal-close">Cancel</button>
+          <button type="button" id="quick-note-convert-btn" class="btn-secondary hidden" title="Convert item to Catalog">
+            <i data-lucide="box" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+            <span>To Catalog</span>
+          </button>
+          <button type="submit" id="quick-note-submit-btn" class="btn-primary">
+            <span>Save Item</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=108"></script>
+  <script src="app.js?v=109"></script>
 </body>
 </html>
