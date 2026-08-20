@@ -260,6 +260,51 @@ const showToast = (message) => {
   }, 2500);
 };
 
+const showConfirmDialog = ({ title = 'Confirm Action', message = 'Are you sure?', confirmText = 'Confirm', onConfirm }) => {
+  const modal = document.getElementById('confirm-modal');
+  const titleEl = document.getElementById('confirm-modal-title');
+  const msgEl = document.getElementById('confirm-modal-message');
+  const actionBtn = document.getElementById('confirm-modal-action-btn');
+  
+  if (!modal || !msgEl || !actionBtn) return;
+  
+  if (titleEl) titleEl.textContent = title;
+  msgEl.textContent = message;
+  actionBtn.textContent = confirmText;
+  
+  modal.classList.remove('hidden');
+  
+  const closeConfirmModal = () => {
+    modal.classList.add('hidden');
+  };
+  
+  const newActionBtn = actionBtn.cloneNode(true);
+  actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+  
+  newActionBtn.addEventListener('click', () => {
+    closeConfirmModal();
+    if (typeof onConfirm === 'function') onConfirm();
+  });
+
+  document.querySelectorAll('.confirm-modal-close').forEach(btn => {
+    btn.onclick = closeConfirmModal;
+  });
+};
+
+const openGroupModal = () => {
+  const modal = document.getElementById('group-modal');
+  const input = document.getElementById('group-name-input');
+  if (!modal || !input) return;
+  input.value = '';
+  modal.classList.remove('hidden');
+  setTimeout(() => input.focus(), 100);
+};
+
+const closeGroupModal = () => {
+  const modal = document.getElementById('group-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
 const getFilteredItems = () => {
   const activeItems = [];
   const achievedItems = [];
@@ -1135,24 +1180,39 @@ const initEventHandlers = () => {
     });
   }
 
-  // Create New Group Button Handler
+  // Create New Group Button & Modal Handler
   const createGroupBtn = document.getElementById('create-group-btn');
   if (createGroupBtn) {
     createGroupBtn.addEventListener('click', () => {
-      const groupName = prompt('Enter New Group Name (e.g. Desk Setup):');
-      if (!groupName || !groupName.trim()) return;
+      openGroupModal();
+    });
+  }
+
+  const groupForm = document.getElementById('group-form');
+  if (groupForm) {
+    groupForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('group-name-input');
+      const groupName = input?.value.trim();
+      if (!groupName) return;
+      
       const newGroup = {
         id: generateId(),
-        title: groupName.trim(),
+        title: groupName,
         isGroup: true,
         expanded: true
       };
       state.notesItems.unshift(newGroup);
       saveNotes();
-      showToast(`Group '${groupName.trim()}' created`);
+      closeGroupModal();
+      showToast(`Group '${groupName}' created`);
       renderNotesView();
     });
   }
+
+  document.querySelectorAll('.group-modal-close').forEach(btn => {
+    btn.addEventListener('click', closeGroupModal);
+  });
 
   const resetFormState = (closeForm = true) => {
     state.editingNoteId = null;
@@ -1400,12 +1460,17 @@ const initEventHandlers = () => {
         if (item) {
           if (state.editingNoteId === id) state.editingNoteId = null;
           if (item.isGroup) {
-            if (confirm(`Delete group '${item.title}' and all its items?`)) {
-              state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
-              saveNotes();
-              showToast('Group deleted');
-              renderNotesView();
-            }
+            showConfirmDialog({
+              title: 'Delete Group',
+              message: `Are you sure you want to delete group '${item.title}' and all its items?`,
+              confirmText: 'Delete Group',
+              onConfirm: () => {
+                state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
+                saveNotes();
+                showToast('Group deleted');
+                renderNotesView();
+              }
+            });
           } else {
             state.notesItems = state.notesItems.filter(n => n.id !== id);
             saveNotes();
@@ -1435,18 +1500,23 @@ const initEventHandlers = () => {
   const clearNotesBtn = document.getElementById('clear-notes-btn');
   if (clearNotesBtn) {
     clearNotesBtn.addEventListener('click', () => {
-      if (confirm('Clear all quick notes?')) {
-        if (state.notesMode === 'list') {
-          state.notesItems = [];
-        } else {
-          state.rawNotepadText = '';
-          const rawTextarea = document.getElementById('raw-notepad-input');
-          if (rawTextarea) rawTextarea.value = '';
+      showConfirmDialog({
+        title: 'Clear All Notes',
+        message: 'Are you sure you want to clear all quick notes items? This action cannot be undone.',
+        confirmText: 'Clear All Notes',
+        onConfirm: () => {
+          if (state.notesMode === 'list') {
+            state.notesItems = [];
+          } else {
+            state.rawNotepadText = '';
+            const rawTextarea = document.getElementById('raw-notepad-input');
+            if (rawTextarea) rawTextarea.value = '';
+          }
+          saveNotes();
+          renderNotesView();
+          showToast('Notes cleared');
         }
-        saveNotes();
-        renderNotesView();
-        showToast('Notes cleared');
-      }
+      });
     });
   }
   const sortDropdown = document.getElementById('sort-dropdown');

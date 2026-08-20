@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=105">
+  <link rel="stylesheet" href="styles.css?v=106">
 </head>
 <body>
   <div id="app">
@@ -401,7 +401,7 @@
       <div class="modal-sheet-handle mobile-only"></div>
       <div class="modal-header">
         <h2>Delete Item</h2>
-        <button class="modal-close delete-close" aria-label="Close modal">
+        <button type="button" class="modal-close delete-close" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
@@ -413,10 +413,51 @@
     </div>
   </div>
 
+  <!-- New Group Prompt Modal -->
+  <div id="group-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2>New Group</h2>
+        <button type="button" class="modal-close group-modal-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="group-form">
+        <div class="form-group">
+          <label for="group-name-input">Group Name</label>
+          <input type="text" id="group-name-input" placeholder="e.g. Desk Setup Gear" required autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary group-modal-close">Cancel</button>
+          <button type="submit" id="group-save-btn" class="btn-primary">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Confirmation Dialog Modal (Replaces browser confirm()) -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-sheet-handle mobile-only"></div>
+      <div class="modal-header">
+        <h2 id="confirm-modal-title">Confirm Action</h2>
+        <button type="button" class="modal-close confirm-modal-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <p id="confirm-modal-message" style="margin-bottom: 20px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.5;"></p>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary confirm-modal-close">Cancel</button>
+        <button type="button" id="confirm-modal-action-btn" class="btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=106"></script>
 </body>
 </html>
