@@ -1266,6 +1266,18 @@ const initEventHandlers = () => {
     btn.addEventListener('click', closeQuickNoteModal);
   });
 
+  // Universal Click Outside Modal to Close Handler
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add('hidden');
+        if (overlay.id === 'quick-note-modal') {
+          state.editingNoteId = null;
+        }
+      }
+    });
+  });
+
   // Quick Note Form Submit Handler Inside Centered Modal
   const quickNoteForm = document.getElementById('quick-note-form');
   if (quickNoteForm) {
