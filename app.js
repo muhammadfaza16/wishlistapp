@@ -97,8 +97,10 @@ let state = {
   view: 'grid',
   sort: 'priority',
   currency: 'IDR',
-  activeTab: 'catalog',
+  activeTab: 'notes',
   notesMode: 'list',
+  notesViewMode: 'view',
+  notesSortBy: null,
   notesItems: [],
   rawNotepadText: '',
   filters: [],
@@ -107,22 +109,36 @@ let state = {
   deleteId: null,
   progressId: null,
   achievedOpen: false,
-  activeFolderId: null,
-  currentPreselectGroupId: null
+  editingNoteId: null,
+  isSelectionMode: false,
+  selectedNoteIds: new Set(),
+  renamingGroupName: null,
+  collapsedGroups: new Set()
 };
 
 const defaultNotesItems = [
-  { id: 'group-sample-1', title: 'Desk Setup Gear', isGroup: true, expanded: true },
-  { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false, parentId: 'group-sample-1' },
-  { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true, parentId: 'group-sample-1' },
-  { id: 'note-3', title: 'Ergonomic Mesh Chair', price: 4500000, currency: 'IDR', checked: false }
+  { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false, group: 'Desk Setup Gear', priority: 1, createdAt: '2026-08-01T10:00:00.000Z' },
+  { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true, group: 'Desk Setup Gear', priority: 2, createdAt: '2026-08-05T14:00:00.000Z' },
+  { id: 'note-3', title: 'Ergonomic Mesh Chair', price: 4500000, currency: 'IDR', checked: false, group: null, priority: 1, createdAt: '2026-08-10T09:00:00.000Z' }
 ];
 
 const loadNotes = () => {
   try {
     const storedItems = localStorage.getItem('wishlist_notes_items');
     if (storedItems !== null) {
-      state.notesItems = JSON.parse(storedItems);
+      const raw = JSON.parse(storedItems);
+      const groupMap = {};
+      raw.filter(i => i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
+      state.notesItems = raw.filter(i => !i.isGroup).map(i => ({
+        id: i.id || generateId(),
+        title: i.title || '',
+        price: Number(i.price) || 0,
+        currency: i.currency || state.currency,
+        checked: !!i.checked,
+        group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
+        priority: Number(i.priority) || 2,
+        createdAt: i.createdAt || new Date().toISOString()
+      }));
     } else {
       state.notesItems = defaultNotesItems;
     }
@@ -223,8 +239,10 @@ const loadPreferences = () => {
       state.view = prefs.view || 'grid';
       state.sort = prefs.sort || 'priority';
       state.currency = prefs.currency || 'IDR';
-      state.activeTab = prefs.activeTab || 'catalog';
+      state.activeTab = prefs.activeTab || 'notes';
       state.notesMode = prefs.notesMode || 'list';
+      state.notesViewMode = prefs.notesViewMode || 'view';
+      state.notesSortBy = prefs.notesSortBy || null;
     }
   } catch (e) {
     // Ignore
@@ -237,7 +255,9 @@ const savePreferences = () => {
     sort: state.sort,
     currency: state.currency,
     activeTab: state.activeTab,
-    notesMode: state.notesMode
+    notesMode: state.notesMode,
+    notesViewMode: state.notesViewMode || 'view',
+    notesSortBy: state.notesSortBy || null
   }));
 };
 
@@ -293,11 +313,45 @@ const showConfirmDialog = ({ title = 'Confirm Action', message = 'Are you sure?'
   });
 };
 
-const openGroupModal = () => {
+const getExistingGroupNames = () => {
+  const groups = new Set();
+  state.notesItems.forEach(i => {
+    if (i.group && typeof i.group === 'string' && i.group.trim()) {
+      groups.add(i.group.trim());
+    }
+  });
+  return Array.from(groups);
+};
+
+const populateGroupDatalist = () => {
+  const datalists = document.querySelectorAll('#group-options-list');
+  const groupNames = getExistingGroupNames();
+  datalists.forEach(dl => {
+    dl.innerHTML = groupNames.map(g => `<option value="${g}">`).join('');
+  });
+};
+
+const openGroupModal = (isRename = false, groupName = '') => {
   const modal = document.getElementById('group-modal');
+  const titleEl = document.getElementById('group-modal-title');
   const input = document.getElementById('group-name-input');
+  const saveBtn = document.getElementById('group-save-btn');
   if (!modal || !input) return;
-  input.value = '';
+  
+  populateGroupDatalist();
+  state.renamingGroupName = isRename ? groupName : null;
+  
+  if (isRename) {
+    if (titleEl) titleEl.textContent = 'Rename Group';
+    if (saveBtn) saveBtn.textContent = 'Rename Group';
+    input.value = groupName;
+  } else {
+    const count = state.selectedNoteIds.size;
+    if (titleEl) titleEl.textContent = count > 0 ? `Group ${count} Selected Items` : 'Group Items';
+    if (saveBtn) saveBtn.textContent = 'Apply Group';
+    input.value = '';
+  }
+  
   modal.classList.remove('hidden');
   setTimeout(() => input.focus(), 100);
 };
@@ -305,147 +359,69 @@ const openGroupModal = () => {
 const closeGroupModal = () => {
   const modal = document.getElementById('group-modal');
   if (modal) modal.classList.add('hidden');
+  state.renamingGroupName = null;
 };
 
-const renderCustomComboboxDropdown = (query = '') => {
-  const dropdown = document.getElementById('quick-note-title-dropdown');
-  if (!dropdown) return;
-  
-  if (state.editingNoteId) {
-    dropdown.classList.add('hidden');
-    return;
-  }
-  
-  const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
-  const filterVal = query.trim().toLowerCase();
-  
-  const matches = standaloneItems.filter(item => {
-    if (!filterVal) return true;
-    return item.title.toLowerCase().includes(filterVal);
-  });
-  
-  if (matches.length === 0) {
-    dropdown.classList.add('hidden');
-    return;
-  }
-  
-  dropdown.innerHTML = matches.map(item => {
-    const formattedVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
-    const safeTitle = item.title.replace(/"/g, '&quot;');
-    return `
-      <div class="combobox-item" data-action="select-combobox-item" data-title="${safeTitle}" data-price="${item.price || 0}">
-        <span class="combobox-item-title">${item.title}</span>
-        <span class="combobox-item-badge">${formattedVal}</span>
-      </div>
-    `;
-  }).join('');
-  
-  dropdown.classList.remove('hidden');
-};
-
-const hideCustomComboboxDropdown = () => {
-  const dropdown = document.getElementById('quick-note-title-dropdown');
-  if (dropdown) dropdown.classList.add('hidden');
-};
-
-const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
+const openQuickNoteModal = (noteId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
-  const titleLabel = document.querySelector('label[for="quick-note-title-input"]');
-  const titleContainer = document.getElementById('quick-note-title-container');
   const titleInput = document.getElementById('quick-note-title-input');
-  const existingContainer = document.getElementById('quick-note-existing-container');
-  const existingSelect = document.getElementById('quick-note-existing-select');
   const priceInput = document.getElementById('quick-note-price-input');
-  const groupSelect = document.getElementById('quick-note-group-select');
-  const rowFields = document.getElementById('quick-note-row-fields');
+  const groupInput = document.getElementById('quick-note-group-input');
   const convertContainer = document.getElementById('quick-note-convert-container');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
-  
+
   if (!modal) return;
-  
   state.editingNoteId = noteId;
-  state.currentPreselectGroupId = preselectGroupId;
-  hideCustomComboboxDropdown();
+  populateGroupDatalist();
 
-  const targetFolderId = preselectGroupId || state.activeFolderId;
+  if (noteId) {
+    const item = state.notesItems.find(n => n.id === noteId);
+    if (!item) return;
 
-  if (!noteId && targetFolderId) {
-    // Single field mode: select existing wishlist item to add to folder
-    if (titleEl) titleEl.textContent = 'Add Item to Folder';
-    if (titleContainer) titleContainer.classList.add('hidden');
-    if (rowFields) rowFields.classList.add('hidden');
-    if (convertContainer) convertContainer.classList.add('hidden');
-    if (deleteBtn) deleteBtn.classList.add('hidden');
-    if (existingContainer) existingContainer.classList.remove('hidden');
+    if (titleEl) titleEl.textContent = 'Edit Item';
+    if (titleInput) titleInput.value = item.title;
+    if (priceInput) priceInput.value = item.price || '';
+    if (groupInput) groupInput.value = item.group || '';
+    if (convertContainer) convertContainer.classList.remove('hidden');
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
+    if (deleteBtn) deleteBtn.classList.remove('hidden');
 
-    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
-    if (existingSelect) {
-      if (standaloneItems.length > 0) {
-        existingSelect.innerHTML = `<option value="">-- Select an existing item to add --</option>` +
-          standaloneItems.map(item => {
-            const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
-            return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
-          }).join('');
+    const priority = Number(item.priority) || 2;
+    modal.querySelectorAll('#quick-note-priority-options .priority-btn').forEach(btn => {
+      if (Number(btn.getAttribute('data-priority')) === priority) {
+        btn.classList.add('active');
       } else {
-        existingSelect.innerHTML = `<option value="" disabled>No standalone items available to add</option>`;
+        btn.classList.remove('active');
       }
-    }
-
-    if (submitBtnSpan) submitBtnSpan.textContent = 'Add to Folder';
+    });
   } else {
-    // Mode A: Creating new standalone item or editing an item/folder
-    if (titleContainer) titleContainer.classList.remove('hidden');
-    if (existingContainer) existingContainer.classList.add('hidden');
+    if (titleEl) titleEl.textContent = 'Add Item';
+    if (titleInput) titleInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (groupInput) groupInput.value = '';
+    if (convertContainer) convertContainer.classList.add('hidden');
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
+    if (deleteBtn) deleteBtn.classList.add('hidden');
 
-    if (noteId) {
-      const item = state.notesItems.find(n => n.id === noteId);
-      if (item) {
-        if (titleEl) titleEl.textContent = item.isGroup ? 'Edit Folder' : 'Edit Note Item';
-        if (titleLabel) titleLabel.textContent = item.isGroup ? 'Folder Name' : 'Item Name';
-        if (titleInput) titleInput.value = item.title;
-        
-        if (item.isGroup) {
-          if (rowFields) rowFields.classList.add('hidden');
-          if (convertContainer) convertContainer.classList.add('hidden');
-        } else {
-          if (rowFields) rowFields.classList.remove('hidden');
-          if (priceInput) priceInput.value = item.price || '';
-          const folderIdToSelect = item.parentId || preselectGroupId || state.activeFolderId || '';
-          populateGroupSelect(folderIdToSelect);
-          if (groupSelect) groupSelect.value = folderIdToSelect;
-          if (convertContainer) convertContainer.classList.remove('hidden');
-        }
-        
-        if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
-        if (deleteBtn) deleteBtn.classList.remove('hidden');
+    modal.querySelectorAll('#quick-note-priority-options .priority-btn').forEach(btn => {
+      if (Number(btn.getAttribute('data-priority')) === 2) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
       }
-    } else {
-      if (titleEl) titleEl.textContent = 'Add Note Item';
-      if (titleLabel) titleLabel.textContent = 'Item Name';
-      if (titleInput) titleInput.value = '';
-      if (rowFields) rowFields.classList.remove('hidden');
-      if (priceInput) priceInput.value = '';
-      populateGroupSelect('');
-      if (groupSelect) groupSelect.value = '';
-      if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
-      if (deleteBtn) deleteBtn.classList.add('hidden');
-      if (convertContainer) convertContainer.classList.add('hidden');
-    }
+    });
   }
 
   modal.classList.remove('hidden');
-  if (!(!noteId && targetFolderId)) {
-    setTimeout(() => titleInput?.focus(), 100);
-  }
+  setTimeout(() => titleInput?.focus(), 100);
 };
 
 const closeQuickNoteModal = () => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
   state.editingNoteId = null;
-  state.currentPreselectGroupId = null;
 };
 
 const getFilteredItems = () => {
@@ -782,63 +758,15 @@ const renderAchieved = (achievedItems) => {
   }
 };
 
-const getGroupChildren = (groupId) => {
-  return state.notesItems.filter(item => item.parentId === groupId);
-};
-
-const getGroupTotalPrice = (groupId) => {
-  const children = getGroupChildren(groupId);
-  return children.reduce((sum, item) => {
-    const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-    return sum + displayPrice;
-  }, 0);
-};
-
-const isGroupChecked = (groupId) => {
-  const children = getGroupChildren(groupId);
-  if (children.length === 0) return false;
-  return children.every(item => item.checked);
-};
-
-const populateGroupSelect = (selectedParentId = null) => {
-  const select = document.getElementById('quick-note-group-select');
-  if (!select) return;
-  
-  let targetId = selectedParentId;
-  if (targetId === null || targetId === undefined) {
-    if (state.editingNoteId) {
-      const item = state.notesItems.find(n => n.id === state.editingNoteId);
-      targetId = item ? (item.parentId || state.activeFolderId || '') : '';
-    } else {
-      targetId = state.currentPreselectGroupId || state.activeFolderId || '';
-    }
-  }
-  
-  const cleanTargetId = targetId ? String(targetId).trim() : '';
-
-  const groups = state.notesItems.filter(item => item.isGroup);
-  let html = `<option value="">None (Standalone)</option>`;
-  groups.forEach(g => {
-    const gId = String(g.id).trim();
-    const isSel = gId === cleanTargetId;
-    html += `<option value="${gId}" ${isSel ? 'selected="selected"' : ''}>📁 ${g.title}</option>`;
-  });
-  
-  select.innerHTML = html;
-  select.value = cleanTargetId;
-};
-
 const calculateNotesAccumulator = () => {
   let totalCost = 0;
   let checkedCost = 0;
   
   if (state.notesMode === 'list') {
     state.notesItems.forEach(item => {
-      if (!item.isGroup) {
-        const val = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-        totalCost += val;
-        if (item.checked) checkedCost += val;
-      }
+      const val = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+      totalCost += val;
+      if (item.checked) checkedCost += val;
     });
   } else {
     const text = state.rawNotepadText || '';
@@ -852,10 +780,10 @@ const calculateNotesAccumulator = () => {
       
       const match = cleanLine.match(/(\$?Rp?\s*[\d.,]+|\d[\d.,]*)/i);
       if (match) {
-        let numStr = match[0].replace(/[^\d.]/g, '');
-        let val = parseFloat(numStr) || 0;
-        let itemCurr = /[\$]/.test(match[0]) ? 'USD' : 'IDR';
-        let displayVal = convertCurrency(val, itemCurr, state.currency);
+        const numStr = match[0].replace(/[^\d.]/g, '');
+        const val = parseFloat(numStr) || 0;
+        const itemCurr = /[\$]/.test(match[0]) ? 'USD' : 'IDR';
+        const displayVal = convertCurrency(val, itemCurr, state.currency);
         totalCost += displayVal;
         if (isChecked) checkedCost += displayVal;
       }
@@ -879,305 +807,317 @@ const calculateNotesAccumulator = () => {
   if (textEl) textEl.textContent = `${Math.round(clampedP)}%`;
 };
 
-const renderQuickNotesList = () => {
-  const container = document.getElementById('quick-notes-list');
-  if (!container) return;
-  
-  if (!state.notesItems || state.notesItems.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:28px 14px;color:var(--text-tertiary);font-size:13px;">No wishlist items yet. Switch to <b>Add / Manage Items</b> tab above to add items!</div>`;
-    return;
+const updateSelectionBarUI = () => {
+  const bar = document.getElementById('notes-selection-bar');
+  const countEl = document.getElementById('notes-selected-count');
+  const selectAllBtn = document.getElementById('notes-select-all-btn');
+  const groupBtn = document.getElementById('notes-group-selected-btn');
+  const ungroupBtn = document.getElementById('notes-ungroup-selected-btn');
+  const deleteBtn = document.getElementById('notes-delete-selected-btn');
+  const selectToggleBtn = document.getElementById('notes-select-toggle-btn');
+
+  if (!bar) return;
+
+  if (state.isSelectionMode) {
+    bar.classList.remove('hidden');
+    if (selectToggleBtn) {
+      selectToggleBtn.classList.add('active');
+      const span = selectToggleBtn.querySelector('span');
+      if (span) span.textContent = 'Done';
+    }
+    const count = state.selectedNoteIds.size;
+    if (countEl) countEl.textContent = `${count} selected`;
+    
+    if (selectAllBtn && state.notesItems) {
+      const isAllSelected = state.notesItems.length > 0 && count === state.notesItems.length;
+      selectAllBtn.title = isAllSelected ? 'Deselect All' : 'Select All';
+      if (isAllSelected) {
+        selectAllBtn.classList.add('active');
+      } else {
+        selectAllBtn.classList.remove('active');
+      }
+    }
+
+    if (groupBtn) groupBtn.disabled = count === 0;
+    if (ungroupBtn) ungroupBtn.disabled = count === 0;
+    if (deleteBtn) deleteBtn.disabled = count === 0;
+  } else {
+    bar.classList.add('hidden');
+    if (selectToggleBtn) {
+      selectToggleBtn.classList.remove('active');
+      const span = selectToggleBtn.querySelector('span');
+      if (span) span.textContent = 'Select';
+    }
   }
-  
-  let html = '';
-  
-  if (state.activeFolderId) {
-    const activeFolder = state.notesItems.find(n => n.id === state.activeFolderId);
-    if (!activeFolder) {
-      state.activeFolderId = null;
-      renderQuickNotesList();
-      return;
+};
+
+const renderNoteItemRow = (item, isGrouped = false) => {
+  const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+  const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+  const isSelected = state.selectedNoteIds.has(item.id);
+  const isReader = state.notesViewMode === 'view';
+
+  if (isReader) {
+    if (isGrouped) {
+      return `
+        <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+          <div class="reader-row-left">
+            <span class="reader-grouped-bullet">•</span>
+            <span class="quick-note-title reader-grouped-title">${item.title}</span>
+          </div>
+          <div class="reader-row-right">
+            <span class="quick-note-price reader-grouped-price">${formattedPrice}</span>
+          </div>
+        </div>
+      `;
     }
-    
-    const children = getGroupChildren(state.activeFolderId);
-    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
-    
-    let selectOptions = '';
-    if (standaloneItems.length > 0) {
-      selectOptions = `<option value="">+ Select existing item to add to folder...</option>` +
-        standaloneItems.map(item => {
-          const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
-          return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
-        }).join('');
-    } else {
-      selectOptions = `<option value="" disabled>No standalone items available to add</option>`;
-    }
-    
-    html += `
-      <div class="folder-navigation-header" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
-        <div class="folder-title-display">
-          <i data-lucide="folder-open" class="folder-open-icon"></i>
-          <span class="folder-title-text">${activeFolder.title}</span>
-          <span class="group-badge-pill">${children.length} items</span>
+    return `
+      <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+        <div class="reader-row-left">
+          <span class="quick-note-title">${item.title}</span>
+        </div>
+        <div class="reader-row-right">
+          <span class="quick-note-price">${formattedPrice}</span>
         </div>
       </div>
+    `;
+  }
 
-      <div class="add-to-folder-bar" style="display: flex; gap: 8px; margin-bottom: 14px; padding: 8px 10px; background: #FAFAF9; border: 1px solid #E5E5EA; border-radius: 8px;">
-        <select class="clean-select select-existing-item-to-add" style="flex: 1; font-size: 12.5px;">
-          ${selectOptions}
-        </select>
-        <button type="button" class="btn-primary btn-add-existing-to-folder" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
-          <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
-          <span>Add</span>
-        </button>
+  if (state.isSelectionMode) {
+    return `
+      <div class="quick-note-row ${isSelected ? 'selected-row' : ''}" data-id="${item.id}" data-action="select-item-row" style="cursor: pointer;">
+        <div class="quick-note-left">
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="select-item-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''}>
+          <span class="quick-note-title">${item.title}</span>
+        </div>
+        <div class="quick-note-right">
+          <span class="quick-note-price">${formattedPrice}</span>
+        </div>
       </div>
     `;
-    
-    if (children.length === 0) {
-      html += `<div style="text-align:center;padding:20px 12px;color:var(--text-tertiary);font-size:12.5px;">Folder is empty. Select an existing item above to add it into this folder.</div>`;
-    } else {
-      let idx = 0;
-      html += children.map(child => {
-        idx++;
-        const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
-        const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
-        const num = String(idx).padStart(2, '0');
-        return `
-          <div class="quick-note-row ${child.checked ? 'checked' : ''}" data-id="${child.id}">
-            <div class="quick-note-left">
-              <span class="quick-note-index">${num}</span>
-              <span class="quick-note-title">${child.title}</span>
-            </div>
-            <div class="quick-note-right">
-              <span class="quick-note-price">${formattedChildPrice}</span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-  } else {
-    // Root View
-    const rootItems = state.notesItems.filter(item => !item.parentId);
-    let globalIndex = 0;
-    
-    html = rootItems.map(item => {
-      if (item.isGroup) {
-        const children = getGroupChildren(item.id);
-        if (children.length === 0) return '';
-        
-        return `
-          <div class="quick-note-row group-row-folder" data-action="open-folder" data-id="${item.id}" title="Open ${item.title} folder" style="cursor: pointer;">
-            <div class="quick-note-left">
-              <i data-lucide="folder" class="group-folder-icon"></i>
-              <span class="quick-note-title">${item.title}</span>
-              <span class="group-badge-pill">${children.length} items</span>
-            </div>
-            <div class="quick-note-right">
-              <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-tertiary); margin-left: 4px;"></i>
-            </div>
-          </div>
-        `;
-      } else {
-        globalIndex++;
-        const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-        const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-        const itemNum = String(globalIndex).padStart(2, '0');
-        
-        return `
-          <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
-            <div class="quick-note-left">
-              <span class="quick-note-index">${itemNum}</span>
-              <span class="quick-note-title">${item.title}</span>
-            </div>
-            <div class="quick-note-right">
-              <span class="quick-note-price">${formattedPrice}</span>
-            </div>
-          </div>
-        `;
-      }
-    }).join('');
-    
-    if (!html.trim()) {
-      html = `<div style="text-align:center;padding:28px 14px;color:var(--text-tertiary);font-size:13px;">No wishlist items yet. Switch to <b>Add / Manage Items</b> tab above to add items!</div>`;
-    }
   }
-  
-  container.innerHTML = html;
-  if (window.lucide) lucide.createIcons();
+
+  const ungroupBtn = isGrouped
+    ? `<button type="button" class="btn-icon-subtle" data-action="ungroup-note" data-id="${item.id}" title="Remove from group"><i data-lucide="corner-up-left"></i></button>`
+    : '';
+
+  return `
+    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" draggable="true">
+      <div class="quick-note-left">
+        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
+        <span class="quick-note-title">${item.title}</span>
+      </div>
+      <div class="quick-note-right">
+        <span class="quick-note-price">${formattedPrice}</span>
+        <div class="quick-note-actions-always">
+          <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
+            <i data-lucide="edit-2"></i>
+          </button>
+          ${ungroupBtn}
+          <span class="btn-icon-subtle quick-note-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+            <i data-lucide="grip-vertical"></i>
+          </span>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+const notesSortLabelsMap = {
+  'title': 'Title',
+  'price': 'Price',
+  'date': 'Date',
+  'priority': 'Priority'
+};
+
+const updateNotesSortUI = () => {
+  const currentSort = state.notesSortBy;
+  const labelEl = document.getElementById('notes-sort-label');
+  if (labelEl) {
+    labelEl.textContent = notesSortLabelsMap[currentSort] || 'Sort';
+  }
+  const menu = document.getElementById('notes-sort-menu');
+  if (menu) {
+    menu.querySelectorAll('.sort-menu-item').forEach(item => {
+      if (item.getAttribute('data-sort') === currentSort) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
+};
+
+const sortNotesItemsList = (items) => {
+  if (!state.notesSortBy) return items;
+  return [...items].sort((a, b) => {
+    switch (state.notesSortBy) {
+      case 'title':
+        return (a.title || '').localeCompare(b.title || '');
+      case 'price':
+        return (b.price || 0) - (a.price || 0);
+      case 'date':
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      case 'priority': {
+        const pA = Number(a.priority) || 2;
+        const pB = Number(b.priority) || 2;
+        if (pA !== pB) return pA - pB;
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      default:
+        return 0;
+    }
+  });
 };
 
 const renderQuickNotesManageList = () => {
   const container = document.getElementById('quick-notes-manage-list');
   if (!container) return;
-  
-  populateGroupSelect();
-  
-  if (!state.notesItems || state.notesItems.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary);font-size:12.5px;">No items in your wishlist list.</div>`;
-    return;
-  }
-  
-  let html = '';
-  
-  if (state.activeFolderId) {
-    const activeFolder = state.notesItems.find(n => n.id === state.activeFolderId);
-    if (!activeFolder) {
-      state.activeFolderId = null;
-      renderQuickNotesManageList();
-      return;
-    }
-    
-    const children = getGroupChildren(state.activeFolderId);
-    const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
-    
-    let selectOptions = '';
-    if (standaloneItems.length > 0) {
-      selectOptions = `<option value="">+ Select existing item to add...</option>` +
-        standaloneItems.map(item => {
-          const priceVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
-          return `<option value="${item.id}">${item.title} (${priceVal})</option>`;
-        }).join('');
-    } else {
-      selectOptions = `<option value="" disabled>No standalone items available to add</option>`;
-    }
-    
-    html += `
-      <div class="folder-navigation-header">
-        <div class="folder-title-display" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
-          <i data-lucide="folder-open" class="folder-open-icon"></i>
-          <span class="folder-title-text">${activeFolder.title}</span>
-          <span class="group-badge-pill">${children.length} items</span>
-        </div>
-        <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${activeFolder.id}" title="Edit folder title">
-          <i data-lucide="edit-2"></i>
-        </button>
-      </div>
 
-      <div class="add-to-folder-bar" style="display: flex; gap: 8px; margin-bottom: 14px; padding: 8px 10px; background: #FAFAF9; border: 1px solid #E5E5EA; border-radius: 8px;">
-        <select class="clean-select select-existing-item-to-add" style="flex: 1; font-size: 12.5px;">
-          ${selectOptions}
-        </select>
-        <button type="button" class="btn-primary btn-add-existing-to-folder" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" ${standaloneItems.length === 0 ? 'disabled' : ''}>
-          <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
-          <span>Add</span>
-        </button>
+  const isReader = (state.notesViewMode || 'view') === 'view';
+
+  // Show / hide header controls: Sort & Edit in View mode, Back & Edit actions (Select, Add) in Edit mode
+  const sortDropdownEl = document.getElementById('notes-sort-dropdown');
+  const viewActionsEl = document.getElementById('notes-view-actions');
+  const editActionsEl = document.getElementById('notes-edit-actions');
+  const backToViewBtn = document.getElementById('notes-back-to-view-btn');
+  const notesViewTitle = document.getElementById('notes-view-title');
+
+  if (isReader) {
+    if (notesViewTitle) notesViewTitle.classList.remove('hidden');
+    if (backToViewBtn) backToViewBtn.classList.add('hidden');
+    if (sortDropdownEl) sortDropdownEl.classList.remove('hidden');
+    if (viewActionsEl) viewActionsEl.classList.remove('hidden');
+    if (editActionsEl) editActionsEl.classList.add('hidden');
+  } else {
+    if (notesViewTitle) notesViewTitle.classList.add('hidden');
+    if (backToViewBtn) backToViewBtn.classList.remove('hidden');
+    if (sortDropdownEl) sortDropdownEl.classList.add('hidden');
+    if (viewActionsEl) viewActionsEl.classList.add('hidden');
+    if (editActionsEl) editActionsEl.classList.remove('hidden');
+  }
+
+  updateSelectionBarUI();
+  updateNotesSortUI();
+
+  if (!state.notesItems || state.notesItems.length === 0) {
+    const emptyIcon = isReader ? 'book-open' : 'sparkles';
+    const emptyTitle = isReader ? 'Reading list is empty' : 'No wishlist items yet';
+    const emptySub = isReader
+      ? 'Click <b>Edit</b> above to start adding and managing your wishlist items.'
+      : 'Click <b>+ Add Item</b> above to start building your wishlist notes.';
+    container.innerHTML = `
+      <div style="text-align:center;padding:36px 16px;color:var(--text-tertiary);">
+        <i data-lucide="${emptyIcon}" style="width:24px;height:24px;margin:0 auto 10px auto;opacity:0.4;display:block;"></i>
+        <div style="font-family:var(--font-sans);font-size:13.5px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${emptyTitle}</div>
+        <div style="font-family:var(--font-sans);font-size:12px;color:var(--text-tertiary);max-width:280px;margin:0 auto;line-height:1.4;">${emptySub}</div>
       </div>
     `;
-    
-    if (children.length === 0) {
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const groups = {};
+  const standalone = [];
+
+  state.notesItems.forEach(item => {
+    if (item.group && typeof item.group === 'string' && item.group.trim()) {
+      const g = item.group.trim();
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(item);
+    } else {
+      standalone.push(item);
+    }
+  });
+
+  let html = '';
+
+  Object.keys(groups).forEach(groupName => {
+    const groupItems = sortNotesItemsList(groups[groupName]);
+    const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
+    const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
+    const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
+
+    if (isReader) {
       html += `
-        <div style="text-align:center;padding:20px 12px;color:var(--text-tertiary);font-size:12.5px;">
-          Folder is empty. Select an existing item above to add it into this folder.
+        <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
+          <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
+            <div class="group-header-left">
+              <i data-lucide="chevron-down" class="group-chevron-icon ${isCollapsed ? 'rotated' : ''}"></i>
+              <i data-lucide="folder" class="group-folder-icon"></i>
+              <span class="group-header-title">${groupName}</span>
+              <span class="group-badge-pill">${groupItems.length}</span>
+            </div>
+            <div class="group-header-right">
+              <span class="group-header-total">${formattedTotal}</span>
+            </div>
+          </div>
+          <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
+            ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
+          </div>
         </div>
       `;
     } else {
-      html += children.map(child => {
-        const childPrice = convertCurrency(child.price || 0, child.currency || 'IDR', state.currency);
-        const formattedChildPrice = formatCurrencyValue(childPrice, state.currency);
-        const isChildEditing = state.editingNoteId === child.id;
-        
-        return `
-          <div class="quick-note-row ${child.checked ? 'checked' : ''} ${isChildEditing ? 'editing-row' : ''}" data-id="${child.id}">
-            <div class="quick-note-left">
-              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${child.id}" ${child.checked ? 'checked' : ''} title="Mark completed">
-              <span class="quick-note-title">${child.title}</span>
+      const groupActionsHtml = !state.isSelectionMode ? `
+        <button type="button" class="btn-icon-subtle" data-action="rename-group" data-group="${groupName}" title="Rename Group">
+          <i data-lucide="edit-2"></i>
+        </button>
+        <button type="button" class="btn-icon-subtle" data-action="ungroup-all" data-group="${groupName}" title="Ungroup All Items">
+          <i data-lucide="corner-up-left"></i>
+        </button>
+      ` : '';
+
+      html += `
+        <div class="quick-note-group-container ${isCollapsed ? 'collapsed' : ''}">
+          <div class="quick-note-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
+            <div class="group-header-left">
+              <i data-lucide="chevron-down" class="group-chevron-icon ${isCollapsed ? 'rotated' : ''}"></i>
+              <i data-lucide="folder" class="group-folder-icon"></i>
+              <span class="group-header-title">${groupName}</span>
+              <span class="group-badge-pill">${groupItems.length}</span>
             </div>
-            <div class="quick-note-right">
-              <span class="quick-note-price">${formattedChildPrice}</span>
-              <div class="quick-note-actions-always">
-                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${child.id}" title="Edit item">
-                  <i data-lucide="edit-2"></i>
-                </button>
-                <button type="button" class="btn-icon-subtle ungroup-btn" data-action="ungroup-note" data-id="${child.id}" title="Remove from folder">
-                  <i data-lucide="corner-up-left"></i>
-                </button>
-              </div>
+            <div class="group-header-right">
+              <span class="group-header-total">${formattedTotal}</span>
+              ${groupActionsHtml}
             </div>
           </div>
-        `;
-      }).join('');
+          <div class="quick-note-group-items ${isCollapsed ? 'hidden' : ''}">
+            ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
+          </div>
+        </div>
+      `;
     }
-  } else {
-    // Root Manage View
-    const rootItems = state.notesItems.filter(item => !item.parentId);
-    
-    html = rootItems.map(item => {
-      if (item.isGroup) {
-        const children = getGroupChildren(item.id);
-        const isEditing = state.editingNoteId === item.id;
-        
-        return `
-          <div class="quick-note-row group-row-folder ${isEditing ? 'editing-row' : ''}" data-action="open-folder" data-id="${item.id}" style="cursor: pointer;">
-            <div class="quick-note-left">
-              <i data-lucide="folder" class="group-folder-icon"></i>
-              <span class="quick-note-title">${item.title}</span>
-              <span class="group-badge-pill">${children.length} items</span>
-            </div>
-            <div class="quick-note-right">
-              <div class="quick-note-actions-always">
-                <button type="button" class="btn-icon-subtle add-child-btn" data-action="add-child-note" data-group-id="${item.id}" title="Add item to this folder">
-                  <i data-lucide="plus"></i>
-                </button>
-                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit folder name">
-                  <i data-lucide="edit-2"></i>
-                </button>
-              </div>
-            </div>
+  });
+
+  if (standalone.length > 0) {
+    const sortedStandalone = sortNotesItemsList(standalone);
+    if (Object.keys(groups).length > 0) {
+      if (isReader) {
+        html += `
+          <div class="reader-standalone-header">
+            <span class="standalone-header-title">Other Items</span>
+            <span class="group-badge-pill">${sortedStandalone.length}</span>
           </div>
         `;
       } else {
-        const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
-        const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
-        const isEditing = state.editingNoteId === item.id;
-        
-        return `
-          <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
-            <div class="quick-note-left">
-              <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
-              <span class="quick-note-title">${item.title}</span>
-            </div>
-            <div class="quick-note-right">
-              <span class="quick-note-price">${formattedPrice}</span>
-              <div class="quick-note-actions-always">
-                <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
-                  <i data-lucide="edit-2"></i>
-                </button>
-              </div>
+        html += `
+          <div class="quick-note-group-header" style="margin-top: 14px;">
+            <div class="group-header-left">
+              <span class="group-header-title" style="color: var(--text-tertiary);">Standalone Items</span>
+              <span class="group-badge-pill">${sortedStandalone.length}</span>
             </div>
           </div>
         `;
       }
-    }).join('');
+    }
+    html += sortedStandalone.map(item => renderNoteItemRow(item, false)).join('');
   }
-  
+
   container.innerHTML = html;
   if (window.lucide) lucide.createIcons();
 };
 
 const renderNotesView = () => {
-  const subTabBtns = document.querySelectorAll('#notes-sub-tabs .sub-tab-btn');
-  const viewSubView = document.getElementById('notes-subview-view');
-  const manageSubView = document.getElementById('notes-subview-manage');
-  
-  const currentSubTab = state.notesSubTab || 'view';
-  
-  subTabBtns.forEach(btn => {
-    const subtab = btn.getAttribute('data-subtab');
-    if (subtab === currentSubTab) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-  
-  if (currentSubTab === 'view') {
-    if (viewSubView) viewSubView.classList.remove('hidden');
-    if (manageSubView) manageSubView.classList.add('hidden');
-  } else {
-    if (viewSubView) viewSubView.classList.add('hidden');
-    if (manageSubView) manageSubView.classList.remove('hidden');
-  }
-  
-  renderQuickNotesList();
   renderQuickNotesManageList();
   calculateNotesAccumulator();
 };
@@ -1355,53 +1295,157 @@ const initEventHandlers = () => {
     });
   }
 
-  // Notes Sub Tabs Handler (Wishlist View vs Manage / Add)
-  const notesSubTabs = document.getElementById('notes-sub-tabs');
-  if (notesSubTabs) {
-    notesSubTabs.addEventListener('click', (e) => {
-      const btn = e.target.closest('.sub-tab-btn');
-      if (!btn) return;
-      const subtab = btn.getAttribute('data-subtab');
-      if (subtab && subtab !== state.notesSubTab) {
-        state.notesSubTab = subtab;
-        savePreferences();
+  // Quick Notes Edit Mode Button (in View Mode)
+  const notesEditModeBtn = document.getElementById('notes-edit-mode-btn');
+  if (notesEditModeBtn) {
+    notesEditModeBtn.addEventListener('click', () => {
+      state.notesViewMode = 'edit';
+      savePreferences();
+      renderNotesView();
+    });
+  }
+
+  // Quick Notes Back to View Mode Button (in Edit Mode)
+  const notesBackToViewBtn = document.getElementById('notes-back-to-view-btn');
+  if (notesBackToViewBtn) {
+    notesBackToViewBtn.addEventListener('click', () => {
+      state.notesViewMode = 'view';
+      state.isSelectionMode = false;
+      state.selectedNoteIds.clear();
+      savePreferences();
+      renderNotesView();
+    });
+  }
+
+  // Notes Sort Dropdown Handlers
+  const notesSortDropdown = document.getElementById('notes-sort-dropdown');
+  const notesSortTrigger = document.getElementById('notes-sort-trigger');
+  const notesSortMenu = document.getElementById('notes-sort-menu');
+
+  if (notesSortTrigger && notesSortMenu) {
+    notesSortTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      notesSortMenu.classList.toggle('hidden');
+      notesSortDropdown?.classList.toggle('open');
+    });
+
+    notesSortMenu.addEventListener('click', (e) => {
+      const item = e.target.closest('.sort-menu-item');
+      if (item) {
+        const val = item.getAttribute('data-sort');
+        if (val) {
+          state.notesSortBy = val;
+          savePreferences();
+          renderQuickNotesManageList();
+        }
+        notesSortMenu.classList.add('hidden');
+        notesSortDropdown?.classList.remove('open');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (notesSortDropdown && !notesSortDropdown.contains(e.target)) {
+        notesSortMenu.classList.add('hidden');
+        notesSortDropdown?.classList.remove('open');
+      }
+    });
+  }
+
+  // Main Add Note Item Button
+  const mainAddNoteBtn = document.getElementById('main-add-note-btn');
+  if (mainAddNoteBtn) {
+    mainAddNoteBtn.addEventListener('click', () => {
+      openQuickNoteModal(null);
+    });
+  }
+
+  // Multi-select Toggle Button
+  const selectToggleBtn = document.getElementById('notes-select-toggle-btn');
+  if (selectToggleBtn) {
+    selectToggleBtn.addEventListener('click', () => {
+      state.isSelectionMode = !state.isSelectionMode;
+      state.selectedNoteIds.clear();
+      renderQuickNotesManageList();
+    });
+  }
+
+  // Select All Toggle Button
+  const selectAllBtn = document.getElementById('notes-select-all-btn');
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      if (!state.notesItems || state.notesItems.length === 0) return;
+      if (state.selectedNoteIds.size === state.notesItems.length) {
+        state.selectedNoteIds.clear();
+      } else {
+        state.notesItems.forEach(item => state.selectedNoteIds.add(item.id));
+      }
+      renderQuickNotesManageList();
+    });
+  }
+
+  // Cancel Selection Mode Button
+  const cancelSelectBtn = document.getElementById('notes-cancel-select-btn');
+  if (cancelSelectBtn) {
+    cancelSelectBtn.addEventListener('click', () => {
+      state.isSelectionMode = false;
+      state.selectedNoteIds.clear();
+      renderQuickNotesManageList();
+    });
+  }
+
+  // Group Selected Items Button
+  const groupSelectedBtn = document.getElementById('notes-group-selected-btn');
+  if (groupSelectedBtn) {
+    groupSelectedBtn.addEventListener('click', () => {
+      if (state.selectedNoteIds.size > 0) {
+        openGroupModal(false);
+      }
+    });
+  }
+
+  // Ungroup Selected Items Button
+  const ungroupSelectedBtn = document.getElementById('notes-ungroup-selected-btn');
+  if (ungroupSelectedBtn) {
+    ungroupSelectedBtn.addEventListener('click', () => {
+      if (state.selectedNoteIds.size > 0) {
+        state.notesItems.forEach(item => {
+          if (state.selectedNoteIds.has(item.id)) {
+            item.group = null;
+          }
+        });
+        state.isSelectionMode = false;
+        state.selectedNoteIds.clear();
+        saveNotes();
+        showToast('Selected items ungrouped');
         renderNotesView();
       }
     });
   }
 
-  // Main Add Option Button & Modal Handlers
-  const mainAddOptionBtn = document.getElementById('main-add-option-btn');
-  const addOptionModal = document.getElementById('add-option-modal');
-  const optionAddItemBtn = document.getElementById('option-add-item-btn');
-  const optionAddFolderBtn = document.getElementById('option-add-folder-btn');
-
-  if (mainAddOptionBtn && addOptionModal) {
-    mainAddOptionBtn.addEventListener('click', () => {
-      addOptionModal.classList.remove('hidden');
+  // Delete Selected Items Button
+  const deleteSelectedBtn = document.getElementById('notes-delete-selected-btn');
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener('click', () => {
+      const count = state.selectedNoteIds.size;
+      if (count > 0) {
+        showConfirmDialog({
+          title: 'Delete Selected Items',
+          message: `Are you sure you want to delete ${count} selected item(s)?`,
+          confirmText: 'Delete Items',
+          onConfirm: () => {
+            state.notesItems = state.notesItems.filter(item => !state.selectedNoteIds.has(item.id));
+            state.isSelectionMode = false;
+            state.selectedNoteIds.clear();
+            saveNotes();
+            showToast(`${count} item(s) deleted`);
+            renderNotesView();
+          }
+        });
+      }
     });
   }
 
-  document.querySelectorAll('.add-option-close').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (addOptionModal) addOptionModal.classList.add('hidden');
-    });
-  });
-
-  if (optionAddItemBtn) {
-    optionAddItemBtn.addEventListener('click', () => {
-      if (addOptionModal) addOptionModal.classList.add('hidden');
-      openQuickNoteModal(null, state.activeFolderId);
-    });
-  }
-
-  if (optionAddFolderBtn) {
-    optionAddFolderBtn.addEventListener('click', () => {
-      if (addOptionModal) addOptionModal.classList.add('hidden');
-      openGroupModal();
-    });
-  }
-
+  // Group Form Submit (Create Group or Rename Group)
   const groupForm = document.getElementById('group-form');
   if (groupForm) {
     groupForm.addEventListener('submit', (e) => {
@@ -1409,18 +1453,27 @@ const initEventHandlers = () => {
       const input = document.getElementById('group-name-input');
       const groupName = input?.value.trim();
       if (!groupName) return;
-      
-      const newGroup = {
-        id: generateId(),
-        title: groupName,
-        isGroup: true,
-        expanded: true
-      };
-      state.notesItems.unshift(newGroup);
-      state.activeFolderId = newGroup.id;
+
+      if (state.renamingGroupName) {
+        state.notesItems.forEach(item => {
+          if (item.group === state.renamingGroupName) {
+            item.group = groupName;
+          }
+        });
+        showToast(`Group renamed to '${groupName}'`);
+      } else {
+        state.notesItems.forEach(item => {
+          if (state.selectedNoteIds.has(item.id)) {
+            item.group = groupName;
+          }
+        });
+        showToast(`Grouped ${state.selectedNoteIds.size} items into '${groupName}'`);
+        state.isSelectionMode = false;
+        state.selectedNoteIds.clear();
+      }
+
       saveNotes();
       closeGroupModal();
-      showToast(`Folder '${groupName}' created`);
       renderNotesView();
     });
   }
@@ -1441,111 +1494,75 @@ const initEventHandlers = () => {
         if (overlay.id === 'quick-note-modal') {
           state.editingNoteId = null;
         }
-      }
-    });
-  });
-
-  // Custom Combobox Input & Selection Handlers
-  const titleInputEl = document.getElementById('quick-note-title-input');
-  const priceInputEl = document.getElementById('quick-note-price-input');
-  const comboboxDropdownEl = document.getElementById('quick-note-title-dropdown');
-
-  if (titleInputEl) {
-    titleInputEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!state.editingNoteId) renderCustomComboboxDropdown(titleInputEl.value);
-    });
-
-    titleInputEl.addEventListener('input', () => {
-      if (!state.editingNoteId) {
-        renderCustomComboboxDropdown(titleInputEl.value);
-        const val = titleInputEl.value.trim().toLowerCase();
-        const matched = state.notesItems.find(n => !n.isGroup && !n.parentId && n.title.trim().toLowerCase() === val);
-        if (matched && priceInputEl) {
-          priceInputEl.value = matched.price || '';
+        if (overlay.id === 'group-modal') {
+          state.renamingGroupName = null;
         }
       }
     });
-  }
+  });
 
-  if (comboboxDropdownEl) {
-    comboboxDropdownEl.addEventListener('click', (e) => {
-      const itemEl = e.target.closest('[data-action="select-combobox-item"]');
-      if (itemEl) {
-        const title = itemEl.getAttribute('data-title');
-        const price = itemEl.getAttribute('data-price');
-        if (titleInputEl) titleInputEl.value = title;
-        if (priceInputEl) priceInputEl.value = price || '';
-        hideCustomComboboxDropdown();
+  // Quick Note Transfer to Catalog Button
+  const quickNoteConvertBtn = document.getElementById('quick-note-convert-btn');
+  if (quickNoteConvertBtn) {
+    quickNoteConvertBtn.addEventListener('click', () => {
+      if (state.editingNoteId) {
+        convertNoteToCatalog(state.editingNoteId);
+        closeQuickNoteModal();
       }
     });
   }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.custom-combobox-wrapper')) {
-      hideCustomComboboxDropdown();
-    }
-  });
+  // Quick Note Priority Selection Handler
+  const quickNotePriorityOptions = document.getElementById('quick-note-priority-options');
+  if (quickNotePriorityOptions) {
+    quickNotePriorityOptions.addEventListener('click', (e) => {
+      const btn = e.target.closest('.priority-btn');
+      if (!btn) return;
+      quickNotePriorityOptions.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  }
 
-  // Quick Note Form Submit Handler Inside Centered Modal
+  // Quick Note Form Submit Handler
   const quickNoteForm = document.getElementById('quick-note-form');
   if (quickNoteForm) {
     quickNoteForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      
-      const existingContainer = document.getElementById('quick-note-existing-container');
-      const isExistingMode = existingContainer && !existingContainer.classList.contains('hidden');
 
-      if (isExistingMode) {
-        const existingSelect = document.getElementById('quick-note-existing-select');
-        const selectedId = existingSelect?.value;
-        if (!selectedId) {
-          showToast('Please select an existing item to add');
-          return;
-        }
-        const item = state.notesItems.find(n => n.id === selectedId);
-        const targetFolder = state.currentPreselectGroupId || state.activeFolderId;
-        if (item && targetFolder) {
-          item.parentId = targetFolder;
-          showToast(`Added '${item.title}' to folder`);
+      const titleInput = document.getElementById('quick-note-title-input');
+      const priceInput = document.getElementById('quick-note-price-input');
+      const groupInput = document.getElementById('quick-note-group-input');
+      const activePriorityBtn = document.querySelector('#quick-note-priority-options .priority-btn.active');
+      const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
+      const title = titleInput?.value.trim();
+
+      if (!title) return;
+      const groupVal = groupInput?.value.trim() || null;
+
+      if (state.editingNoteId) {
+        const item = state.notesItems.find(n => n.id === state.editingNoteId);
+        if (item) {
+          item.title = title;
+          item.price = parseFloat(priceInput?.value) || 0;
+          item.group = groupVal;
+          item.priority = priority;
+          showToast('Item updated');
         }
       } else {
-        const titleInput = document.getElementById('quick-note-title-input');
-        const priceInput = document.getElementById('quick-note-price-input');
-        const groupSelect = document.getElementById('quick-note-group-select');
-        const checkedInput = document.getElementById('quick-note-checked-input');
-        const title = titleInput?.value.trim();
-        const price = parseFloat(priceInput?.value) || 0;
-        const parentId = groupSelect?.value || null;
-        const checked = !!checkedInput?.checked;
-        
-        if (!title) return;
-        
-        if (state.editingNoteId) {
-          const item = state.notesItems.find(n => n.id === state.editingNoteId);
-          if (item) {
-            item.title = title;
-            if (!item.isGroup) {
-              item.price = price;
-              item.parentId = parentId;
-              item.checked = checked;
-            }
-          }
-          showToast('Item updated');
-        } else {
-          const newNote = {
-            id: generateId(),
-            title: title,
-            price: price,
-            currency: state.currency,
-            checked: checked,
-            parentId: parentId
-          };
-          state.notesItems.unshift(newNote);
-          showToast('Added to Wishlist');
-        }
+        const newNote = {
+          id: generateId(),
+          title,
+          price: parseFloat(priceInput?.value) || 0,
+          currency: state.currency,
+          checked: false,
+          group: groupVal,
+          priority: priority,
+          createdAt: new Date().toISOString()
+        };
+        state.notesItems.unshift(newNote);
+        showToast('Added to Wishlist');
       }
-      
+
       saveNotes();
       closeQuickNoteModal();
       renderNotesView();
@@ -1558,98 +1575,31 @@ const initEventHandlers = () => {
     quickNoteDeleteBtn.addEventListener('click', () => {
       if (state.editingNoteId) {
         const id = state.editingNoteId;
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          if (state.activeFolderId === id) state.activeFolderId = null;
-          if (item.isGroup) {
-            showConfirmDialog({
-              title: 'Delete Folder',
-              message: `Are you sure you want to delete folder '${item.title}' and all its items?`,
-              confirmText: 'Delete Folder',
-              onConfirm: () => {
-                state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
-                saveNotes();
-                closeQuickNoteModal();
-                showToast('Folder deleted');
-                renderNotesView();
-              }
-            });
-          } else {
-            state.notesItems = state.notesItems.filter(n => n.id !== id);
-            saveNotes();
-            closeQuickNoteModal();
-            showToast('Item deleted');
-            renderNotesView();
-          }
-        }
+        state.notesItems = state.notesItems.filter(n => n.id !== id);
+        saveNotes();
+        closeQuickNoteModal();
+        showToast('Item deleted');
+        renderNotesView();
       }
     });
   }
 
-  // Helper handler for adding existing item into active folder
-  const handleAddExistingToFolderClick = (e) => {
-    const btn = e.target.closest('.btn-add-existing-to-folder');
-    if (!btn) return false;
-    const bar = btn.closest('.add-to-folder-bar');
-    const select = bar?.querySelector('.select-existing-item-to-add');
-    const selectedId = select?.value;
-    if (!selectedId) {
-      showToast('Please select an existing item first');
-      return true;
-    }
-    const item = state.notesItems.find(n => n.id === selectedId);
-    if (item && state.activeFolderId) {
-      item.parentId = state.activeFolderId;
-      saveNotes();
-      showToast(`Added '${item.title}' to folder`);
-      renderNotesView();
-    }
-    return true;
-  };
-
-  // Quick Notes List Delegation (Wishlist View Tab)
-  const quickNotesList = document.getElementById('quick-notes-list');
-  if (quickNotesList) {
-    quickNotesList.addEventListener('click', (e) => {
-      if (handleAddExistingToFolderClick(e)) return;
-
-      const openFolderBtn = e.target.closest('[data-action="open-folder"]');
-      if (openFolderBtn) {
-        const id = openFolderBtn.getAttribute('data-id');
-        state.activeFolderId = id;
-        renderNotesView();
-        return;
-      }
-
-      const exitFolderBtn = e.target.closest('[data-action="exit-folder"]');
-      if (exitFolderBtn) {
-        state.activeFolderId = null;
-        renderNotesView();
-        return;
-      }
-    });
-  }
-
-  // Quick Notes Manage List Delegation (Manage Tab - Edit, Delete, Folder Nav)
+  // Quick Notes List Delegation
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
     quickNotesManageList.addEventListener('click', (e) => {
-      if (handleAddExistingToFolderClick(e)) return;
-
-      // Open Folder
-      const openFolderBtn = e.target.closest('[data-action="open-folder"]');
-      if (openFolderBtn && !e.target.closest('.btn-icon-subtle')) {
-        const id = openFolderBtn.getAttribute('data-id');
-        state.activeFolderId = id;
-        renderNotesView();
-        return;
-      }
-
-      // Exit Folder
-      const exitFolderBtn = e.target.closest('[data-action="exit-folder"]');
-      if (exitFolderBtn) {
-        state.activeFolderId = null;
-        renderNotesView();
+      if (state.isSelectionMode) {
+        const row = e.target.closest('[data-action="select-item-row"]');
+        if (row) {
+          const id = row.getAttribute('data-id');
+          if (state.selectedNoteIds.has(id)) {
+            state.selectedNoteIds.delete(id);
+          } else {
+            state.selectedNoteIds.add(id);
+          }
+          renderQuickNotesManageList();
+          return;
+        }
         return;
       }
 
@@ -1666,69 +1616,232 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Add Child Note directly into Group / Folder
-      const addChildBtn = e.target.closest('[data-action="add-child-note"]');
-      if (addChildBtn) {
-        const groupId = addChildBtn.getAttribute('data-group-id');
-        openQuickNoteModal(null, groupId);
-        renderNotesView();
-        return;
-      }
-
-      // Ungroup Note
+      // Ungroup Single Note
       const ungroupBtn = e.target.closest('[data-action="ungroup-note"]');
       if (ungroupBtn) {
         const id = ungroupBtn.getAttribute('data-id');
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
-          item.parentId = null;
+          item.group = null;
           saveNotes();
-          showToast('Removed from folder');
+          showToast('Removed from group');
           renderNotesView();
         }
         return;
       }
 
-      // Edit Note or Group
+      // Rename Group
+      const renameGroupBtn = e.target.closest('[data-action="rename-group"]');
+      if (renameGroupBtn) {
+        const groupName = renameGroupBtn.getAttribute('data-group');
+        openGroupModal(true, groupName);
+        return;
+      }
+
+      // Ungroup All Items in Group
+      const ungroupAllBtn = e.target.closest('[data-action="ungroup-all"]');
+      if (ungroupAllBtn) {
+        const groupName = ungroupAllBtn.getAttribute('data-group');
+        state.notesItems.forEach(item => {
+          if (item.group === groupName) {
+            item.group = null;
+          }
+        });
+        saveNotes();
+        showToast(`Ungrouped all items in '${groupName}'`);
+        renderNotesView();
+        return;
+      }
+
+      // Edit Note
       const editBtn = e.target.closest('[data-action="edit-note"]');
       if (editBtn) {
         const id = editBtn.getAttribute('data-id');
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          openQuickNoteModal(id);
-          renderNotesView();
-        }
+        openQuickNoteModal(id);
         return;
       }
 
-      // Delete Note or Group
-      const deleteBtn = e.target.closest('[data-action="delete-note"]');
-      if (deleteBtn) {
-        const id = deleteBtn.getAttribute('data-id');
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          if (state.editingNoteId === id) state.editingNoteId = null;
-          if (state.activeFolderId === id) state.activeFolderId = null;
-          if (item.isGroup) {
-            showConfirmDialog({
-              title: 'Delete Group',
-              message: `Are you sure you want to delete group '${item.title}' and all its items?`,
-              confirmText: 'Delete Group',
-              onConfirm: () => {
-                state.notesItems = state.notesItems.filter(n => n.id !== id && n.parentId !== id);
-                saveNotes();
-                showToast('Group deleted');
-                renderNotesView();
-              }
-            });
+      // Toggle Group Collapse
+      const groupCollapseHeader = e.target.closest('[data-action="toggle-group-collapse"]');
+      if (groupCollapseHeader && !e.target.closest('button')) {
+        const groupName = groupCollapseHeader.getAttribute('data-group');
+        if (groupName) {
+          if (!state.collapsedGroups) state.collapsedGroups = new Set();
+          if (state.collapsedGroups.has(groupName)) {
+            state.collapsedGroups.delete(groupName);
           } else {
-            state.notesItems = state.notesItems.filter(n => n.id !== id);
+            state.collapsedGroups.add(groupName);
+          }
+          renderQuickNotesManageList();
+        }
+        return;
+      }
+    });
+
+    // HTML5 Drag & Drop Reordering in Edit Mode
+    let draggedNoteId = null;
+
+    quickNotesManageList.addEventListener('dragstart', (e) => {
+      if (state.notesViewMode !== 'edit' || state.isSelectionMode) {
+        e.preventDefault();
+        return;
+      }
+      const row = e.target.closest('.quick-note-row');
+      if (!row) return;
+
+      draggedNoteId = row.getAttribute('data-id');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedNoteId);
+      row.classList.add('is-dragging');
+    });
+
+    quickNotesManageList.addEventListener('dragover', (e) => {
+      if (!draggedNoteId || state.notesViewMode !== 'edit' || state.isSelectionMode) return;
+      const targetRow = e.target.closest('.quick-note-row');
+      if (!targetRow || targetRow.getAttribute('data-id') === draggedNoteId) {
+        return;
+      }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const rect = targetRow.getBoundingClientRect();
+      const isTop = (e.clientY - rect.top) < rect.height / 2;
+
+      quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
+        if (el !== targetRow) el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      if (isTop) {
+        targetRow.classList.add('drag-over-top');
+        targetRow.classList.remove('drag-over-bottom');
+      } else {
+        targetRow.classList.add('drag-over-bottom');
+        targetRow.classList.remove('drag-over-top');
+      }
+    });
+
+    quickNotesManageList.addEventListener('dragleave', (e) => {
+      const targetRow = e.target.closest('.quick-note-row');
+      if (targetRow && !targetRow.contains(e.relatedTarget)) {
+        targetRow.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+    });
+
+    quickNotesManageList.addEventListener('drop', (e) => {
+      if (!draggedNoteId || state.notesViewMode !== 'edit' || state.isSelectionMode) return;
+      e.preventDefault();
+
+      const targetRow = e.target.closest('.quick-note-row');
+      if (targetRow) {
+        const targetId = targetRow.getAttribute('data-id');
+        if (targetId && targetId !== draggedNoteId) {
+          const srcIdx = state.notesItems.findIndex(i => i.id === draggedNoteId);
+          const tgtIdx = state.notesItems.findIndex(i => i.id === targetId);
+
+          if (srcIdx !== -1 && tgtIdx !== -1) {
+            const rect = targetRow.getBoundingClientRect();
+            const isTop = (e.clientY - rect.top) < rect.height / 2;
+
+            const draggedItem = state.notesItems[srcIdx];
+            const targetItem = state.notesItems[tgtIdx];
+            draggedItem.group = targetItem.group || null;
+
+            state.notesItems.splice(srcIdx, 1);
+            const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
+            const insertIdx = isTop ? newTgtIdx : newTgtIdx + 1;
+            state.notesItems.splice(insertIdx, 0, draggedItem);
+
+            state.notesSortBy = null;
+            savePreferences();
             saveNotes();
-            showToast('Item deleted');
-            renderNotesView();
+            renderQuickNotesManageList();
+            calculateNotesAccumulator();
           }
         }
       }
+
+      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
+        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+      });
+      draggedNoteId = null;
+    });
+
+    quickNotesManageList.addEventListener('dragend', () => {
+      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
+        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+      });
+      draggedNoteId = null;
+    });
+
+    // Touch Drag & Drop Reordering for Mobile Devices
+    let touchDragRow = null;
+    let touchDropTarget = null;
+    let touchDropIsTop = true;
+
+    quickNotesManageList.addEventListener('touchstart', (e) => {
+      if (state.notesViewMode !== 'edit' || state.isSelectionMode) return;
+      const handle = e.target.closest('.quick-note-drag-handle');
+      if (!handle) return;
+
+      touchDragRow = handle.closest('.quick-note-row');
+      if (touchDragRow) {
+        touchDragRow.classList.add('is-dragging');
+      }
+    }, { passive: true });
+
+    quickNotesManageList.addEventListener('touchmove', (e) => {
+      if (!touchDragRow) return;
+      const touch = e.touches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetRow = element ? element.closest('.quick-note-row') : null;
+
+      quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      if (targetRow && targetRow !== touchDragRow) {
+        touchDropTarget = targetRow;
+        const rect = targetRow.getBoundingClientRect();
+        touchDropIsTop = (touch.clientY - rect.top) < rect.height / 2;
+        targetRow.classList.add(touchDropIsTop ? 'drag-over-top' : 'drag-over-bottom');
+      } else {
+        touchDropTarget = null;
+      }
+    }, { passive: true });
+
+    quickNotesManageList.addEventListener('touchend', () => {
+      if (!touchDragRow) return;
+
+      if (touchDropTarget && touchDropTarget !== touchDragRow) {
+        const srcId = touchDragRow.getAttribute('data-id');
+        const tgtId = touchDropTarget.getAttribute('data-id');
+
+        const srcIdx = state.notesItems.findIndex(i => i.id === srcId);
+        const tgtIdx = state.notesItems.findIndex(i => i.id === tgtId);
+
+        if (srcIdx !== -1 && tgtIdx !== -1) {
+          const draggedItem = state.notesItems[srcIdx];
+          const targetItem = state.notesItems[tgtIdx];
+          draggedItem.group = targetItem.group || null;
+
+          state.notesItems.splice(srcIdx, 1);
+          const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
+          const insertIdx = touchDropIsTop ? newTgtIdx : newTgtIdx + 1;
+          state.notesItems.splice(insertIdx, 0, draggedItem);
+
+          state.notesSortBy = null;
+          savePreferences();
+          saveNotes();
+          renderQuickNotesManageList();
+          calculateNotesAccumulator();
+        }
+      }
+
+      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
+        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+      });
+      touchDragRow = null;
+      touchDropTarget = null;
     });
   }
 

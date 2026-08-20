@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=143">
+  <link rel="stylesheet" href="styles.css?v=168">
 </head>
 <body>
   <div id="app">
@@ -26,13 +26,13 @@
         </div>
         <!-- App Nav Tabs pushed to right edge -->
         <div class="app-nav-tabs" id="app-nav-tabs">
-          <button type="button" class="nav-tab-btn active" data-tab="catalog">
-            <i data-lucide="layout-grid"></i>
-            <span>Catalog</span>
-          </button>
-          <button type="button" class="nav-tab-btn" data-tab="notes">
+          <button type="button" class="nav-tab-btn active" data-tab="notes">
             <i data-lucide="file-text"></i>
             <span>Quick Notes</span>
+          </button>
+          <button type="button" class="nav-tab-btn" data-tab="catalog">
+            <i data-lucide="layout-grid"></i>
+            <span>Catalog</span>
           </button>
         </div>
       </div>
@@ -69,13 +69,10 @@
       <!-- Controls Bar -->
       <div id="toolbar">
         <div class="toolbar-left">
-          <!-- Search Input -->
           <div class="search-wrapper">
             <i data-lucide="search" class="search-icon"></i>
             <input type="text" id="search-input" placeholder="Search wishlist..." autocomplete="off">
           </div>
-
-          <!-- Custom Styled Sort Dropdown Popover -->
           <div class="sort-dropdown-custom" id="sort-dropdown">
             <button type="button" class="sort-dropdown-btn" id="sort-dropdown-trigger" aria-haspopup="true">
               <i data-lucide="arrow-up-down"></i>
@@ -106,7 +103,6 @@
             </div>
           </div>
         </div>
-
         <div class="toolbar-right">
           <button id="add-item-btn" class="btn-subtle-pill desktop-only">
             <i data-lucide="plus"></i>
@@ -148,9 +144,8 @@
       </section>
     </div>
 
-    <!-- Quick Notes / Simple Text View Container -->
+    <!-- Quick Notes View (Direct Item-Focused & Simple Multi-Select Grouping) -->
     <div id="notes-view" class="hidden">
-      <!-- Notes Accumulator Summary -->
       <div class="notes-summary-bar">
         <div class="stat-card">
           <span class="stat-label">TOTAL ESTIMATED</span>
@@ -166,7 +161,6 @@
         </div>
       </div>
 
-      <!-- Notes Accumulator Progress Bar -->
       <div class="overall-progress notes-progress-container">
         <div class="progress-bar-container">
           <div class="progress-bar">
@@ -176,45 +170,83 @@
         <span class="progress-text mono-text" id="notes-progress-text">0%</span>
       </div>
 
-      <!-- Clean Sub-Tabs Navigation -->
-      <div class="clean-sub-tabs-container">
-        <div class="clean-sub-tabs" id="notes-sub-tabs">
-          <button type="button" class="sub-tab-btn active" data-subtab="view">
-            <i data-lucide="list"></i>
-            <span>Wishlist View</span>
-          </button>
-          <button type="button" class="sub-tab-btn" data-subtab="manage">
-            <i data-lucide="plus-circle"></i>
-            <span>Add / Manage Items</span>
-          </button>
-        </div>
-      </div>
+      <div class="clean-notes-card">
+        <div class="notes-card-header">
+          <div class="notes-header-left">
+            <span class="notes-card-title" id="notes-view-title">Wishlist Notes</span>
+            <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Back to view">
+              <i data-lucide="arrow-left"></i>
+              <span>Back</span>
+            </button>
+          </div>
+          <div class="notes-header-controls">
+            <!-- Sort Dropdown for Quick Notes -->
+            <div class="notes-sort-dropdown" id="notes-sort-dropdown">
+              <button type="button" class="btn-clean-action notes-sort-trigger" id="notes-sort-trigger" title="Sort items">
+                <i data-lucide="arrow-up-down"></i>
+                <span id="notes-sort-label">Sort</span>
+                <i data-lucide="chevron-down" class="sort-chevron"></i>
+              </button>
+              <div class="sort-dropdown-menu hidden" id="notes-sort-menu">
+                <button type="button" class="sort-menu-item" data-sort="title">
+                  <span>Title</span>
+                  <i data-lucide="check" class="sort-check"></i>
+                </button>
+                <button type="button" class="sort-menu-item" data-sort="price">
+                  <span>Price</span>
+                  <i data-lucide="check" class="sort-check"></i>
+                </button>
+                <button type="button" class="sort-menu-item" data-sort="date">
+                  <span>Date</span>
+                  <i data-lucide="check" class="sort-check"></i>
+                </button>
+                <button type="button" class="sort-menu-item" data-sort="priority">
+                  <span>Priority</span>
+                  <i data-lucide="check" class="sort-check"></i>
+                </button>
+              </div>
+            </div>
 
-      <!-- Tab 1: Clean View List (Read-Only Pristine Dashboard) -->
-      <div id="notes-subview-view" class="notes-subview-content">
-        <div class="clean-notes-card">
-          <div id="quick-notes-list" class="quick-notes-list"></div>
-        </div>
-      </div>
+            <div class="notes-header-actions" id="notes-view-actions">
+              <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit items">
+                <i data-lucide="edit-3"></i>
+                <span>Edit</span>
+              </button>
+            </div>
 
-      <!-- Tab 2: Manage Items & Conventional Add Form -->
-      <div id="notes-subview-manage" class="notes-subview-content hidden">
-        <div class="clean-notes-card">
-          <div class="notes-card-header">
-            <div class="notes-header-left-btns">
-              <button type="button" id="main-add-option-btn" class="btn-clean-action-primary" title="Add Item or Folder">
+            <div class="notes-header-actions hidden" id="notes-edit-actions">
+              <button type="button" id="notes-select-toggle-btn" class="btn-clean-action" title="Select multiple items">
+                <i data-lucide="check-square"></i>
+                <span>Select</span>
+              </button>
+              <button type="button" id="main-add-note-btn" class="btn-clean-action-primary" title="Add Note Item">
                 <i data-lucide="plus"></i>
-                <span>Add New</span>
-                <i data-lucide="chevron-down" style="width: 12px; height: 12px; margin-left: 2px;"></i>
+                <span>Add</span>
               </button>
             </div>
           </div>
+        </div>
 
-          <div class="notes-manage-section">
-            <span class="notes-manage-title">Existing Items</span>
-            <div id="quick-notes-manage-list" class="quick-notes-manage-list"></div>
+        <!-- Multi-select Action Bar (Icon-only actions) -->
+        <div id="notes-selection-bar" class="notes-selection-bar hidden">
+          <span id="notes-selected-count" class="notes-selected-count">0 selected</span>
+          <div class="notes-selection-actions">
+            <button type="button" id="notes-select-all-btn" class="btn-selection-action" title="Select All / Deselect All" aria-label="Select All">
+              <i data-lucide="check-check"></i>
+            </button>
+            <button type="button" id="notes-group-selected-btn" class="btn-selection-action btn-group-action" disabled title="Group selected items" aria-label="Group selected">
+              <i data-lucide="folder-plus"></i>
+            </button>
+            <button type="button" id="notes-ungroup-selected-btn" class="btn-selection-action" disabled title="Remove selected from groups" aria-label="Ungroup selected">
+              <i data-lucide="corner-up-left"></i>
+            </button>
+            <button type="button" id="notes-delete-selected-btn" class="btn-selection-action btn-delete-action" disabled title="Delete selected items" aria-label="Delete selected">
+              <i data-lucide="trash-2"></i>
+            </button>
           </div>
         </div>
+
+        <div id="quick-notes-manage-list" class="quick-notes-manage-list"></div>
       </div>
     </div>
   </div>
@@ -226,7 +258,7 @@
     </button>
   </div>
 
-  <!-- Add/Edit Item Modal -->
+  <!-- Add/Edit Catalog Item Modal -->
   <div id="item-modal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-sheet-handle mobile-only"></div>
@@ -362,48 +394,12 @@
     </div>
   </div>
 
-  <!-- Select Add Option Modal -->
-  <div id="add-option-modal" class="modal-overlay hidden">
-    <div class="modal modal-sm">
-      <div class="modal-sheet-handle mobile-only"></div>
-      <div class="modal-header">
-        <h2>Create New...</h2>
-        <button type="button" class="modal-close add-option-close" aria-label="Close modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
-        <button type="button" id="option-add-item-btn" class="add-option-card">
-          <div class="option-card-icon">
-            <i data-lucide="plus-circle"></i>
-          </div>
-          <div class="option-card-info">
-            <span class="option-card-title">Wishlist Item</span>
-            <span class="option-card-desc">Add a new item with price & details</span>
-          </div>
-          <i data-lucide="chevron-right" class="option-card-arrow"></i>
-        </button>
-        
-        <button type="button" id="option-add-folder-btn" class="add-option-card">
-          <div class="option-card-icon">
-            <i data-lucide="folder-plus"></i>
-          </div>
-          <div class="option-card-info">
-            <span class="option-card-title">New Folder</span>
-            <span class="option-card-desc">Create a folder to organize items</span>
-          </div>
-          <i data-lucide="chevron-right" class="option-card-arrow"></i>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Create Group / Folder Modal -->
+  <!-- Group / Rename Modal -->
   <div id="group-modal" class="modal-overlay hidden">
     <div class="modal modal-sm">
       <div class="modal-sheet-handle mobile-only"></div>
       <div class="modal-header">
-        <h2>New Folder</h2>
+        <h2 id="group-modal-title">Group Items</h2>
         <button type="button" class="modal-close group-modal-close" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
@@ -411,18 +407,19 @@
       <div class="modal-body">
         <form id="group-form">
           <div class="form-group">
-            <label for="group-name-input">Folder Name</label>
-            <input type="text" id="group-name-input" placeholder="e.g. Desk Setup Gear" required autocomplete="off">
+            <label for="group-name-input">Group Name</label>
+            <input type="text" id="group-name-input" placeholder="e.g. Desk Setup Gear" required autocomplete="off" list="group-options-list">
+            <datalist id="group-options-list"></datalist>
           </div>
           <div class="form-actions">
-            <button type="submit" id="group-save-btn" class="btn-primary" style="width: 100%;">Create Folder</button>
+            <button type="submit" id="group-save-btn" class="btn-primary" style="width: 100%;">Save Group</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- App Confirmation Dialog Modal (Replaces browser confirm()) -->
+  <!-- Confirm Dialog Modal -->
   <div id="confirm-modal" class="modal-overlay hidden">
     <div class="modal modal-sm">
       <div class="modal-sheet-handle mobile-only"></div>
@@ -446,36 +443,41 @@
     <div class="modal modal-sm">
       <div class="modal-sheet-handle mobile-only"></div>
       <div class="modal-header">
-        <h2 id="quick-note-modal-title">Add Note Item</h2>
+        <h2 id="quick-note-modal-title">Add Item</h2>
         <button type="button" class="modal-close quick-note-modal-close" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
       <form id="quick-note-form">
-        <div id="quick-note-title-container" class="form-group" style="position: relative;">
-          <label for="quick-note-title-input">Item Name</label>
-          <div class="custom-combobox-wrapper">
-            <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" autocomplete="off">
-            <div id="quick-note-title-dropdown" class="custom-combobox-dropdown hidden"></div>
-          </div>
+        <div class="form-group">
+          <label for="quick-note-title-input" id="quick-note-title-label">Item Name</label>
+          <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
         </div>
-
-        <div id="quick-note-existing-container" class="form-group hidden" style="margin-bottom: 16px;">
-          <label for="quick-note-existing-select">Select Wishlist Item</label>
-          <select id="quick-note-existing-select" class="clean-select">
-            <!-- Options populated dynamically -->
-          </select>
-        </div>
-        <div id="quick-note-row-fields" class="form-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
             <label for="quick-note-price-input">Price</label>
             <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
           </div>
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
-            <label for="quick-note-group-select">Group (Optional)</label>
-            <select id="quick-note-group-select" class="clean-select">
-              <option value="">None (Standalone)</option>
-            </select>
+            <label for="quick-note-group-input">Group <span class="optional">(optional)</span></label>
+            <input type="text" id="quick-note-group-input" placeholder="e.g. Desk Setup" autocomplete="off" list="group-options-list">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label>Priority Level</label>
+          <div class="priority-options" id="quick-note-priority-options">
+            <button type="button" class="priority-btn" data-priority="1">
+              <span class="priority-badge">P1</span>
+              <span class="priority-label">High Priority</span>
+            </button>
+            <button type="button" class="priority-btn active" data-priority="2">
+              <span class="priority-badge">P2</span>
+              <span class="priority-label">Medium</span>
+            </button>
+            <button type="button" class="priority-btn" data-priority="3">
+              <span class="priority-badge">P3</span>
+              <span class="priority-label">Low</span>
+            </button>
           </div>
         </div>
         <div id="quick-note-convert-container" class="form-group hidden" style="margin-bottom: 16px;">
@@ -501,6 +503,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=143"></script>
+  <script src="app.js?v=168"></script>
 </body>
 </html>
