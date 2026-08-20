@@ -583,9 +583,9 @@ input, button, select, textarea {
 }
 
 .checkbox-inline-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 38px;
   padding: 8px 14px;
   background: #F4F4F6;
@@ -600,6 +600,7 @@ input, button, select, textarea {
   transition: all 150ms ease;
   width: 100%;
   box-sizing: border-box;
+  line-height: 1;
 }
 
 .checkbox-inline-label:hover {
@@ -607,10 +608,21 @@ input, button, select, textarea {
 }
 
 .checkbox-inline-label input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
   cursor: pointer;
   accent-color: #09090B;
+  flex-shrink: 0;
+  display: block;
+}
+
+.checkbox-inline-label span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  margin-top: 1px;
 }
 
 .form-btn-group {
