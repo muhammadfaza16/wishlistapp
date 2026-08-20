@@ -815,7 +815,6 @@ const renderQuickNotesList = () => {
     html += `
       <div class="folder-navigation-header" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
         <div class="folder-title-display">
-          <i data-lucide="arrow-left" class="folder-back-arrow-icon"></i>
           <i data-lucide="folder-open" class="folder-open-icon"></i>
           <span class="folder-title-text">${activeFolder.title}</span>
           <span class="group-badge-pill">${children.length} items</span>
@@ -919,7 +918,6 @@ const renderQuickNotesManageList = () => {
     html += `
       <div class="folder-navigation-header">
         <div class="folder-title-display" data-action="exit-folder" title="Back to All Notes" style="cursor: pointer;">
-          <i data-lucide="arrow-left" class="folder-back-arrow-icon"></i>
           <i data-lucide="folder-open" class="folder-open-icon"></i>
           <span class="folder-title-text">${activeFolder.title}</span>
           <span class="group-badge-pill">${children.length} items</span>
