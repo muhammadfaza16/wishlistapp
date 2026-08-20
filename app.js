@@ -984,8 +984,8 @@ const renderQuickNotesManageList = () => {
         const isEditing = state.editingNoteId === item.id;
         
         return `
-          <div class="quick-note-row group-row-folder ${isEditing ? 'editing-row' : ''}" data-id="${item.id}">
-            <div class="quick-note-left" data-action="open-folder" data-id="${item.id}" style="cursor: pointer;">
+          <div class="quick-note-row group-row-folder ${isEditing ? 'editing-row' : ''}" data-action="open-folder" data-id="${item.id}" style="cursor: pointer;">
+            <div class="quick-note-left">
               <i data-lucide="folder" class="group-folder-icon"></i>
               <span class="quick-note-title">${item.title}</span>
               <span class="group-badge-pill">${children.length} items</span>
@@ -1258,7 +1258,7 @@ const initEventHandlers = () => {
   const toggleAddFormBtn = document.getElementById('toggle-add-form-btn');
   if (toggleAddFormBtn) {
     toggleAddFormBtn.addEventListener('click', () => {
-      openQuickNoteModal();
+      openQuickNoteModal(null, state.activeFolderId);
     });
   }
 
@@ -1397,7 +1397,7 @@ const initEventHandlers = () => {
     quickNotesManageList.addEventListener('click', (e) => {
       // Open Folder
       const openFolderBtn = e.target.closest('[data-action="open-folder"]');
-      if (openFolderBtn) {
+      if (openFolderBtn && !e.target.closest('.btn-icon-subtle')) {
         const id = openFolderBtn.getAttribute('data-id');
         state.activeFolderId = id;
         renderNotesView();
