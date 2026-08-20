@@ -306,14 +306,45 @@ const closeGroupModal = () => {
   if (modal) modal.classList.add('hidden');
 };
 
-const populateExistingItemsDatalist = () => {
-  const datalist = document.getElementById('existing-items-datalist');
-  if (!datalist) return;
+const renderCustomComboboxDropdown = (query = '') => {
+  const dropdown = document.getElementById('quick-note-title-dropdown');
+  if (!dropdown) return;
+  
+  if (state.editingNoteId) {
+    dropdown.classList.add('hidden');
+    return;
+  }
+  
   const standaloneItems = state.notesItems.filter(n => !n.isGroup && !n.parentId);
-  datalist.innerHTML = standaloneItems.map(item => {
+  const filterVal = query.trim().toLowerCase();
+  
+  const matches = standaloneItems.filter(item => {
+    if (!filterVal) return true;
+    return item.title.toLowerCase().includes(filterVal);
+  });
+  
+  if (matches.length === 0) {
+    dropdown.classList.add('hidden');
+    return;
+  }
+  
+  dropdown.innerHTML = matches.map(item => {
     const formattedVal = formatCurrencyValue(convertCurrency(item.price || 0, item.currency || 'IDR', state.currency));
-    return `<option value="${item.title}">${formattedVal}</option>`;
+    const safeTitle = item.title.replace(/"/g, '&quot;');
+    return `
+      <div class="combobox-item" data-action="select-combobox-item" data-title="${safeTitle}" data-price="${item.price || 0}">
+        <span class="combobox-item-title">${item.title}</span>
+        <span class="combobox-item-badge">${formattedVal}</span>
+      </div>
+    `;
   }).join('');
+  
+  dropdown.classList.remove('hidden');
+};
+
+const hideCustomComboboxDropdown = () => {
+  const dropdown = document.getElementById('quick-note-title-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
 };
 
 const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
@@ -331,7 +362,7 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
   if (!modal) return;
   
   state.editingNoteId = noteId;
-  populateExistingItemsDatalist();
+  hideCustomComboboxDropdown();
   
   if (noteId) {
     const item = state.notesItems.find(n => n.id === noteId);
@@ -1315,12 +1346,19 @@ const initEventHandlers = () => {
     });
   });
 
-  // Title input auto-fill price when selecting existing item
+  // Custom Combobox Input & Selection Handlers
   const titleInputEl = document.getElementById('quick-note-title-input');
   const priceInputEl = document.getElementById('quick-note-price-input');
+  const comboboxDropdownEl = document.getElementById('quick-note-title-dropdown');
+
   if (titleInputEl) {
+    titleInputEl.addEventListener('focus', () => {
+      if (!state.editingNoteId) renderCustomComboboxDropdown(titleInputEl.value);
+    });
+
     titleInputEl.addEventListener('input', () => {
       if (!state.editingNoteId) {
+        renderCustomComboboxDropdown(titleInputEl.value);
         const val = titleInputEl.value.trim().toLowerCase();
         const matched = state.notesItems.find(n => !n.isGroup && !n.parentId && n.title.trim().toLowerCase() === val);
         if (matched && priceInputEl) {
@@ -1329,6 +1367,25 @@ const initEventHandlers = () => {
       }
     });
   }
+
+  if (comboboxDropdownEl) {
+    comboboxDropdownEl.addEventListener('click', (e) => {
+      const itemEl = e.target.closest('[data-action="select-combobox-item"]');
+      if (itemEl) {
+        const title = itemEl.getAttribute('data-title');
+        const price = itemEl.getAttribute('data-price');
+        if (titleInputEl) titleInputEl.value = title;
+        if (priceInputEl) priceInputEl.value = price || '';
+        hideCustomComboboxDropdown();
+      }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-combobox-wrapper')) {
+      hideCustomComboboxDropdown();
+    }
+  });
 
   // Quick Note Form Submit Handler Inside Centered Modal
   const quickNoteForm = document.getElementById('quick-note-form');

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=134">
+  <link rel="stylesheet" href="styles.css?v=135">
 </head>
 <body>
   <div id="app">
@@ -452,10 +452,12 @@
         </button>
       </div>
       <form id="quick-note-form">
-        <div class="form-group">
+        <div class="form-group" style="position: relative;">
           <label for="quick-note-title-input">Item Name</label>
-          <input type="text" id="quick-note-title-input" list="existing-items-datalist" placeholder="Type new name or select existing item..." required autocomplete="off">
-          <datalist id="existing-items-datalist"></datalist>
+          <div class="custom-combobox-wrapper">
+            <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
+            <div id="quick-note-title-dropdown" class="custom-combobox-dropdown hidden"></div>
+          </div>
         </div>
         <div id="quick-note-row-fields" class="form-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
@@ -492,6 +494,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=134"></script>
+  <script src="app.js?v=135"></script>
 </body>
 </html>

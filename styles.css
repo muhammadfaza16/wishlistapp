@@ -1115,6 +1115,64 @@ input, button, select, textarea {
   flex-shrink: 0;
 }
 
+/* Custom Combobox Autocomplete Dropdown */
+.custom-combobox-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-combobox-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 1050;
+  padding: 4px 0;
+}
+
+.combobox-item {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #09090B;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.combobox-item:hover {
+  background: #F4F4F6;
+}
+
+.combobox-item-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.combobox-item-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #52525B;
+  background: #E4E4E7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
 .quick-note-row.group-row:hover {
   background: #F4F4F6;
 }
