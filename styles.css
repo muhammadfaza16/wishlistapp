@@ -582,9 +582,11 @@ input, button, select, textarea {
   justify-content: flex-end;
 }
 
-.checkbox-inline-label {
-  display: flex;
-  align-items: center;
+.form-group .checkbox-inline-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start;
   gap: 10px;
   min-height: 38px;
   padding: 8px 14px;
@@ -595,6 +597,9 @@ input, button, select, textarea {
   font-size: 12.5px;
   font-weight: 500;
   color: #09090B;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  margin-bottom: 0 !important;
   cursor: pointer;
   user-select: none;
   transition: all 150ms ease;
@@ -603,26 +608,29 @@ input, button, select, textarea {
   line-height: 1;
 }
 
-.checkbox-inline-label:hover {
+.form-group .checkbox-inline-label:hover {
   background: #EAEAEA;
 }
 
-.checkbox-inline-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
+.form-group .checkbox-inline-label input[type="checkbox"] {
+  display: inline-block !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   cursor: pointer;
   accent-color: #09090B;
   flex-shrink: 0;
-  display: block;
 }
 
-.checkbox-inline-label span {
-  display: inline-flex;
-  align-items: center;
+.form-group .checkbox-inline-label span {
+  display: inline-block !important;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #09090B;
+  text-transform: none !important;
   line-height: 1;
-  margin-top: 1px;
 }
 
 .form-btn-group {
@@ -2661,11 +2669,29 @@ input#item-tags {
 
 .form-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 28px;
-  padding-top: 20px;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
   border-top: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.form-actions button,
+.form-actions .btn-primary,
+.form-actions .btn-secondary,
+.form-actions .btn-danger {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  line-height: 1;
+  gap: 6px;
 }
 
 /* Quick Progress & Delete Modals */
