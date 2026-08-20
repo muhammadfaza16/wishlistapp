@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=113">
+  <link rel="stylesheet" href="styles.css?v=114">
 </head>
 <body>
   <div id="app">
@@ -317,7 +317,6 @@
           <div id="tag-suggestions" class="hidden"></div>
         </div>
         <div class="form-actions">
-          <button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>
           <button type="submit" id="modal-save-btn" class="btn-primary">Save Wish</button>
         </div>
       </form>
@@ -346,7 +345,6 @@
         <input type="number" id="quick-saved" min="0" step="1000" placeholder="0">
       </div>
       <div class="form-actions">
-        <button type="button" class="btn-secondary progress-close">Cancel</button>
         <button type="button" id="quick-save-btn" class="btn-primary">Update Savings</button>
       </div>
     </div>
@@ -365,7 +363,6 @@
       <div class="modal-body">
         <p id="delete-message">Are you sure you want to remove this item from your wishlist?</p>
         <div class="form-actions">
-          <button type="button" class="btn-secondary delete-close">Cancel</button>
           <button type="button" id="delete-confirm-btn" class="btn-danger">Delete</button>
         </div>
       </div>
@@ -388,7 +385,6 @@
           <input type="text" id="group-name-input" placeholder="e.g. Desk Setup Gear" required autocomplete="off">
         </div>
         <div class="form-actions">
-          <button type="button" class="btn-secondary group-modal-close">Cancel</button>
           <button type="submit" id="group-save-btn" class="btn-primary">Create Group</button>
         </div>
       </form>
@@ -408,7 +404,6 @@
       <div class="modal-body">
         <p id="confirm-modal-message" style="margin-bottom: 20px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.5;"></p>
         <div class="form-actions">
-          <button type="button" class="btn-secondary confirm-modal-close">Cancel</button>
           <button type="button" id="confirm-modal-action-btn" class="btn-danger">Confirm</button>
         </div>
       </div>
@@ -449,7 +444,6 @@
           </label>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn-secondary quick-note-modal-close">Cancel</button>
           <button type="button" id="quick-note-convert-btn" class="btn-secondary hidden" title="Convert item to Catalog">
             <i data-lucide="box" style="width: 14px; height: 14px; margin-right: 4px;"></i>
             <span>To Catalog</span>
@@ -466,6 +460,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=113"></script>
+  <script src="app.js?v=114"></script>
 </body>
 </html>
