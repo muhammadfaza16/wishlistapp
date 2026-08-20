@@ -956,7 +956,6 @@ const renderQuickNotesManageList = () => {
               </div>
             </div>
             <div class="quick-note-right">
-              <span class="quick-note-price">${formattedPrice}</span>
               <div class="quick-note-actions-always">
                 <button type="button" class="btn-icon-subtle add-child-btn" data-action="add-child-note" data-group-id="${item.id}" title="Add item to this group">
                   <i data-lucide="plus"></i>

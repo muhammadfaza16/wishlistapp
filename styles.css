@@ -1034,9 +1034,9 @@ input, button, select, textarea {
 }
 
 .quick-note-group-dropdown {
-  margin-left: 12px;
-  padding-left: 8px;
-  border-left: 2px solid #E5E5EA;
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
   background: transparent;
   display: flex;
   flex-direction: column;
