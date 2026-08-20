@@ -377,8 +377,8 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
       } else {
         if (rowFields) rowFields.classList.remove('hidden');
         if (priceInput) priceInput.value = item.price || '';
-        populateGroupSelect(item.parentId || '');
-        if (groupSelect) groupSelect.value = item.parentId || '';
+        const folderIdToSelect = item.parentId || preselectGroupId || state.activeFolderId || '';
+        populateGroupSelect(folderIdToSelect);
         if (convertContainer) convertContainer.classList.remove('hidden');
       }
       
@@ -386,13 +386,13 @@ const openQuickNoteModal = (noteId = null, preselectGroupId = null) => {
       if (deleteBtn) deleteBtn.classList.remove('hidden');
     }
   } else {
-    if (titleEl) titleEl.textContent = preselectGroupId ? 'Add Item to Folder' : 'Add Note Item';
+    const folderIdToSelect = preselectGroupId || state.activeFolderId || '';
+    if (titleEl) titleEl.textContent = folderIdToSelect ? 'Add Item to Folder' : 'Add Note Item';
     if (titleLabel) titleLabel.textContent = 'Item Name';
     if (titleInput) titleInput.value = '';
     if (rowFields) rowFields.classList.remove('hidden');
     if (priceInput) priceInput.value = '';
-    populateGroupSelect(preselectGroupId || '');
-    if (groupSelect) groupSelect.value = preselectGroupId || '';
+    populateGroupSelect(folderIdToSelect);
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (deleteBtn) deleteBtn.classList.add('hidden');
     if (convertContainer) convertContainer.classList.add('hidden');
@@ -766,7 +766,8 @@ const populateGroupSelect = (selectedParentId = '') => {
   const groups = state.notesItems.filter(item => item.isGroup);
   let html = `<option value="">None (Standalone)</option>`;
   groups.forEach(g => {
-    html += `<option value="${g.id}">📁 ${g.title}</option>`;
+    const isSel = String(g.id) === String(selectedParentId);
+    html += `<option value="${g.id}" ${isSel ? 'selected="selected"' : ''}>📁 ${g.title}</option>`;
   });
   select.innerHTML = html;
   select.value = selectedParentId || '';
