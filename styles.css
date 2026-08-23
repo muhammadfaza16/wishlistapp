@@ -1,11 +1,11 @@
 /* ==========================================================================
-   WISHLIST — CURATED SUPPLY DESIGN SYSTEM
+   WISHLIST - CURATED SUPPLY DESIGN SYSTEM
    Ultra-minimalist, monochromatic editorial tech aesthetic.
-   Inspired by curated.supply — precision typography, monospace metrics, micro-borders.
+   Inspired by curated.supply: precision typography, monospace metrics, micro-borders.
    ========================================================================== */
 
 :root {
-  /* Color Palette — Pristine Neutral System */
+  /* Color Palette: Pristine Neutral System */
   --bg: #F8F8F6;
   --bg-card: #FFFFFF;
   --bg-hover: #F4F4F5;
@@ -35,7 +35,7 @@
   --progress-fill-color: #09090B;
   --overlay: rgba(9, 9, 11, 0.55);
 
-  /* Shadows — Modern ambient elevation */
+  /* Shadows: Modern ambient elevation */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.05);
@@ -2115,7 +2115,7 @@ textarea#raw-notepad-input:focus {
   background: #FFFFFF;
 }
 
-/* Financial Metrics Grid — Bespoke Stat Cards */
+/* Financial Metrics Grid: Bespoke Stat Cards */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2598,7 +2598,7 @@ input#search-input:focus {
 }
 
 /* --------------------------------------------------------------------------
-   7. ITEM CARD — GRID VIEW
+   7. ITEM CARD - GRID VIEW
    -------------------------------------------------------------------------- */
 .item-card {
   background: var(--bg-card);
@@ -3046,10 +3046,7 @@ input#search-input:focus {
 }
 
 /* --------------------------------------------------------------------------
-   8. ITEM ROW — LIST VIEW
-   -------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------
-   8. ITEM ROW — LIST VIEW (ULTRA-SLEEK & COMPACT)
+   8. ITEM ROW - LIST VIEW (ULTRA-SLEEK & COMPACT)
    -------------------------------------------------------------------------- */
 .item-row {
   background: var(--bg-card);
@@ -4049,7 +4046,7 @@ input#item-tags {
     justify-content: flex-end;
   }
 
-  /* Floating Bottom Bar on Mobile — Right Edge FAB */
+  /* Floating Bottom Bar on Mobile: Right Edge FAB */
   #mobile-floating-bar {
     position: fixed;
     bottom: 24px;
