@@ -1325,7 +1325,7 @@ const renderQuickNotesManageList = () => {
   let html = '';
 
   Object.keys(groups).forEach(groupName => {
-    const groupItems = sortNotesItemsList(groups[groupName]);
+    const groupItems = isReader ? sortNotesItemsList(groups[groupName]) : groups[groupName];
     const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
     const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
     const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
@@ -1381,7 +1381,7 @@ const renderQuickNotesManageList = () => {
   });
 
   if (standalone.length > 0) {
-    const sortedStandalone = sortNotesItemsList(standalone);
+    const sortedStandalone = isReader ? sortNotesItemsList(standalone) : standalone;
     if (Object.keys(groups).length > 0) {
       if (isReader) {
         html += `
@@ -2229,17 +2229,26 @@ const initEventHandlers = () => {
         e.preventDefault();
         return;
       }
-      if (!e.target.closest('.quick-note-drag-handle')) {
+      if (e.target.closest('input') || e.target.closest('button')) {
         e.preventDefault();
         return;
       }
       const row = e.target.closest('.quick-note-row');
-      if (!row) return;
+      if (!row) {
+        e.preventDefault();
+        return;
+      }
 
       draggedNoteId = row.getAttribute('data-id');
+      if (!draggedNoteId) {
+        e.preventDefault();
+        return;
+      }
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', draggedNoteId);
-      row.classList.add('is-dragging');
+      setTimeout(() => {
+        if (row) row.classList.add('is-dragging');
+      }, 0);
     });
 
     quickNotesManageList.addEventListener('dragover', (e) => {
@@ -2338,12 +2347,13 @@ const initEventHandlers = () => {
 
     quickNotesManageList.addEventListener('touchmove', (e) => {
       if (!touchDragRow) return;
+      if (e.cancelable) e.preventDefault();
       const touch = e.touches[0];
       const element = document.elementFromPoint(touch.clientX, touch.clientY);
       const targetRow = element ? element.closest('.quick-note-row') : null;
 
       quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
-        el.classList.remove('drag-over-top', 'drag-over-bottom');
+        if (el !== targetRow) el.classList.remove('drag-over-top', 'drag-over-bottom');
       });
 
       if (targetRow && targetRow !== touchDragRow) {
@@ -2354,7 +2364,7 @@ const initEventHandlers = () => {
       } else {
         touchDropTarget = null;
       }
-    }, { passive: true });
+    }, { passive: false });
 
     quickNotesManageList.addEventListener('touchend', () => {
       if (!touchDragRow) return;
