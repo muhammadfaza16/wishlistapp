@@ -1,6 +1,21 @@
 // app.js - WISHLIST Application Engine
 
-const generateId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+const safeCreateLucideIcons = () => {
+  try {
+    if (typeof window !== 'undefined' && window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  } catch (e) {}
+};
+
+const generateId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch (e) {}
+  return 'id_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+};
 
 let liveExchangeRateUSDToIDR = 16000;
 
@@ -189,7 +204,7 @@ const validateQuickNoteLinkInput = () => {
     warningEl.innerHTML = `<i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Link already exists in "${duplicate.title}"`;
     warningEl.classList.remove('hidden');
     input.classList.add('input-warning-border');
-    if (window.lucide) lucide.createIcons();
+    safeCreateLucideIcons();
     return duplicate;
   } else {
     resetQuickNoteLinkWarning();
@@ -225,7 +240,7 @@ const validateCatalogLinkInput = () => {
     warningEl.innerHTML = `<i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Link already exists in "${duplicate.title}"`;
     warningEl.classList.remove('hidden');
     input.classList.add('input-warning-border');
-    if (window.lucide) lucide.createIcons();
+    safeCreateLucideIcons();
     return duplicate;
   } else {
     resetCatalogLinkWarning();
@@ -954,7 +969,7 @@ const updateUserProfileUI = () => {
     if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Sign In / Register';
   }
 
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 let currentAuthMode = 'signin';
@@ -969,11 +984,11 @@ const openAuthModal = (mode = 'signin') => {
     errorBox.classList.add('hidden');
     errorBox.textContent = '';
   }
-  if (form) form.reset();
+  if (form && typeof form.reset === 'function') form.reset();
 
   setAuthMode(mode);
   modal.classList.remove('hidden');
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 
   const userDropdown = document.getElementById('user-profile-dropdown');
   const userWrapper = document.getElementById('user-profile-wrapper');
@@ -1107,7 +1122,7 @@ const renderGroupPresets = (containerId, targetInputId) => {
     </button>
   `).join('');
 
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 const getExistingGroupNames = () => {
@@ -1221,8 +1236,8 @@ const openQuickNoteModal = (noteId = null) => {
 
   resetQuickNoteLinkWarning();
   modal.classList.remove('hidden');
-  if (window.lucide) lucide.createIcons();
-  setTimeout(() => titleInput?.focus(), 100);
+  safeCreateLucideIcons();
+  setTimeout(() => { if (titleInput && typeof titleInput.focus === 'function') titleInput.focus(); }, 100);
 };
 
 const setQuickNoteImage = (dataUrl) => {
@@ -1325,7 +1340,7 @@ const openQuickNotePreviewModal = (noteId) => {
   }
 
   modal.classList.remove('hidden');
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 const closeQuickNotePreviewModal = () => {
@@ -1480,7 +1495,7 @@ const renderHeader = (activeItems) => {
     } else {
       itemCount.innerHTML = `<i data-lucide="layers"></i><span>${activeItems.length} ${activeItems.length === 1 ? 'Item' : 'Items'}</span>`;
     }
-    if (window.lucide) lucide.createIcons();
+    safeCreateLucideIcons();
   }
   if (totalValue) totalValue.textContent = formatCurrencyValue(tValue, state.currency);
   if (totalSaved) totalSaved.textContent = formatCurrencyValue(tSaved, state.currency);
@@ -1549,7 +1564,7 @@ const renderTagFilters = () => {
   });
   
   tagFilters.innerHTML = html;
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 const priorityClassMap = { 1: 'priority-badge-p1', 2: 'priority-badge-p2', 3: 'priority-badge-p3' };
@@ -1923,7 +1938,7 @@ const renderQuickNotesManageList = () => {
         <div style="font-family:var(--font-sans);font-size:12px;color:var(--text-tertiary);max-width:280px;margin:0 auto;line-height:1.4;">${emptySub}</div>
       </div>
     `;
-    if (window.lucide) lucide.createIcons();
+    safeCreateLucideIcons();
     return;
   }
 
@@ -2023,7 +2038,7 @@ const renderQuickNotesManageList = () => {
   }
 
   container.innerHTML = html;
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 const renderNotesView = () => {
@@ -2097,10 +2112,7 @@ const render = () => {
   renderItems(active);
   renderAchieved(achieved);
   updateUserProfileUI();
-  
-  if (window.lucide) {
-    lucide.createIcons();
-  }
+  safeCreateLucideIcons();
 };
 
 let currentImageData = null;
@@ -2260,7 +2272,7 @@ const initEventHandlers = () => {
       const isPwd = authPwdInput.type === 'password';
       authPwdInput.type = isPwd ? 'text' : 'password';
       authTogglePwd.innerHTML = isPwd ? '<i data-lucide="eye-off" style="width:14px;height:14px;"></i>' : '<i data-lucide="eye" style="width:14px;height:14px;"></i>';
-      if (window.lucide) lucide.createIcons();
+      safeCreateLucideIcons();
     });
   }
 
@@ -3699,7 +3711,7 @@ const renderSelectedTags = () => {
   container.innerHTML = currentTags.map(t => 
     `<span class="tag-pill">${t} <button type="button" class="tag-remove" style="background:none;border:none;cursor:pointer;margin-left:4px;display:inline-flex;align-items:center;color:inherit;padding:0;"><i data-lucide="x" style="width:12px;height:12px;"></i></button></span>`
   ).join('');
-  if (window.lucide) lucide.createIcons();
+  safeCreateLucideIcons();
 };
 
 const openModal = (id) => {
