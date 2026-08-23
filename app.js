@@ -1827,7 +1827,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
     : '';
 
   return `
-    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" draggable="true">
+    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
       <div class="quick-note-left">
         <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
         <span class="quick-note-title">${item.title}</span>
@@ -1839,7 +1839,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
             <i data-lucide="edit-2"></i>
           </button>
           ${ungroupBtn}
-          <span class="btn-icon-subtle quick-note-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+          <span class="btn-icon-subtle quick-note-drag-handle" draggable="true" title="Drag to reorder" aria-label="Drag to reorder">
             <i data-lucide="grip-vertical"></i>
           </span>
         </div>

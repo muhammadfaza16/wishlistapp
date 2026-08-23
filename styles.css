@@ -4353,15 +4353,71 @@ input#item-tags {
 
   body {
     padding-bottom: 0 !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, input, select, textarea, a, .nav-tab-btn, .user-profile-btn, .btn-clean-action, .quick-note-row, .reader-row, .item-card, .sort-dropdown-btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   #app {
-    padding: 16px 14px 100px 14px;
+    padding: 14px 12px 90px 12px;
   }
 
   #app-header {
-    margin-bottom: 16px;
-    padding-bottom: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .header-top-left {
+    flex-shrink: 0;
+  }
+
+  .header-right-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .app-nav-tabs {
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .nav-tab-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .user-profile-btn {
+    padding: 2px 7px 2px 2px;
+    gap: 4px;
+  }
+
+  .user-display-name {
+    max-width: 64px;
+    font-size: 11px;
+  }
+
+  .user-profile-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 220px;
+    max-width: 88vw;
+    z-index: 2000;
   }
 
   .brand h1 {
@@ -4504,13 +4560,16 @@ input#item-tags {
     bottom: 24px;
     right: 20px;
     left: auto;
+    width: auto;
+    height: auto;
     z-index: 900;
-    pointer-events: auto;
+    pointer-events: none;
     display: flex;
     justify-content: flex-end;
   }
 
-  .floating-primary-btn {
+  #mobile-floating-bar .floating-primary-btn {
+    pointer-events: auto;
     background: #09090B;
     color: #FFFFFF;
     border: none;
