@@ -24,16 +24,63 @@
             </svg>
           </div>
         </div>
-        <!-- App Nav Tabs pushed to right edge -->
-        <div class="app-nav-tabs" id="app-nav-tabs">
-          <button type="button" class="nav-tab-btn active" data-tab="notes">
-            <i data-lucide="file-text"></i>
-            <span>Quick Notes</span>
-          </button>
-          <button type="button" class="nav-tab-btn" data-tab="catalog">
-            <i data-lucide="layout-grid"></i>
-            <span>Catalog</span>
-          </button>
+        <!-- Header Right Group: Nav Tabs + User Profile -->
+        <div class="header-right-group">
+          <!-- App Nav Tabs -->
+          <div class="app-nav-tabs" id="app-nav-tabs">
+            <button type="button" class="nav-tab-btn active" data-tab="notes">
+              <i data-lucide="file-text"></i>
+              <span>Quick Notes</span>
+            </button>
+            <button type="button" class="nav-tab-btn" data-tab="catalog">
+              <i data-lucide="layout-grid"></i>
+              <span>Catalog</span>
+            </button>
+          </div>
+
+          <!-- User Profile / Auth Button -->
+          <div class="user-profile-wrapper" id="user-profile-wrapper">
+            <button type="button" class="user-profile-btn" id="user-profile-btn" aria-label="User Account" title="Account Menu">
+              <div class="user-avatar-badge" id="user-avatar-badge">
+                <i data-lucide="user" class="avatar-icon"></i>
+              </div>
+              <span class="user-display-name" id="user-display-name">Sign In</span>
+              <i data-lucide="chevron-down" class="user-dropdown-arrow"></i>
+            </button>
+
+            <div class="user-profile-dropdown hidden" id="user-profile-dropdown">
+              <div class="user-dropdown-header">
+                <div class="user-dropdown-avatar" id="dropdown-user-avatar">
+                  <i data-lucide="user"></i>
+                </div>
+                <div class="user-dropdown-info">
+                  <div class="user-dropdown-name" id="dropdown-user-name">Guest User</div>
+                  <div class="user-dropdown-email" id="dropdown-user-email">Not signed in</div>
+                </div>
+              </div>
+              <div class="user-dropdown-stats">
+                <div class="user-stat-item">
+                  <span class="user-stat-count" id="dropdown-notes-count">0</span>
+                  <span class="user-stat-label">Notes</span>
+                </div>
+                <div class="user-stat-item">
+                  <span class="user-stat-count" id="dropdown-catalog-count">0</span>
+                  <span class="user-stat-label">Wishes</span>
+                </div>
+              </div>
+              <div class="user-dropdown-divider"></div>
+              <div class="user-dropdown-actions">
+                <button type="button" class="dropdown-action-btn" id="dropdown-switch-user-btn">
+                  <i data-lucide="user-check"></i>
+                  <span>Switch Account</span>
+                </button>
+                <button type="button" class="dropdown-action-btn logout-action" id="dropdown-logout-btn">
+                  <i data-lucide="log-out"></i>
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -597,10 +644,77 @@
     </div>
   </div>
 
+  <!-- Authentication Modal (Sign In / Register) -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="modal auth-modal-card">
+      <div class="modal-header auth-modal-header">
+        <div class="auth-header-brand">
+          <svg class="seamless-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+            <path d="M6 11L12 26L18 15L24 26L30 11" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="18" cy="8" r="1.75" fill="currentColor"/>
+          </svg>
+          <span class="auth-brand-name">Wishlist</span>
+        </div>
+        <button type="button" class="close-btn" id="auth-modal-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <!-- Auth Tabs: Sign In / Create Account -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="auth-tab-signin" data-auth-mode="signin">Sign In</button>
+        <button type="button" class="auth-tab-btn" id="auth-tab-signup" data-auth-mode="signup">Create Account</button>
+      </div>
+
+      <form id="auth-form" class="auth-form">
+        <!-- Error Box -->
+        <div id="auth-error-box" class="auth-error-alert hidden"></div>
+
+        <!-- Full Name (Sign Up only) -->
+        <div class="form-group hidden" id="auth-name-group">
+          <label for="auth-name-input">Full Name</label>
+          <input type="text" id="auth-name-input" placeholder="e.g. Alex Morgan" autocomplete="name">
+        </div>
+
+        <!-- Email or Username -->
+        <div class="form-group">
+          <label for="auth-email-input" id="auth-email-label">Email or Username</label>
+          <input type="text" id="auth-email-input" placeholder="name@example.com" required autocomplete="username">
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label for="auth-password-input">Password</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="auth-password-input" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="btn-toggle-pwd" id="auth-toggle-pwd" title="Toggle password visibility">
+              <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="auth-submit-btn" class="btn-primary auth-submit-btn">
+          <span id="auth-submit-text">Sign In</span>
+        </button>
+
+        <div class="auth-divider">
+          <span>or</span>
+        </div>
+
+        <!-- Continue as Guest -->
+        <button type="button" id="auth-guest-btn" class="btn-secondary auth-guest-btn">
+          <i data-lucide="user" style="width: 14px; height: 14px;"></i>
+          <span>Continue as Guest</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=168"></script>
+  <script src="app.js?v=169"></script>
 </body>
 </html>

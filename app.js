@@ -441,6 +441,7 @@ const makeImagePannable = (wrapperEl, imgEl, indicatorEl) => {
 };
 
 let state = {
+  currentUser: null,
   items: [],
   view: 'grid',
   sort: 'priority',
@@ -465,51 +466,55 @@ let state = {
   currentQuickNoteImageData: null
 };
 
+// Authentication & Multi-User Data Management
+const USERS_STORAGE_KEY = 'wishlist_registered_users';
+const SESSION_STORAGE_KEY = 'wishlist_active_session';
+
+const getRegisteredUsers = () => {
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveRegisteredUsers = (users) => {
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+};
+
+const getActiveSession = () => {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const setActiveSession = (session) => {
+  if (session) {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  } else {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  }
+};
+
+const simpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash.toString(36);
+};
+
 const defaultNotesItems = [
   { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false, group: 'Desk Setup Gear', priority: 1, createdAt: '2026-08-01T10:00:00.000Z' },
   { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true, group: 'Desk Setup Gear', priority: 2, createdAt: '2026-08-05T14:00:00.000Z' },
   { id: 'note-3', title: 'Ergonomic Mesh Chair', price: 4500000, currency: 'IDR', checked: false, group: null, priority: 1, createdAt: '2026-08-10T09:00:00.000Z' }
 ];
-
-const loadNotes = () => {
-  try {
-    const storedItems = localStorage.getItem('wishlist_notes_items');
-    if (storedItems !== null) {
-      const raw = JSON.parse(storedItems);
-      const groupMap = {};
-      raw.filter(i => i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
-      state.notesItems = raw.filter(i => !i.isGroup).map(i => ({
-        id: i.id || generateId(),
-        title: i.title || '',
-        price: Number(i.price) || 0,
-        currency: i.currency || state.currency,
-        checked: !!i.checked,
-        group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
-        link: i.link || '',
-        imageData: i.imageData || null,
-        imageUrl: i.imageUrl || '',
-        priority: Number(i.priority) || 2,
-        createdAt: i.createdAt || new Date().toISOString()
-      }));
-    } else {
-      state.notesItems = defaultNotesItems;
-    }
-    const storedText = localStorage.getItem('wishlist_raw_notepad');
-    if (storedText !== null) {
-      state.rawNotepadText = storedText;
-    } else {
-      state.rawNotepadText = "Keychron Keyboard - 3200000\nMonitor Light Bar - 650000 [x]\nErgonomic Chair - 4500000";
-    }
-  } catch (e) {
-    state.notesItems = defaultNotesItems;
-    state.rawNotepadText = '';
-  }
-};
-
-const saveNotes = () => {
-  localStorage.setItem('wishlist_notes_items', JSON.stringify(state.notesItems));
-  localStorage.setItem('wishlist_raw_notepad', state.rawNotepadText);
-};
 
 const defaultItems = [
   {
@@ -568,26 +573,82 @@ const defaultItems = [
   }
 ];
 
-const loadItems = () => {
-  try {
-    const stored = localStorage.getItem('wishlist_items');
-    if (stored === null) return defaultItems;
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : defaultItems;
-  } catch {
-    return defaultItems;
+const loadScopedData = () => {
+  const userId = state.currentUser ? state.currentUser.id : 'guest';
+
+  const scopedItemsKey = `wishlist_u_${userId}_items`;
+  const scopedNotesKey = `wishlist_u_${userId}_notes`;
+  const scopedNotepadKey = `wishlist_u_${userId}_notepad`;
+  const scopedPrefsKey = `wishlist_u_${userId}_state`;
+
+  let storedItems = localStorage.getItem(scopedItemsKey);
+  let storedNotes = localStorage.getItem(scopedNotesKey);
+  let storedNotepad = localStorage.getItem(scopedNotepadKey);
+  let storedPrefs = localStorage.getItem(scopedPrefsKey);
+
+  // Graceful backward compatibility migration from un-scoped keys
+  if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
+    storedItems = localStorage.getItem('wishlist_items');
+    localStorage.setItem(scopedItemsKey, storedItems);
   }
-};
+  if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
+    storedNotes = localStorage.getItem('wishlist_notes_items');
+    localStorage.setItem(scopedNotesKey, storedNotes);
+  }
+  if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
+    storedNotepad = localStorage.getItem('wishlist_raw_notepad');
+    localStorage.setItem(scopedNotepadKey, storedNotepad);
+  }
+  if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
+    storedPrefs = localStorage.getItem('wishlist_state');
+    localStorage.setItem(scopedPrefsKey, storedPrefs);
+  }
 
-const saveItems = () => {
-  localStorage.setItem('wishlist_items', JSON.stringify(state.items));
-};
+  // Items
+  if (storedItems !== null) {
+    try {
+      const parsed = JSON.parse(storedItems);
+      state.items = Array.isArray(parsed) ? parsed : defaultItems;
+    } catch {
+      state.items = defaultItems;
+    }
+  } else {
+    state.items = defaultItems;
+  }
 
-const loadPreferences = () => {
-  try {
-    const stored = localStorage.getItem('wishlist_state');
-    if (stored) {
-      const prefs = JSON.parse(stored);
+  // Notes
+  if (storedNotes !== null) {
+    try {
+      const raw = JSON.parse(storedNotes);
+      const groupMap = {};
+      raw.filter(i => i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
+      state.notesItems = raw.filter(i => !i.isGroup).map(i => ({
+        id: i.id || generateId(),
+        title: i.title || '',
+        price: Number(i.price) || 0,
+        currency: i.currency || state.currency,
+        checked: !!i.checked,
+        group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
+        link: i.link || '',
+        imageData: i.imageData || null,
+        imageUrl: i.imageUrl || '',
+        priority: Number(i.priority) || 2,
+        createdAt: i.createdAt || new Date().toISOString()
+      }));
+    } catch (e) {
+      state.notesItems = defaultNotesItems;
+    }
+  } else {
+    state.notesItems = defaultNotesItems;
+  }
+
+  // Raw Notepad
+  state.rawNotepadText = storedNotepad !== null ? storedNotepad : "Keychron Keyboard - 3200000\nMonitor Light Bar - 650000 [x]\nErgonomic Chair - 4500000";
+
+  // Preferences
+  if (storedPrefs) {
+    try {
+      const prefs = JSON.parse(storedPrefs);
       state.view = prefs.view || 'grid';
       state.sort = prefs.sort || 'priority';
       state.currency = prefs.currency || 'IDR';
@@ -595,14 +656,24 @@ const loadPreferences = () => {
       state.notesMode = prefs.notesMode || 'list';
       state.notesViewMode = prefs.notesViewMode || 'view';
       state.notesSortBy = prefs.notesSortBy || null;
-    }
-  } catch (e) {
-    // Ignore
+    } catch (e) {}
   }
 };
 
+const saveItems = () => {
+  const userId = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+};
+
+const saveNotes = () => {
+  const userId = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+  localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+};
+
 const savePreferences = () => {
-  localStorage.setItem('wishlist_state', JSON.stringify({
+  const userId = state.currentUser ? state.currentUser.id : 'guest';
+  localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify({
     view: state.view,
     sort: state.sort,
     currency: state.currency,
@@ -611,6 +682,206 @@ const savePreferences = () => {
     notesViewMode: state.notesViewMode || 'view',
     notesSortBy: state.notesSortBy || null
   }));
+};
+
+const registerUser = (name, emailOrUsername, password) => {
+  const users = getRegisteredUsers();
+  const cleanName = (name || '').trim();
+  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
+  
+  if (!cleanName) throw new Error('Please enter your name');
+  if (!cleanIdent || cleanIdent.length < 3) throw new Error('Email or username must be at least 3 characters');
+  if (!password || password.length < 4) throw new Error('Password must be at least 4 characters');
+
+  const existing = users.find(u => (u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent));
+  if (existing) throw new Error('An account with this email/username already exists');
+
+  const isEmail = cleanIdent.includes('@');
+  const newUser = {
+    id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+    name: cleanName,
+    email: isEmail ? cleanIdent : cleanIdent + '@user',
+    username: isEmail ? cleanIdent.split('@')[0] : cleanIdent,
+    passwordHash: simpleHash(password),
+    createdAt: new Date().toISOString()
+  };
+
+  users.push(newUser);
+  saveRegisteredUsers(users);
+
+  loginUser(cleanIdent, password);
+  return newUser;
+};
+
+const loginUser = (emailOrUsername, password) => {
+  const users = getRegisteredUsers();
+  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
+  const pwdHash = simpleHash(password || '');
+
+  const user = users.find(u => 
+    ((u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent)) &&
+    u.passwordHash === pwdHash
+  );
+
+  if (!user) {
+    throw new Error('Invalid email/username or password');
+  }
+
+  const session = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    isGuest: false,
+    loggedInAt: new Date().toISOString()
+  };
+
+  setActiveSession(session);
+  state.currentUser = session;
+  loadScopedData();
+  updateUserProfileUI();
+  render();
+  renderNotesView();
+  showToast(`Welcome back, ${user.name}!`);
+  closeAuthModal();
+};
+
+const loginAsGuest = () => {
+  const session = {
+    id: 'guest',
+    name: 'Guest User',
+    email: 'guest@local',
+    username: 'guest',
+    isGuest: true,
+    loggedInAt: new Date().toISOString()
+  };
+  setActiveSession(session);
+  state.currentUser = session;
+  loadScopedData();
+  updateUserProfileUI();
+  render();
+  renderNotesView();
+  showToast('Signed in as Guest');
+  closeAuthModal();
+};
+
+const logoutUser = () => {
+  setActiveSession(null);
+  state.currentUser = null;
+  loadScopedData();
+  updateUserProfileUI();
+  render();
+  renderNotesView();
+  showToast('Logged out');
+};
+
+const updateUserProfileUI = () => {
+  const displayNameEl = document.getElementById('user-display-name');
+  const avatarBadgeEl = document.getElementById('user-avatar-badge');
+  const dropdownAvatarEl = document.getElementById('dropdown-user-avatar');
+  const dropdownNameEl = document.getElementById('dropdown-user-name');
+  const dropdownEmailEl = document.getElementById('dropdown-user-email');
+  const dropdownNotesCount = document.getElementById('dropdown-notes-count');
+  const dropdownCatalogCount = document.getElementById('dropdown-catalog-count');
+  const logoutBtn = document.getElementById('dropdown-logout-btn');
+  const switchBtn = document.getElementById('dropdown-switch-user-btn');
+
+  const u = state.currentUser;
+  const notesCount = state.notesItems ? state.notesItems.length : 0;
+  const catalogCount = state.items ? state.items.length : 0;
+
+  if (dropdownNotesCount) dropdownNotesCount.textContent = notesCount;
+  if (dropdownCatalogCount) dropdownCatalogCount.textContent = catalogCount;
+
+  if (u && !u.isGuest) {
+    const initials = (u.name || u.username || 'U').charAt(0).toUpperCase();
+    if (displayNameEl) displayNameEl.textContent = u.name || u.username;
+    if (avatarBadgeEl) avatarBadgeEl.textContent = initials;
+    if (dropdownAvatarEl) dropdownAvatarEl.textContent = initials;
+    if (dropdownNameEl) dropdownNameEl.textContent = u.name || u.username;
+    if (dropdownEmailEl) dropdownEmailEl.textContent = u.email || '';
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Switch Account';
+  } else if (u && u.isGuest) {
+    if (displayNameEl) displayNameEl.textContent = 'Guest';
+    if (avatarBadgeEl) avatarBadgeEl.innerHTML = '<i data-lucide="user" class="avatar-icon"></i>';
+    if (dropdownAvatarEl) dropdownAvatarEl.innerHTML = '<i data-lucide="user"></i>';
+    if (dropdownNameEl) dropdownNameEl.textContent = 'Guest User';
+    if (dropdownEmailEl) dropdownEmailEl.textContent = 'Temporary Local Session';
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Sign In / Register';
+  } else {
+    if (displayNameEl) displayNameEl.textContent = 'Sign In';
+    if (avatarBadgeEl) avatarBadgeEl.innerHTML = '<i data-lucide="user" class="avatar-icon"></i>';
+    if (dropdownAvatarEl) dropdownAvatarEl.innerHTML = '<i data-lucide="user"></i>';
+    if (dropdownNameEl) dropdownNameEl.textContent = 'Not Signed In';
+    if (dropdownEmailEl) dropdownEmailEl.textContent = 'Click to sign in or register';
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Sign In / Register';
+  }
+
+  if (window.lucide) lucide.createIcons();
+};
+
+let currentAuthMode = 'signin';
+
+const openAuthModal = (mode = 'signin') => {
+  const modal = document.getElementById('auth-modal');
+  const errorBox = document.getElementById('auth-error-box');
+  const form = document.getElementById('auth-form');
+  if (!modal) return;
+
+  if (errorBox) {
+    errorBox.classList.add('hidden');
+    errorBox.textContent = '';
+  }
+  if (form) form.reset();
+
+  setAuthMode(mode);
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+
+  const userDropdown = document.getElementById('user-profile-dropdown');
+  const userWrapper = document.getElementById('user-profile-wrapper');
+  if (userDropdown) userDropdown.classList.add('hidden');
+  if (userWrapper) userWrapper.classList.remove('open');
+};
+
+const closeAuthModal = () => {
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
+const setAuthMode = (mode) => {
+  currentAuthMode = mode;
+  const tabSignin = document.getElementById('auth-tab-signin');
+  const tabSignup = document.getElementById('auth-tab-signup');
+  const nameGroup = document.getElementById('auth-name-group');
+  const nameInput = document.getElementById('auth-name-input');
+  const submitText = document.getElementById('auth-submit-text');
+  const emailLabel = document.getElementById('auth-email-label');
+  const errorBox = document.getElementById('auth-error-box');
+
+  if (errorBox) {
+    errorBox.classList.add('hidden');
+    errorBox.textContent = '';
+  }
+
+  if (mode === 'signup') {
+    tabSignup?.classList.add('active');
+    tabSignin?.classList.remove('active');
+    nameGroup?.classList.remove('hidden');
+    if (nameInput) nameInput.required = true;
+    if (submitText) submitText.textContent = 'Create Account';
+    if (emailLabel) emailLabel.textContent = 'Email or Username';
+  } else {
+    tabSignin?.classList.add('active');
+    tabSignup?.classList.remove('active');
+    nameGroup?.classList.add('hidden');
+    if (nameInput) nameInput.required = false;
+    if (submitText) submitText.textContent = 'Sign In';
+    if (emailLabel) emailLabel.textContent = 'Email or Username';
+  }
 };
 
 const getAllTags = () => {
@@ -1691,6 +1962,7 @@ const render = () => {
   renderTagFilters();
   renderItems(active);
   renderAchieved(achieved);
+  updateUserProfileUI();
   
   if (window.lucide) {
     lucide.createIcons();
@@ -1798,6 +2070,110 @@ const initEventHandlers = () => {
       }
     });
   }
+
+  // User Profile & Auth Button Handlers
+  const userProfileBtn = document.getElementById('user-profile-btn');
+  const userProfileDropdown = document.getElementById('user-profile-dropdown');
+  const userProfileWrapper = document.getElementById('user-profile-wrapper');
+  const switchUserBtn = document.getElementById('dropdown-switch-user-btn');
+  const logoutBtn = document.getElementById('dropdown-logout-btn');
+  const authModalClose = document.getElementById('auth-modal-close');
+  const authTabSignin = document.getElementById('auth-tab-signin');
+  const authTabSignup = document.getElementById('auth-tab-signup');
+  const authForm = document.getElementById('auth-form');
+  const authGuestBtn = document.getElementById('auth-guest-btn');
+  const authTogglePwd = document.getElementById('auth-toggle-pwd');
+  const authPwdInput = document.getElementById('auth-password-input');
+
+  if (userProfileBtn && userProfileDropdown) {
+    userProfileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      userProfileDropdown.classList.toggle('hidden');
+      userProfileWrapper?.classList.toggle('open');
+    });
+  }
+
+  if (switchUserBtn) {
+    switchUserBtn.addEventListener('click', () => {
+      openAuthModal('signin');
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
+      if (userProfileWrapper) userProfileWrapper.classList.remove('open');
+      logoutUser();
+    });
+  }
+
+  if (authModalClose) {
+    authModalClose.addEventListener('click', () => {
+      closeAuthModal();
+    });
+  }
+
+  if (authTabSignin) {
+    authTabSignin.addEventListener('click', () => setAuthMode('signin'));
+  }
+
+  if (authTabSignup) {
+    authTabSignup.addEventListener('click', () => setAuthMode('signup'));
+  }
+
+  if (authTogglePwd && authPwdInput) {
+    authTogglePwd.addEventListener('click', () => {
+      const isPwd = authPwdInput.type === 'password';
+      authPwdInput.type = isPwd ? 'text' : 'password';
+      authTogglePwd.innerHTML = isPwd ? '<i data-lucide="eye-off" style="width:14px;height:14px;"></i>' : '<i data-lucide="eye" style="width:14px;height:14px;"></i>';
+      if (window.lucide) lucide.createIcons();
+    });
+  }
+
+  if (authGuestBtn) {
+    authGuestBtn.addEventListener('click', () => {
+      loginAsGuest();
+    });
+  }
+
+  if (authForm) {
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('auth-error-box');
+      const nameInput = document.getElementById('auth-name-input');
+      const emailInput = document.getElementById('auth-email-input');
+      const pwdInput = document.getElementById('auth-password-input');
+
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      const emailVal = emailInput ? emailInput.value.trim() : '';
+      const pwdVal = pwdInput ? pwdInput.value : '';
+
+      try {
+        if (errorBox) {
+          errorBox.classList.add('hidden');
+          errorBox.textContent = '';
+        }
+
+        if (currentAuthMode === 'signup') {
+          registerUser(nameVal, emailVal, pwdVal);
+        } else {
+          loginUser(emailVal, pwdVal);
+        }
+      } catch (err) {
+        if (errorBox) {
+          errorBox.textContent = err.message || 'Authentication error';
+          errorBox.classList.remove('hidden');
+        }
+      }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (userProfileWrapper && !userProfileWrapper.contains(e.target)) {
+      userProfileDropdown?.classList.add('hidden');
+      userProfileWrapper?.classList.remove('open');
+    }
+  });
 
   // Quick Notes Edit Mode Button (in View Mode)
   const notesEditModeBtn = document.getElementById('notes-edit-mode-btn');
@@ -3309,9 +3685,11 @@ const closeDeleteModal = () => {
 };
 
 const init = () => {
-  state.items = loadItems();
-  loadNotes();
-  loadPreferences();
+  const session = getActiveSession();
+  if (session) {
+    state.currentUser = session;
+  }
+  loadScopedData();
   
   const gridBtn = document.getElementById('view-grid-btn');
   const listBtn = document.getElementById('view-list-btn');
@@ -3324,6 +3702,7 @@ const init = () => {
   }
   
   initEventHandlers();
+  updateUserProfileUI();
   updateSortUI();
   updateCurrencyUI();
   render();
