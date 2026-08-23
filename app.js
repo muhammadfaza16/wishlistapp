@@ -466,21 +466,24 @@ let state = {
   currentQuickNoteImageData: null
 };
 
-// Authentication & Multi-User Data Management
-const USERS_STORAGE_KEY = 'wishlist_registered_users';
+// Authentication & Backend SQLite Cross-Device Data Sync
+const AUTH_TOKEN_KEY = 'wishlist_auth_token';
 const SESSION_STORAGE_KEY = 'wishlist_active_session';
 
-const getRegisteredUsers = () => {
+const getAuthToken = () => {
   try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return localStorage.getItem(AUTH_TOKEN_KEY) || null;
   } catch (e) {
-    return [];
+    return null;
   }
 };
 
-const saveRegisteredUsers = (users) => {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+const setAuthToken = (token) => {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
 };
 
 const getActiveSession = () => {
@@ -498,16 +501,6 @@ const setActiveSession = (session) => {
   } else {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   }
-};
-
-const simpleHash = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash.toString(36);
 };
 
 const defaultNotesItems = [
@@ -586,7 +579,7 @@ const loadScopedData = () => {
   let storedNotepad = localStorage.getItem(scopedNotepadKey);
   let storedPrefs = localStorage.getItem(scopedPrefsKey);
 
-  // Graceful backward compatibility migration from un-scoped keys
+  // Graceful backward compatibility migration from legacy un-scoped keys
   if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
     storedItems = localStorage.getItem('wishlist_items');
     localStorage.setItem(scopedItemsKey, storedItems);
@@ -660,15 +653,128 @@ const loadScopedData = () => {
   }
 };
 
+let syncDebounceTimer = null;
+
+const triggerSyncToBackend = () => {
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    syncDataToBackend();
+  }, 600);
+};
+
+const syncDataToBackend = async () => {
+  const token = getAuthToken();
+  if (!token || !state.currentUser || state.currentUser.isGuest) return;
+
+  try {
+    const payload = {
+      items: state.items,
+      notes: state.notesItems,
+      notepadText: state.rawNotepadText,
+      preferences: {
+        view: state.view,
+        sort: state.sort,
+        currency: state.currency,
+        activeTab: state.activeTab,
+        notesMode: state.notesMode,
+        notesViewMode: state.notesViewMode || 'view',
+        notesSortBy: state.notesSortBy || null
+      }
+    };
+
+    await fetch('/api/user/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn('Backend sync failed:', err.message);
+  }
+};
+
+const syncDataFromBackend = async () => {
+  const token = getAuthToken();
+  if (!token || !state.currentUser || state.currentUser.isGuest) return;
+
+  try {
+    const res = await fetch('/api/user/sync', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        logoutUser();
+      }
+      return;
+    }
+
+    const json = await res.json();
+    if (json && json.success && json.data) {
+      const d = json.data;
+      const userId = state.currentUser.id;
+
+      // If server has items, load them
+      if (Array.isArray(d.items) && d.items.length > 0) {
+        state.items = d.items;
+        localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+      } else if (state.items && state.items.length > 0) {
+        // Initial sync of existing client data to server
+        triggerSyncToBackend();
+      }
+
+      // If server has notes, load them
+      if (Array.isArray(d.notes) && d.notes.length > 0) {
+        state.notesItems = d.notes;
+        localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+      } else if (state.notesItems && state.notesItems.length > 0) {
+        triggerSyncToBackend();
+      }
+
+      // Notepad text
+      if (typeof d.notepadText === 'string' && d.notepadText) {
+        state.rawNotepadText = d.notepadText;
+        localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+      }
+
+      // Preferences
+      if (d.preferences && typeof d.preferences === 'object') {
+        const p = d.preferences;
+        if (p.view) state.view = p.view;
+        if (p.sort) state.sort = p.sort;
+        if (p.currency) state.currency = p.currency;
+        if (p.activeTab) state.activeTab = p.activeTab;
+        if (p.notesMode) state.notesMode = p.notesMode;
+        if (p.notesViewMode) state.notesViewMode = p.notesViewMode;
+        if (p.notesSortBy) state.notesSortBy = p.notesSortBy;
+        localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify(p));
+      }
+
+      render();
+      renderNotesView();
+      updateSortUI();
+      updateCurrencyUI();
+    }
+  } catch (err) {
+    console.warn('Sync from backend failed:', err.message);
+  }
+};
+
 const saveItems = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
   localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+  triggerSyncToBackend();
 };
 
 const saveNotes = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
   localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
   localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+  triggerSyncToBackend();
 };
 
 const savePreferences = () => {
@@ -682,71 +788,88 @@ const savePreferences = () => {
     notesViewMode: state.notesViewMode || 'view',
     notesSortBy: state.notesSortBy || null
   }));
+  triggerSyncToBackend();
 };
 
-const registerUser = (name, emailOrUsername, password) => {
-  const users = getRegisteredUsers();
+const registerUser = async (name, emailOrUsername, password) => {
   const cleanName = (name || '').trim();
   const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
-  
-  if (!cleanName) throw new Error('Please enter your name');
+
+  if (!cleanName) throw new Error('Please enter your full name');
   if (!cleanIdent || cleanIdent.length < 3) throw new Error('Email or username must be at least 3 characters');
   if (!password || password.length < 4) throw new Error('Password must be at least 4 characters');
 
-  const existing = users.find(u => (u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent));
-  if (existing) throw new Error('An account with this email/username already exists');
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: cleanName, emailOrUsername: cleanIdent, password })
+  });
 
-  const isEmail = cleanIdent.includes('@');
-  const newUser = {
-    id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
-    name: cleanName,
-    email: isEmail ? cleanIdent : cleanIdent + '@user',
-    username: isEmail ? cleanIdent.split('@')[0] : cleanIdent,
-    passwordHash: simpleHash(password),
-    createdAt: new Date().toISOString()
-  };
-
-  users.push(newUser);
-  saveRegisteredUsers(users);
-
-  loginUser(cleanIdent, password);
-  return newUser;
-};
-
-const loginUser = (emailOrUsername, password) => {
-  const users = getRegisteredUsers();
-  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
-  const pwdHash = simpleHash(password || '');
-
-  const user = users.find(u => 
-    ((u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent)) &&
-    u.passwordHash === pwdHash
-  );
-
-  if (!user) {
-    throw new Error('Invalid email/username or password');
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error || 'Registration failed');
   }
 
+  setAuthToken(json.token);
   const session = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    username: user.username,
+    id: json.user.id,
+    name: json.user.name,
+    email: json.user.email,
+    username: json.user.username,
     isGuest: false,
     loggedInAt: new Date().toISOString()
   };
-
   setActiveSession(session);
   state.currentUser = session;
+
   loadScopedData();
+  // Push initial items/notes to backend
+  triggerSyncToBackend();
   updateUserProfileUI();
   render();
   renderNotesView();
-  showToast(`Welcome back, ${user.name}!`);
+  showToast(`Account created! Welcome, ${session.name}!`);
+  closeAuthModal();
+};
+
+const loginUser = async (emailOrUsername, password) => {
+  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
+  if (!cleanIdent || !password) throw new Error('Please enter your email/username and password');
+
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ emailOrUsername: cleanIdent, password })
+  });
+
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error || 'Invalid email/username or password');
+  }
+
+  setAuthToken(json.token);
+  const session = {
+    id: json.user.id,
+    name: json.user.name,
+    email: json.user.email,
+    username: json.user.username,
+    isGuest: false,
+    loggedInAt: new Date().toISOString()
+  };
+  setActiveSession(session);
+  state.currentUser = session;
+
+  loadScopedData();
+  updateUserProfileUI();
+  await syncDataFromBackend();
+  render();
+  renderNotesView();
+  showToast(`Welcome back, ${session.name}!`);
   closeAuthModal();
 };
 
 const loginAsGuest = () => {
+  setAuthToken(null);
   const session = {
     id: 'guest',
     name: 'Guest User',
@@ -765,7 +888,18 @@ const loginAsGuest = () => {
   closeAuthModal();
 };
 
-const logoutUser = () => {
+const logoutUser = async () => {
+  const token = getAuthToken();
+  if (token) {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (e) {}
+  }
+
+  setAuthToken(null);
   setActiveSession(null);
   state.currentUser = null;
   loadScopedData();
@@ -2137,16 +2271,19 @@ const initEventHandlers = () => {
   }
 
   if (authForm) {
-    authForm.addEventListener('submit', (e) => {
+    authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const errorBox = document.getElementById('auth-error-box');
       const nameInput = document.getElementById('auth-name-input');
       const emailInput = document.getElementById('auth-email-input');
       const pwdInput = document.getElementById('auth-password-input');
+      const submitBtn = document.getElementById('auth-submit-btn');
 
       const nameVal = nameInput ? nameInput.value.trim() : '';
       const emailVal = emailInput ? emailInput.value.trim() : '';
       const pwdVal = pwdInput ? pwdInput.value : '';
+
+      if (submitBtn) submitBtn.disabled = true;
 
       try {
         if (errorBox) {
@@ -2155,15 +2292,17 @@ const initEventHandlers = () => {
         }
 
         if (currentAuthMode === 'signup') {
-          registerUser(nameVal, emailVal, pwdVal);
+          await registerUser(nameVal, emailVal, pwdVal);
         } else {
-          loginUser(emailVal, pwdVal);
+          await loginUser(emailVal, pwdVal);
         }
       } catch (err) {
         if (errorBox) {
           errorBox.textContent = err.message || 'Authentication error';
           errorBox.classList.remove('hidden');
         }
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     });
   }
@@ -3684,9 +3823,10 @@ const closeDeleteModal = () => {
   state.deleteId = null;
 };
 
-const init = () => {
+const init = async () => {
   const session = getActiveSession();
-  if (session) {
+  const token = getAuthToken();
+  if (session && token) {
     state.currentUser = session;
   }
   loadScopedData();
@@ -3707,6 +3847,11 @@ const init = () => {
   updateCurrencyUI();
   render();
   fetchLiveExchangeRate();
+
+  // Cross-device sync pull on load
+  if (token) {
+    await syncDataFromBackend();
+  }
 };
 
 document.addEventListener('DOMContentLoaded', init);

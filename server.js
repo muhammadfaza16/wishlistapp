@@ -1,9 +1,45 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const { DatabaseSync } = require('node:sqlite');
 
 const PORT = 3000;
 const PUBLIC_DIR = __dirname;
+
+// Database Setup
+const DB_PATH = path.join(__dirname, 'database.sqlite');
+const db = new DatabaseSync(DB_PATH);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS user_data (
+    user_id TEXT PRIMARY KEY,
+    items_json TEXT NOT NULL DEFAULT '[]',
+    notes_json TEXT NOT NULL DEFAULT '[]',
+    notepad_text TEXT NOT NULL DEFAULT '',
+    preferences_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
 
 const mimeTypes = {
   '.html': 'text/html; charset=UTF-8',
@@ -13,6 +49,70 @@ const mimeTypes = {
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.json': 'application/json'
+};
+
+const hashPassword = (password, salt) => {
+  return crypto.createHmac('sha256', salt).update(password).digest('hex');
+};
+
+const generateToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+const getAuthenticatedUser = (req) => {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
+
+  try {
+    const sessionStmt = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?');
+    const session = sessionStmt.get(token);
+    if (!session) return null;
+
+    if (new Date(session.expires_at) < new Date()) {
+      db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+      return null;
+    }
+
+    const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
+    const user = userStmt.get(session.user_id);
+    if (!user) return null;
+
+    return { ...user, token };
+  } catch (err) {
+    return null;
+  }
+};
+
+const sendJson = (res, statusCode, data) => {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=UTF-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  });
+  res.end(JSON.stringify(data));
+};
+
+const readBody = (req) => {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 5e6) { // 5MB limit
+        req.destroy();
+        reject(new Error('Payload too large'));
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (err) {
+        reject(new Error('Invalid JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
 };
 
 const decodeHtmlEntities = (str) => {
@@ -213,36 +313,199 @@ const scrapeProduct = async (rawUrl) => {
   };
 };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let reqPath = req.url.split('?')[0];
 
-  // API Endpoint: /api/scrape-product
-  if (req.method === 'POST' && reqPath === '/api/scrape-product') {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk;
-      if (body.length > 1e6) req.destroy();
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
     });
-    req.on('end', async () => {
-      try {
-        const { url } = JSON.parse(body || '{}');
-        if (!url) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'URL parameter is required' }));
-          return;
-        }
-        const data = await scrapeProduct(url);
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        });
-        res.end(JSON.stringify(data));
-      } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
+    res.end();
     return;
+  }
+
+  // --- REST API ENDPOINTS ---
+
+  // 1. Register User
+  if (req.method === 'POST' && reqPath === '/api/auth/register') {
+    try {
+      const body = await readBody(req);
+      const name = (body.name || '').trim();
+      const ident = (body.emailOrUsername || body.email || body.username || '').trim().toLowerCase();
+      const password = body.password || '';
+
+      if (!name) return sendJson(res, 400, { error: 'Full name is required' });
+      if (!ident || ident.length < 3) return sendJson(res, 400, { error: 'Email or username must be at least 3 characters' });
+      if (!password || password.length < 4) return sendJson(res, 400, { error: 'Password must be at least 4 characters' });
+
+      // Check if user already exists
+      const existing = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(ident, ident);
+      if (existing) return sendJson(res, 409, { error: 'An account with this email/username already exists' });
+
+      const isEmail = ident.includes('@');
+      const email = isEmail ? ident : `${ident}@user`;
+      const username = isEmail ? ident.split('@')[0] : ident;
+      const userId = 'usr_' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      const salt = crypto.randomBytes(16).toString('hex');
+      const passwordHash = hashPassword(password, salt);
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, name, email, username, passwordHash, salt, now);
+
+      // Initialize empty user_data
+      db.prepare(`
+        INSERT INTO user_data (user_id, items_json, notes_json, notepad_text, preferences_json, updated_at)
+        VALUES (?, '[]', '[]', '', '{}', ?)
+      `).run(userId, now);
+
+      // Create session token (valid for 30 days)
+      const token = generateToken();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      db.prepare(`
+        INSERT INTO sessions (token, user_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?)
+      `).run(token, userId, now, expiresAt);
+
+      return sendJson(res, 201, {
+        success: true,
+        token,
+        user: { id: userId, name, email, username, createdAt: now }
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message || 'Registration failed' });
+    }
+  }
+
+  // 2. Login User
+  if (req.method === 'POST' && reqPath === '/api/auth/login') {
+    try {
+      const body = await readBody(req);
+      const ident = (body.emailOrUsername || body.email || body.username || '').trim().toLowerCase();
+      const password = body.password || '';
+
+      if (!ident || !password) return sendJson(res, 400, { error: 'Email/username and password are required' });
+
+      const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(ident, ident);
+      if (!user) return sendJson(res, 401, { error: 'Invalid email/username or password' });
+
+      const expectedHash = hashPassword(password, user.salt);
+      if (expectedHash !== user.password_hash) {
+        return sendJson(res, 401, { error: 'Invalid email/username or password' });
+      }
+
+      const token = generateToken();
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      db.prepare(`
+        INSERT INTO sessions (token, user_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?)
+      `).run(token, user.id, now, expiresAt);
+
+      return sendJson(res, 200, {
+        success: true,
+        token,
+        user: { id: user.id, name: user.name, email: user.email, username: user.username, createdAt: user.created_at }
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message || 'Login failed' });
+    }
+  }
+
+  // 3. Current User Profile
+  if (req.method === 'GET' && reqPath === '/api/auth/me') {
+    const user = getAuthenticatedUser(req);
+    if (!user) return sendJson(res, 401, { error: 'Unauthorized' });
+    return sendJson(res, 200, { success: true, user });
+  }
+
+  // 4. Logout
+  if (req.method === 'POST' && reqPath === '/api/auth/logout') {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (token) {
+      db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    }
+    return sendJson(res, 200, { success: true });
+  }
+
+  // 5. Get User Data (Sync Pull)
+  if (req.method === 'GET' && reqPath === '/api/user/sync') {
+    const user = getAuthenticatedUser(req);
+    if (!user) return sendJson(res, 401, { error: 'Unauthorized' });
+
+    try {
+      const dataRow = db.prepare('SELECT * FROM user_data WHERE user_id = ?').get(user.id);
+      if (!dataRow) {
+        return sendJson(res, 200, {
+          success: true,
+          data: { items: [], notes: [], notepadText: '', preferences: {}, updatedAt: new Date().toISOString() }
+        });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        data: {
+          items: JSON.parse(dataRow.items_json || '[]'),
+          notes: JSON.parse(dataRow.notes_json || '[]'),
+          notepadText: dataRow.notepad_text || '',
+          preferences: JSON.parse(dataRow.preferences_json || '{}'),
+          updatedAt: dataRow.updated_at
+        }
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message || 'Failed to fetch user data' });
+    }
+  }
+
+  // 6. Save User Data (Sync Push)
+  if (req.method === 'POST' && reqPath === '/api/user/sync') {
+    const user = getAuthenticatedUser(req);
+    if (!user) return sendJson(res, 401, { error: 'Unauthorized' });
+
+    try {
+      const body = await readBody(req);
+      const itemsJson = JSON.stringify(body.items || []);
+      const notesJson = JSON.stringify(body.notes || []);
+      const notepadText = typeof body.notepadText === 'string' ? body.notepadText : '';
+      const preferencesJson = JSON.stringify(body.preferences || {});
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO user_data (user_id, items_json, notes_json, notepad_text, preferences_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          items_json = excluded.items_json,
+          notes_json = excluded.notes_json,
+          notepad_text = excluded.notepad_text,
+          preferences_json = excluded.preferences_json,
+          updated_at = excluded.updated_at
+      `).run(user.id, itemsJson, notesJson, notepadText, preferencesJson, now);
+
+      return sendJson(res, 200, { success: true, updatedAt: now });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message || 'Failed to save user data' });
+    }
+  }
+
+  // 7. Scrape Product Metadata
+  if (req.method === 'POST' && reqPath === '/api/scrape-product') {
+    try {
+      const body = await readBody(req);
+      const { url } = body;
+      if (!url) return sendJson(res, 400, { error: 'URL parameter is required' });
+
+      const data = await scrapeProduct(url);
+      return sendJson(res, 200, data);
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
   }
 
   // Static File Server
@@ -274,5 +537,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Zero-Cache Server running at http://localhost:${PORT}`);
+  console.log(`Zero-Cache Server with SQLite running at http://localhost:${PORT}`);
 });
