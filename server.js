@@ -536,6 +536,6 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Zero-Cache Server with SQLite running at http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Zero-Cache Server with SQLite running on 0.0.0.0:${PORT}`);
 });

@@ -2234,8 +2234,13 @@ const initEventHandlers = () => {
   if (userProfileBtn && userProfileDropdown) {
     userProfileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      userProfileDropdown.classList.toggle('hidden');
-      userProfileWrapper?.classList.toggle('open');
+      const u = state.currentUser;
+      if (!u || u.isGuest) {
+        openAuthModal('signin');
+      } else {
+        userProfileDropdown.classList.toggle('hidden');
+        userProfileWrapper?.classList.toggle('open');
+      }
     });
   }
 
