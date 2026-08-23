@@ -1345,13 +1345,6 @@ input, button, select, textarea {
   flex: 1;
 }
 
-.reader-grouped-bullet {
-  font-size: 13px;
-  color: #A1A1AA;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
 .reader-grouped-title {
   font-family: var(--font-sans);
   font-size: 13px;

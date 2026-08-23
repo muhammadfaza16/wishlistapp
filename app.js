@@ -1110,7 +1110,6 @@ const renderNoteItemRow = (item, isGrouped = false) => {
       return `
         <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
           <div class="reader-row-left">
-            <span class="reader-grouped-bullet">•</span>
             <span class="quick-note-title reader-grouped-title">${item.title}</span>
           </div>
           <div class="reader-row-right">
