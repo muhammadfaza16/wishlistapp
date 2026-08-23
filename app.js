@@ -589,34 +589,70 @@ const loadScopedData = () => {
   const scopedNotepadKey = `wishlist_u_${userId}_notepad`;
   const scopedPrefsKey = `wishlist_u_${userId}_state`;
 
-  let storedItems = localStorage.getItem(scopedItemsKey);
-  let storedNotes = localStorage.getItem(scopedNotesKey);
-  let storedNotepad = localStorage.getItem(scopedNotepadKey);
-  let storedPrefs = localStorage.getItem(scopedPrefsKey);
+  let storedItems = null;
+  let storedNotes = null;
+  let storedNotepad = null;
+  let storedPrefs = null;
 
-  // Graceful backward compatibility migration from legacy un-scoped keys
-  if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
-    storedItems = localStorage.getItem('wishlist_items');
-    localStorage.setItem(scopedItemsKey, storedItems);
-  }
-  if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
-    storedNotes = localStorage.getItem('wishlist_notes_items');
-    localStorage.setItem(scopedNotesKey, storedNotes);
-  }
-  if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
-    storedNotepad = localStorage.getItem('wishlist_raw_notepad');
-    localStorage.setItem(scopedNotepadKey, storedNotepad);
-  }
-  if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
-    storedPrefs = localStorage.getItem('wishlist_state');
-    localStorage.setItem(scopedPrefsKey, storedPrefs);
+  try {
+    storedItems = localStorage.getItem(scopedItemsKey);
+    storedNotes = localStorage.getItem(scopedNotesKey);
+    storedNotepad = localStorage.getItem(scopedNotepadKey);
+    storedPrefs = localStorage.getItem(scopedPrefsKey);
+
+    // Graceful backward compatibility migration from legacy un-scoped keys
+    if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
+      storedItems = localStorage.getItem('wishlist_items');
+      localStorage.setItem(scopedItemsKey, storedItems);
+    }
+    if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
+      storedNotes = localStorage.getItem('wishlist_notes_items');
+      localStorage.setItem(scopedNotesKey, storedNotes);
+    }
+    if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
+      storedNotepad = localStorage.getItem('wishlist_raw_notepad');
+      localStorage.setItem(scopedNotepadKey, storedNotepad);
+    }
+    if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
+      storedPrefs = localStorage.getItem('wishlist_state');
+      localStorage.setItem(scopedPrefsKey, storedPrefs);
+    }
+  } catch (e) {
+    console.warn('localStorage read error:', e);
   }
 
-  // Items
+  // Items Sanitization
   if (storedItems !== null) {
     try {
       const parsed = JSON.parse(storedItems);
-      state.items = Array.isArray(parsed) ? parsed : defaultItems;
+      const list = Array.isArray(parsed) ? parsed : defaultItems;
+      state.items = list.map(item => {
+        if (!item || typeof item !== 'object') return null;
+        let tags = [];
+        if (Array.isArray(item.tags)) {
+          tags = item.tags.filter(t => typeof t === 'string' && t.trim());
+        } else if (typeof item.tags === 'string' && item.tags) {
+          tags = item.tags.split(',').map(t => t.trim()).filter(Boolean);
+        }
+        return {
+          id: item.id || generateId(),
+          name: item.name || 'Untitled Wish',
+          brand: item.brand || '',
+          currency: item.currency || 'IDR',
+          originalPrice: Number(item.originalPrice) || Number(item.price) || 0,
+          originalSaved: Number(item.originalSaved) || Number(item.saved) || 0,
+          price: Number(item.price) || 0,
+          saved: Number(item.saved) || 0,
+          imageUrl: item.imageUrl || '',
+          imageData: item.imageData || null,
+          link: item.link || '',
+          tags: tags,
+          priority: Number(item.priority) || 1,
+          achieved: !!item.achieved,
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || new Date().toISOString()
+        };
+      }).filter(Boolean);
     } catch {
       state.items = defaultItems;
     }
@@ -624,25 +660,29 @@ const loadScopedData = () => {
     state.items = defaultItems;
   }
 
-  // Notes
+  // Notes Sanitization
   if (storedNotes !== null) {
     try {
       const raw = JSON.parse(storedNotes);
       const groupMap = {};
-      raw.filter(i => i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
-      state.notesItems = raw.filter(i => !i.isGroup).map(i => ({
-        id: i.id || generateId(),
-        title: i.title || '',
-        price: Number(i.price) || 0,
-        currency: i.currency || state.currency,
-        checked: !!i.checked,
-        group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
-        link: i.link || '',
-        imageData: i.imageData || null,
-        imageUrl: i.imageUrl || '',
-        priority: Number(i.priority) || 2,
-        createdAt: i.createdAt || new Date().toISOString()
-      }));
+      if (Array.isArray(raw)) {
+        raw.filter(i => i && i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
+        state.notesItems = raw.filter(i => i && !i.isGroup).map(i => ({
+          id: i.id || generateId(),
+          title: i.title || 'Untitled Note',
+          price: Number(i.price) || 0,
+          currency: i.currency || state.currency,
+          checked: !!i.checked,
+          group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
+          link: i.link || '',
+          imageData: i.imageData || null,
+          imageUrl: i.imageUrl || '',
+          priority: Number(i.priority) || 2,
+          createdAt: i.createdAt || new Date().toISOString()
+        }));
+      } else {
+        state.notesItems = defaultNotesItems;
+      }
     } catch (e) {
       state.notesItems = defaultNotesItems;
     }
@@ -657,15 +697,22 @@ const loadScopedData = () => {
   if (storedPrefs) {
     try {
       const prefs = JSON.parse(storedPrefs);
-      state.view = prefs.view || 'grid';
-      state.sort = prefs.sort || 'priority';
-      state.currency = prefs.currency || 'IDR';
-      state.activeTab = prefs.activeTab || 'notes';
-      state.notesMode = prefs.notesMode || 'list';
-      state.notesViewMode = prefs.notesViewMode || 'view';
-      state.notesSortBy = prefs.notesSortBy || null;
+      if (prefs && typeof prefs === 'object') {
+        state.view = prefs.view || 'grid';
+        state.sort = prefs.sort || 'priority';
+        state.currency = prefs.currency || 'IDR';
+        state.activeTab = prefs.activeTab || 'notes';
+        state.notesMode = prefs.notesMode || 'list';
+        state.notesViewMode = prefs.notesViewMode || 'view';
+        state.notesSortBy = prefs.notesSortBy || null;
+      }
     } catch (e) {}
   }
+
+  // Guarantee runtime state data structures
+  if (!(state.selectedNoteIds instanceof Set)) state.selectedNoteIds = new Set();
+  if (!(state.collapsedGroups instanceof Set)) state.collapsedGroups = new Set();
+  if (!Array.isArray(state.filters)) state.filters = [];
 };
 
 let syncDebounceTimer = null;
@@ -3840,12 +3887,38 @@ const closeDeleteModal = () => {
   state.deleteId = null;
 };
 
+window.resetWishlistCache = () => {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('wishlist_')) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    window.location.href = window.location.pathname;
+  } catch (e) {}
+};
+
 const init = async () => {
   try {
+    // Self-healing query parameter check (?reset=1 or ?clear=1)
+    if (typeof window !== 'undefined' && window.location && window.location.search) {
+      if (window.location.search.includes('reset=1') || window.location.search.includes('clear=1')) {
+        window.resetWishlistCache();
+        return;
+      }
+    }
+
     const session = getActiveSession();
     const token = getAuthToken();
     if (session && token) {
       state.currentUser = session;
+    } else if (session && session.isGuest) {
+      state.currentUser = session;
+    } else {
+      state.currentUser = null;
     }
     loadScopedData();
     
