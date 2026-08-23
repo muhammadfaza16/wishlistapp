@@ -1249,7 +1249,7 @@ const renderQuickNotesManageList = () => {
   updateNotesSortUI();
 
   if (!state.notesItems || state.notesItems.length === 0) {
-    const emptyIcon = isReader ? 'book-open' : 'sparkles';
+    const emptyIcon = isReader ? 'book-open' : 'inbox';
     const emptyTitle = isReader ? 'Reading list is empty' : 'No wishlist items yet';
     const emptySub = isReader
       ? 'Click <b>Edit</b> above to start adding and managing your wishlist items.'
