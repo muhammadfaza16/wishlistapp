@@ -314,7 +314,13 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Image Representation <span class="optional">(optional)</span></label>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <label style="margin-bottom: 0;">Image Representation <span class="optional">(optional)</span></label>
+            <button type="button" id="catalog-paste-btn" class="btn-paste-chip" title="Paste photo from clipboard">
+              <i data-lucide="clipboard" style="width: 12px; height: 12px;"></i>
+              <span>Paste Photo</span>
+            </button>
+          </div>
           <input type="url" id="item-image" placeholder="Image URL (https://...)" autocomplete="off">
           <div class="upload-divider"><span>OR UPLOAD</span></div>
           <div class="upload-area" id="upload-area">
@@ -438,6 +444,60 @@
     </div>
   </div>
 
+  <!-- Quick Note Preview Modal (View Mode) -->
+  <div id="quick-note-preview-modal" class="modal-overlay hidden">
+    <div class="modal modal-sm preview-modal-card">
+      <div class="modal-sheet-handle mobile-only"></div>
+      
+      <div class="preview-modal-top">
+        <span class="preview-type-tag">Quick Note</span>
+        <button type="button" class="modal-close quick-note-preview-close" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="preview-modal-body">
+        <div id="quick-note-preview-image-container" class="preview-hero-img-box hidden" style="margin-bottom: 14px;">
+          <div class="pannable-image-wrapper" id="quick-note-preview-pan-wrapper">
+            <img id="quick-note-preview-modal-img" alt="Item Photo" class="pannable-img" draggable="false">
+            <div class="img-drag-indicator hidden" id="quick-note-preview-drag-hint">
+              <i data-lucide="move"></i>
+              <span>Drag to pan</span>
+            </div>
+          </div>
+        </div>
+        <h3 id="quick-note-preview-name" class="preview-title"></h3>
+        <div id="quick-note-preview-price" class="preview-price"></div>
+
+        <div class="preview-details-list">
+          <div class="preview-detail-row">
+            <span class="preview-detail-label">Group</span>
+            <div id="quick-note-preview-group" class="preview-detail-value"></div>
+          </div>
+          <div class="preview-detail-row">
+            <span class="preview-detail-label">Priority</span>
+            <div id="quick-note-preview-priority" class="preview-detail-value"></div>
+          </div>
+          <div class="preview-detail-row" id="quick-note-preview-link-row">
+            <span class="preview-detail-label">Link</span>
+            <div id="quick-note-preview-link-val" class="preview-detail-value"></div>
+          </div>
+        </div>
+
+        <div class="preview-modal-actions">
+          <button type="button" id="quick-note-preview-convert-btn" class="btn-preview-secondary" title="Transfer to Wishlist Catalog">
+            <i data-lucide="box"></i>
+            <span>Transfer</span>
+          </button>
+          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
+            <i data-lucide="edit-2"></i>
+            <span>Edit Item</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Quick Note Add / Edit Modal -->
   <div id="quick-note-modal" class="modal-overlay hidden">
     <div class="modal modal-sm">
@@ -461,6 +521,36 @@
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
             <label for="quick-note-group-input">Group <span class="optional">(optional)</span></label>
             <input type="text" id="quick-note-group-input" placeholder="e.g. Desk Setup" autocomplete="off" list="group-options-list">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="quick-note-link-input">Link / URL <span class="optional">(optional)</span></label>
+          <input type="text" id="quick-note-link-input" placeholder="e.g. shopee.co.id/... or https://..." autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <label style="margin-bottom: 0;">Photo <span class="optional">(optional)</span></label>
+            <button type="button" id="quick-note-paste-btn" class="btn-paste-chip" title="Paste photo from clipboard">
+              <i data-lucide="clipboard" style="width: 12px; height: 12px;"></i>
+              <span>Paste Photo</span>
+            </button>
+          </div>
+          <div class="quick-note-upload-box" id="quick-note-upload-area">
+            <i data-lucide="image-plus" style="width: 18px; height: 18px; color: #71717A;"></i>
+            <span>Upload photo or tap to browse</span>
+            <input type="file" id="quick-note-image-upload" accept="image/*" style="display: none;">
+          </div>
+          <div id="quick-note-image-preview" class="quick-note-img-preview-card hidden">
+            <div class="pannable-image-wrapper" id="quick-note-edit-pan-wrapper">
+              <img id="quick-note-preview-img" alt="Preview" class="pannable-img" draggable="false">
+              <div class="img-drag-indicator hidden" id="quick-note-edit-drag-hint">
+                <i data-lucide="move"></i>
+                <span>Drag to pan</span>
+              </div>
+            </div>
+            <button type="button" id="quick-note-remove-image-btn" class="quick-note-remove-img-btn" title="Remove photo">
+              <i data-lucide="x"></i>
+            </button>
           </div>
         </div>
         <div class="form-group" style="margin-bottom: 16px;">

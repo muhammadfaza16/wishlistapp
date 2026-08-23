@@ -92,6 +92,143 @@ const getProgress = (item) => {
   return p > 100 ? 100 : p;
 };
 
+const getValidUrl = (url) => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const processImageFile = (file, callback) => {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1200;
+      let w = img.width;
+      let h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      callback(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+const makeImagePannable = (wrapperEl, imgEl, indicatorEl) => {
+  if (!wrapperEl || !imgEl) return () => {};
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let minX = 0;
+  let maxX = 0;
+  let minY = 0;
+  let maxY = 0;
+  let isPannable = false;
+
+  const updateBounds = () => {
+    if (!imgEl.naturalWidth || !imgEl.naturalHeight) return;
+    const cW = wrapperEl.clientWidth;
+    const cH = wrapperEl.clientHeight;
+    if (!cW || !cH) return;
+
+    // Calculate actual displayed dimensions with cover scaling
+    const s = Math.max(cW / imgEl.naturalWidth, cH / imgEl.naturalHeight);
+    const rW = Math.round(imgEl.naturalWidth * s);
+    const rH = Math.round(imgEl.naturalHeight * s);
+
+    // Set width and height on img
+    imgEl.style.width = `${rW}px`;
+    imgEl.style.height = `${rH}px`;
+
+    minX = cW - rW;
+    maxX = 0;
+    minY = cH - rH;
+    maxY = 0;
+
+    isPannable = minX < -2 || minY < -2;
+
+    if (isPannable) {
+      wrapperEl.classList.add('can-pan');
+      if (indicatorEl) {
+        indicatorEl.classList.remove('hidden');
+        indicatorEl.style.opacity = '1';
+      }
+    } else {
+      wrapperEl.classList.remove('can-pan');
+      if (indicatorEl) indicatorEl.classList.add('hidden');
+    }
+
+    // Center initially or clamp
+    currentX = Math.round(minX / 2);
+    currentY = Math.round(minY / 2);
+    imgEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+  };
+
+  imgEl.addEventListener('load', () => setTimeout(updateBounds, 30));
+
+  wrapperEl.addEventListener('pointerdown', (e) => {
+    if (!isPannable) return;
+    if (e.target.closest('button')) return;
+    isDragging = true;
+    startX = e.clientX - currentX;
+    startY = e.clientY - currentY;
+    wrapperEl.classList.add('is-panning');
+    try {
+      wrapperEl.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    if (indicatorEl) indicatorEl.style.opacity = '0';
+  });
+
+  wrapperEl.addEventListener('pointermove', (e) => {
+    if (!isDragging || !isPannable) return;
+    e.preventDefault();
+    let newX = e.clientX - startX;
+    let newY = e.clientY - startY;
+
+    // Clamp within container
+    newX = Math.max(minX, Math.min(maxX, newX));
+    newY = Math.max(minY, Math.min(maxY, newY));
+
+    currentX = newX;
+    currentY = newY;
+    imgEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+  });
+
+  const stopDrag = (e) => {
+    if (isDragging) {
+      isDragging = false;
+      wrapperEl.classList.remove('is-panning');
+      try {
+        wrapperEl.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+    }
+  };
+
+  wrapperEl.addEventListener('pointerup', stopDrag);
+  wrapperEl.addEventListener('pointercancel', stopDrag);
+
+  return updateBounds;
+};
+
 let state = {
   items: [],
   view: 'grid',
@@ -113,7 +250,8 @@ let state = {
   isSelectionMode: false,
   selectedNoteIds: new Set(),
   renamingGroupName: null,
-  collapsedGroups: new Set()
+  collapsedGroups: new Set(),
+  currentQuickNoteImageData: null
 };
 
 const defaultNotesItems = [
@@ -136,6 +274,9 @@ const loadNotes = () => {
         currency: i.currency || state.currency,
         checked: !!i.checked,
         group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
+        link: i.link || '',
+        imageData: i.imageData || null,
+        imageUrl: i.imageUrl || '',
         priority: Number(i.priority) || 2,
         createdAt: i.createdAt || new Date().toISOString()
       }));
@@ -368,6 +509,7 @@ const openQuickNoteModal = (noteId = null) => {
   const titleInput = document.getElementById('quick-note-title-input');
   const priceInput = document.getElementById('quick-note-price-input');
   const groupInput = document.getElementById('quick-note-group-input');
+  const linkInput = document.getElementById('quick-note-link-input');
   const convertContainer = document.getElementById('quick-note-convert-container');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
@@ -384,9 +526,11 @@ const openQuickNoteModal = (noteId = null) => {
     if (titleInput) titleInput.value = item.title;
     if (priceInput) priceInput.value = item.price || '';
     if (groupInput) groupInput.value = item.group || '';
+    if (linkInput) linkInput.value = item.link || '';
     if (convertContainer) convertContainer.classList.remove('hidden');
     if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
     if (deleteBtn) deleteBtn.classList.remove('hidden');
+    setQuickNoteImage(item.imageData || item.imageUrl || null);
 
     const priority = Number(item.priority) || 2;
     modal.querySelectorAll('#quick-note-priority-options .priority-btn').forEach(btn => {
@@ -401,9 +545,11 @@ const openQuickNoteModal = (noteId = null) => {
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
+    if (linkInput) linkInput.value = '';
     if (convertContainer) convertContainer.classList.add('hidden');
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (deleteBtn) deleteBtn.classList.add('hidden');
+    setQuickNoteImage(null);
 
     modal.querySelectorAll('#quick-note-priority-options .priority-btn').forEach(btn => {
       if (Number(btn.getAttribute('data-priority')) === 2) {
@@ -415,13 +561,115 @@ const openQuickNoteModal = (noteId = null) => {
   }
 
   modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
   setTimeout(() => titleInput?.focus(), 100);
+};
+
+const setQuickNoteImage = (dataUrl) => {
+  state.currentQuickNoteImageData = dataUrl || null;
+  const uploadArea = document.getElementById('quick-note-upload-area');
+  const imgPreview = document.getElementById('quick-note-image-preview');
+  const previewImg = document.getElementById('quick-note-preview-img');
+  const fileInput = document.getElementById('quick-note-image-upload');
+
+  if (dataUrl) {
+    if (previewImg) previewImg.src = dataUrl;
+    if (imgPreview) imgPreview.classList.remove('hidden');
+    if (uploadArea) uploadArea.classList.add('hidden');
+    if (window.updateEditImageBounds) setTimeout(window.updateEditImageBounds, 50);
+  } else {
+    if (previewImg) previewImg.src = '';
+    if (imgPreview) imgPreview.classList.add('hidden');
+    if (uploadArea) uploadArea.classList.remove('hidden');
+    if (fileInput) fileInput.value = '';
+  }
 };
 
 const closeQuickNoteModal = () => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
   state.editingNoteId = null;
+  setQuickNoteImage(null);
+};
+
+const openQuickNotePreviewModal = (noteId) => {
+  const modal = document.getElementById('quick-note-preview-modal');
+  if (!modal) return;
+
+  const item = state.notesItems.find(n => n.id === noteId);
+  if (!item) return;
+
+  state.previewingNoteId = noteId;
+
+  const nameEl = document.getElementById('quick-note-preview-name');
+  const priceEl = document.getElementById('quick-note-preview-price');
+  const groupEl = document.getElementById('quick-note-preview-group');
+  const priorityEl = document.getElementById('quick-note-preview-priority');
+  const linkRow = document.getElementById('quick-note-preview-link-row');
+  const linkVal = document.getElementById('quick-note-preview-link-val');
+  const imgBox = document.getElementById('quick-note-preview-image-container');
+  const modalImg = document.getElementById('quick-note-preview-modal-img');
+
+  const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
+  const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
+
+  if (nameEl) nameEl.textContent = item.title;
+  if (priceEl) priceEl.textContent = formattedPrice;
+
+  const imgSrc = item.imageData || item.imageUrl;
+  if (imgSrc) {
+    if (modalImg) modalImg.src = imgSrc;
+    if (imgBox) imgBox.classList.remove('hidden');
+    if (window.updatePreviewImageBounds) setTimeout(window.updatePreviewImageBounds, 50);
+  } else {
+    if (imgBox) imgBox.classList.add('hidden');
+  }
+
+  if (groupEl) {
+    if (item.group) {
+      groupEl.innerHTML = `<i data-lucide="folder" style="width: 13px; height: 13px; color: #71717A;"></i> <span>${item.group}</span>`;
+    } else {
+      groupEl.innerHTML = `<span style="color: var(--text-tertiary);">None</span>`;
+    }
+  }
+
+  if (priorityEl) {
+    const p = Number(item.priority) || 2;
+    const label = p === 1 ? 'High (P1)' : (p === 3 ? 'Low (P3)' : 'Medium (P2)');
+    const dotColor = p === 1 ? '#EF4444' : (p === 3 ? '#10B981' : '#F59E0B');
+    priorityEl.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};margin-right:2px;"></span> <span>${label}</span>`;
+  }
+
+  if (linkRow && linkVal) {
+    if (item.link && item.link.trim()) {
+      const validUrl = getValidUrl(item.link);
+      let hostname = '';
+      try {
+        hostname = new URL(validUrl).hostname.replace(/^www\./, '');
+      } catch (e) {
+        hostname = validUrl;
+      }
+      linkVal.innerHTML = `
+        <a href="${validUrl}" target="_blank" rel="noopener noreferrer" class="preview-link-btn" title="Open ${validUrl}">
+          <span>${hostname}</span>
+          <i data-lucide="arrow-up-right"></i>
+        </a>
+      `;
+      linkRow.style.display = 'flex';
+    } else {
+      linkVal.innerHTML = `<span style="color: var(--text-tertiary);">None</span>`;
+      linkRow.style.display = 'flex';
+    }
+  }
+
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+};
+
+const closeQuickNotePreviewModal = () => {
+  const modal = document.getElementById('quick-note-preview-modal');
+  if (modal) modal.classList.add('hidden');
+  state.previewingNoteId = null;
 };
 
 const getFilteredItems = () => {
@@ -860,7 +1108,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
   if (isReader) {
     if (isGrouped) {
       return `
-        <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+        <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
           <div class="reader-row-left">
             <span class="reader-grouped-bullet">•</span>
             <span class="quick-note-title reader-grouped-title">${item.title}</span>
@@ -872,7 +1120,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
       `;
     }
     return `
-      <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+      <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
         <div class="reader-row-left">
           <span class="quick-note-title">${item.title}</span>
         </div>
@@ -1162,9 +1410,9 @@ const convertNoteToCatalog = (noteId) => {
     name: note.title,
     price: convertCurrency(note.price || 0, note.currency || state.currency, 'IDR'),
     saved: note.checked ? convertCurrency(note.price || 0, note.currency || state.currency, 'IDR') : 0,
-    imageUrl: '',
-    imageData: null,
-    link: '',
+    imageUrl: note.imageUrl || '',
+    imageData: note.imageData || null,
+    link: note.link || '',
     tags: ['Quick Note'],
     priority: 2,
     achieved: note.checked,
@@ -1486,6 +1734,35 @@ const initEventHandlers = () => {
     btn.addEventListener('click', closeQuickNoteModal);
   });
 
+  document.querySelectorAll('.quick-note-preview-close').forEach(btn => {
+    btn.addEventListener('click', closeQuickNotePreviewModal);
+  });
+
+  // Quick Note Preview Modal Action Handlers
+  const previewEditBtn = document.getElementById('quick-note-preview-edit-btn');
+  if (previewEditBtn) {
+    previewEditBtn.addEventListener('click', () => {
+      const id = state.previewingNoteId;
+      if (id) {
+        closeQuickNotePreviewModal();
+        state.notesViewMode = 'edit';
+        renderQuickNotesManageList();
+        openQuickNoteModal(id);
+      }
+    });
+  }
+
+  const previewConvertBtn = document.getElementById('quick-note-preview-convert-btn');
+  if (previewConvertBtn) {
+    previewConvertBtn.addEventListener('click', () => {
+      const id = state.previewingNoteId;
+      if (id) {
+        convertNoteToCatalog(id);
+        closeQuickNotePreviewModal();
+      }
+    });
+  }
+
   // Universal Click Outside Modal to Close Handler
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
@@ -1493,6 +1770,9 @@ const initEventHandlers = () => {
         overlay.classList.add('hidden');
         if (overlay.id === 'quick-note-modal') {
           state.editingNoteId = null;
+        }
+        if (overlay.id === 'quick-note-preview-modal') {
+          state.previewingNoteId = null;
         }
         if (overlay.id === 'group-modal') {
           state.renamingGroupName = null;
@@ -1532,12 +1812,14 @@ const initEventHandlers = () => {
       const titleInput = document.getElementById('quick-note-title-input');
       const priceInput = document.getElementById('quick-note-price-input');
       const groupInput = document.getElementById('quick-note-group-input');
+      const linkInput = document.getElementById('quick-note-link-input');
       const activePriorityBtn = document.querySelector('#quick-note-priority-options .priority-btn.active');
       const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
       const title = titleInput?.value.trim();
 
       if (!title) return;
       const groupVal = groupInput?.value.trim() || null;
+      const linkVal = linkInput?.value.trim() || '';
 
       if (state.editingNoteId) {
         const item = state.notesItems.find(n => n.id === state.editingNoteId);
@@ -1545,6 +1827,8 @@ const initEventHandlers = () => {
           item.title = title;
           item.price = parseFloat(priceInput?.value) || 0;
           item.group = groupVal;
+          item.link = linkVal;
+          item.imageData = state.currentQuickNoteImageData || null;
           item.priority = priority;
           showToast('Item updated');
         }
@@ -1556,6 +1840,8 @@ const initEventHandlers = () => {
           currency: state.currency,
           checked: false,
           group: groupVal,
+          link: linkVal,
+          imageData: state.currentQuickNoteImageData || null,
           priority: priority,
           createdAt: new Date().toISOString()
         };
@@ -1568,6 +1854,176 @@ const initEventHandlers = () => {
       renderNotesView();
     });
   }
+
+  // Quick Note Image Upload & Drag Drop Handlers
+  const quickNoteUploadArea = document.getElementById('quick-note-upload-area');
+  const quickNoteImageUpload = document.getElementById('quick-note-image-upload');
+  const quickNoteRemoveImgBtn = document.getElementById('quick-note-remove-image-btn');
+
+  if (quickNoteUploadArea && quickNoteImageUpload) {
+    quickNoteUploadArea.addEventListener('click', () => {
+      quickNoteImageUpload.click();
+    });
+
+    quickNoteImageUpload.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        processImageFile(file, (dataUrl) => {
+          setQuickNoteImage(dataUrl);
+          showToast('Photo uploaded!');
+        });
+      }
+    });
+
+    quickNoteUploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      quickNoteUploadArea.classList.add('drag-over');
+    });
+
+    quickNoteUploadArea.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      quickNoteUploadArea.classList.remove('drag-over');
+    });
+
+    quickNoteUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      quickNoteUploadArea.classList.remove('drag-over');
+      const file = e.dataTransfer.files?.[0];
+      if (file) {
+        processImageFile(file, (dataUrl) => {
+          setQuickNoteImage(dataUrl);
+          showToast('Photo uploaded!');
+        });
+      }
+    });
+  }
+
+  if (quickNoteRemoveImgBtn) {
+    quickNoteRemoveImgBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setQuickNoteImage(null);
+    });
+  }
+
+  // Universal Mobile & Desktop Clipboard Paste Handler
+  const handleClipboardPasteAsync = async (target = 'quick-note') => {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        let foundImage = false;
+        for (const item of clipboardItems) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            foundImage = true;
+            const blob = await item.getType(imageType);
+            processImageFile(blob, (dataUrl) => {
+              if (target === 'quick-note') {
+                setQuickNoteImage(dataUrl);
+              } else {
+                const previewImg = document.getElementById('preview-img');
+                const imagePreview = document.getElementById('image-preview');
+                const uploadArea = document.getElementById('upload-area');
+                const imageInput = document.getElementById('item-image');
+                if (previewImg) previewImg.src = dataUrl;
+                if (imagePreview) imagePreview.style.display = 'block';
+                if (uploadArea) uploadArea.style.display = 'none';
+                if (imageInput) imageInput.value = '';
+                currentImageData = dataUrl;
+              }
+              showToast('Photo pasted from clipboard!');
+            });
+            return;
+          }
+        }
+        if (!foundImage) {
+          showToast('No photo found in clipboard');
+        }
+        return;
+      } catch (err) {
+        console.warn('Clipboard read permission/error:', err);
+        showToast('Clipboard access denied. Please select photo from files.');
+        return;
+      }
+    }
+
+    showToast('Tap upload area or press Ctrl+V to paste');
+  };
+
+  const quickNotePasteBtn = document.getElementById('quick-note-paste-btn');
+  if (quickNotePasteBtn) {
+    quickNotePasteBtn.addEventListener('click', () => {
+      handleClipboardPasteAsync('quick-note');
+    });
+  }
+
+  const catalogPasteBtn = document.getElementById('catalog-paste-btn');
+  if (catalogPasteBtn) {
+    catalogPasteBtn.addEventListener('click', () => {
+      handleClipboardPasteAsync('catalog');
+    });
+  }
+
+  // Global Clipboard Paste Listener (Ctrl+V / Cmd+V for Quick Note & Catalog Modals)
+  window.addEventListener('paste', (e) => {
+    const quickNoteModal = document.getElementById('quick-note-modal');
+    if (quickNoteModal && !quickNoteModal.classList.contains('hidden')) {
+      const items = (e.clipboardData || window.clipboardData)?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              e.preventDefault();
+              processImageFile(file, (dataUrl) => {
+                setQuickNoteImage(dataUrl);
+                showToast('Photo pasted from clipboard!');
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    const itemModal = document.getElementById('item-modal');
+    if (itemModal && !itemModal.classList.contains('hidden')) {
+      const items = (e.clipboardData || window.clipboardData)?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              e.preventDefault();
+              processImageFile(file, (dataUrl) => {
+                const previewImg = document.getElementById('preview-img');
+                const imagePreview = document.getElementById('image-preview');
+                const uploadArea = document.getElementById('upload-area');
+                const imageInput = document.getElementById('item-image');
+                if (previewImg) previewImg.src = dataUrl;
+                if (imagePreview) imagePreview.style.display = 'block';
+                if (uploadArea) uploadArea.style.display = 'none';
+                if (imageInput) imageInput.value = '';
+                currentImageData = dataUrl;
+                showToast('Photo pasted from clipboard!');
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Initialize Pannable Image Wrappers
+  const previewPanWrapper = document.getElementById('quick-note-preview-pan-wrapper');
+  const previewModalImg = document.getElementById('quick-note-preview-modal-img');
+  const previewDragHint = document.getElementById('quick-note-preview-drag-hint');
+  window.updatePreviewImageBounds = makeImagePannable(previewPanWrapper, previewModalImg, previewDragHint);
+
+  const editPanWrapper = document.getElementById('quick-note-edit-pan-wrapper');
+  const editPreviewImg = document.getElementById('quick-note-preview-img');
+  const editDragHint = document.getElementById('quick-note-edit-drag-hint');
+  window.updateEditImageBounds = makeImagePannable(editPanWrapper, editPreviewImg, editDragHint);
 
   // Quick Note Delete Button Inside Modal Handler
   const quickNoteDeleteBtn = document.getElementById('quick-note-delete-btn');
@@ -1653,6 +2109,18 @@ const initEventHandlers = () => {
         return;
       }
 
+      // Preview Note in View Mode
+      if (state.notesViewMode === 'view') {
+        const previewRow = e.target.closest('[data-action="preview-note"]');
+        if (previewRow && !e.target.closest('button') && !e.target.closest('[data-action="toggle-group-collapse"]')) {
+          const id = previewRow.getAttribute('data-id');
+          if (id) {
+            openQuickNotePreviewModal(id);
+            return;
+          }
+        }
+      }
+
       // Edit Note
       const editBtn = e.target.closest('[data-action="edit-note"]');
       if (editBtn) {
@@ -1683,6 +2151,10 @@ const initEventHandlers = () => {
 
     quickNotesManageList.addEventListener('dragstart', (e) => {
       if (state.notesViewMode !== 'edit' || state.isSelectionMode) {
+        e.preventDefault();
+        return;
+      }
+      if (!e.target.closest('.quick-note-drag-handle')) {
         e.preventDefault();
         return;
       }
