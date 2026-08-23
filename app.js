@@ -233,6 +233,83 @@ const validateCatalogLinkInput = () => {
   }
 };
 
+const clientGuessGroupFromTitle = (title) => {
+  if (!title) return null;
+  const t = title.toLowerCase();
+  if (/\b(headphone|headphones|earphone|earphones|tws|iem|speaker|speakers|airpods|audio|mic|microphone|soundbar)\b/.test(t)) return 'Audio';
+  if (/\b(baju|kaos|kemeja|celana|hoodie|jacket|jaket|sepatu|sneaker|sneakers|dress|outfit|shirt|tshirt|shoes|pants|sock|socks)\b/.test(t)) return 'Outfit';
+  if (/\b(monitor|keyboard|mouse|desk|pad|deskmat|holder|stand|lampu meja|lightbar)\b/.test(t)) return 'Desk Setup';
+  if (/\b(game|playstation|nintendo|xbox|ps5|switch|controller|gamepad|steam deck|rog ally)\b/.test(t)) return 'Gaming';
+  if (/\b(kamera|camera|lensa|lens|tripod|gimbal|drone|lighting|fujifilm|lumix)\b/.test(t)) return 'Photography';
+  if (/\b(laptop|pc|macbook|ipad|tablet|iphone|android|samsung|charger|hub|ssd|ram|gpu|gadget)\b/.test(t)) return 'Electronics';
+  if (/\b(buku|book|novel|komik|comic|manga|kindle)\b/.test(t)) return 'Books';
+  if (/\b(gym|dumbbell|barbell|matras|yoga|sepeda|running|sports)\b/.test(t)) return 'Fitness';
+  if (/\b(cangkir|tumbler|mug|kasur|bantal|sprei|diffuser|lampu|meja|kursi|sofa)\b/.test(t)) return 'Home & Living';
+  return null;
+};
+
+const extractClientSlug = (url) => {
+  try {
+    let clean = url.trim();
+    if (!/^https?:\/\//i.test(clean)) clean = 'https://' + clean;
+    const parsed = new URL(clean);
+    if (parsed.hostname.includes('shopee.')) {
+      const match = parsed.pathname.match(/\/([^/?#]+)-i\.(\d+)\.(\d+)/);
+      if (match && match[1]) {
+        let title = decodeURIComponent(match[1]).replace(/[-_+]/g, ' ').trim();
+        title = title.replace(/^Jual\s+/i, '').replace(/\s+/g, ' ');
+        return { title, suggestedGroup: clientGuessGroupFromTitle(title) };
+      }
+    }
+    if (parsed.hostname.includes('tokopedia.')) {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        let title = decodeURIComponent(parts[parts.length - 1]).replace(/[-_+]/g, ' ').trim();
+        title = title.replace(/^Jual\s+/i, '').replace(/\s+/g, ' ');
+        return { title, suggestedGroup: clientGuessGroupFromTitle(title) };
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
+const fetchProductMetadata = async (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.length < 5) return null;
+
+  try {
+    const res = await fetch('/api/scrape-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: trimmed })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success) {
+        return data;
+      }
+    }
+  } catch (err) {
+    // Fallback to client-side extraction if server error / offline
+  }
+
+  // Client-side fallback
+  const clientFallback = extractClientSlug(trimmed);
+  if (clientFallback && clientFallback.title) {
+    return {
+      success: true,
+      title: clientFallback.title,
+      price: 0,
+      imageUrl: '',
+      brand: '',
+      suggestedGroup: clientFallback.suggestedGroup
+    };
+  }
+
+  return null;
+};
+
 const processImageFile = (file, callback) => {
   if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
@@ -2076,7 +2153,39 @@ const initEventHandlers = () => {
     });
   }
 
-  // Quick Note Link Input Live Duplicate Checker
+  // Quick Note Link Input Live Duplicate Checker & Auto-Populate
+  const handleAutoPopulateQuickNote = async (url) => {
+    if (!url) return;
+    const titleInput = document.getElementById('quick-note-title-input');
+    const priceInput = document.getElementById('quick-note-price-input');
+    const groupInput = document.getElementById('quick-note-group-input');
+
+    const data = await fetchProductMetadata(url);
+    if (!data) return;
+
+    let populatedFields = [];
+    if (data.title && titleInput && (!titleInput.value.trim() || titleInput.value.trim() === 'Untitled')) {
+      titleInput.value = data.title;
+      populatedFields.push('name');
+    }
+    if (data.price > 0 && priceInput && (!priceInput.value || Number(priceInput.value) === 0)) {
+      priceInput.value = data.price;
+      populatedFields.push('price');
+    }
+    if (data.suggestedGroup && groupInput && !groupInput.value.trim()) {
+      groupInput.value = data.suggestedGroup;
+      populatedFields.push('group');
+    }
+    if (data.imageUrl && !state.currentQuickNoteImageData) {
+      setQuickNoteImage(data.imageUrl);
+      populatedFields.push('photo');
+    }
+
+    if (populatedFields.length > 0) {
+      showToast(`Auto-filled: ${populatedFields.join(', ')}`);
+    }
+  };
+
   const quickNoteLinkInput = document.getElementById('quick-note-link-input');
   if (quickNoteLinkInput) {
     quickNoteLinkInput.addEventListener('input', () => validateQuickNoteLinkInput());
@@ -2085,8 +2194,17 @@ const initEventHandlers = () => {
         const dup = validateQuickNoteLinkInput();
         if (dup) {
           showToast(`Link already saved in "${dup.title}"`);
+        } else {
+          const val = quickNoteLinkInput.value.trim();
+          if (val) handleAutoPopulateQuickNote(val);
         }
-      }, 30);
+      }, 40);
+    });
+    quickNoteLinkInput.addEventListener('change', () => {
+      const val = quickNoteLinkInput.value.trim();
+      if (val && !validateQuickNoteLinkInput()) {
+        handleAutoPopulateQuickNote(val);
+      }
     });
   }
 
@@ -2991,7 +3109,52 @@ const initEventHandlers = () => {
     });
   }
 
-  // Catalog Item Link Input Live Duplicate Checker
+  // Catalog Item Link Input Live Duplicate Checker & Auto-Populate
+  const handleAutoPopulateCatalog = async (url) => {
+    if (!url) return;
+    const nameInput = document.getElementById('item-name');
+    const priceInput = document.getElementById('item-price');
+    const brandInput = document.getElementById('item-brand');
+    const imageInput = document.getElementById('item-image');
+    const preview = document.getElementById('image-preview');
+    const uploadArea = document.getElementById('upload-area');
+    const previewImg = document.getElementById('preview-img');
+
+    const data = await fetchProductMetadata(url);
+    if (!data) return;
+
+    let populatedFields = [];
+    if (data.title && nameInput && !nameInput.value.trim()) {
+      nameInput.value = data.title;
+      populatedFields.push('name');
+    }
+    if (data.price > 0 && priceInput && (!priceInput.value || Number(priceInput.value) === 0)) {
+      priceInput.value = data.price;
+      populatedFields.push('price');
+    }
+    if (data.brand && brandInput && !brandInput.value.trim()) {
+      brandInput.value = data.brand;
+      populatedFields.push('brand');
+    }
+    if (data.suggestedGroup && !currentTags.includes(data.suggestedGroup)) {
+      currentTags.push(data.suggestedGroup);
+      renderSelectedTags();
+      populatedFields.push('tag');
+    }
+    if (data.imageUrl && !currentImageData) {
+      if (imageInput) imageInput.value = data.imageUrl;
+      if (uploadArea) uploadArea.style.display = 'none';
+      if (preview) preview.style.display = 'block';
+      if (previewImg) previewImg.src = data.imageUrl;
+      currentImageData = data.imageUrl;
+      populatedFields.push('photo');
+    }
+
+    if (populatedFields.length > 0) {
+      showToast(`Auto-filled: ${populatedFields.join(', ')}`);
+    }
+  };
+
   const itemLinkInput = document.getElementById('item-link');
   if (itemLinkInput) {
     itemLinkInput.addEventListener('input', () => validateCatalogLinkInput());
@@ -3000,8 +3163,17 @@ const initEventHandlers = () => {
         const dup = validateCatalogLinkInput();
         if (dup) {
           showToast(`Link already saved in "${dup.title}"`);
+        } else {
+          const val = itemLinkInput.value.trim();
+          if (val) handleAutoPopulateCatalog(val);
         }
-      }, 30);
+      }, 40);
+    });
+    itemLinkInput.addEventListener('change', () => {
+      const val = itemLinkInput.value.trim();
+      if (val && !validateCatalogLinkInput()) {
+        handleAutoPopulateCatalog(val);
+      }
     });
   }
 };
