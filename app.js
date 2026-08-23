@@ -1154,6 +1154,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
       return `
         <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
           <div class="reader-row-left">
+            <span class="reader-grouped-bullet">•</span>
             <span class="quick-note-title reader-grouped-title">${item.title}</span>
           </div>
           <div class="reader-row-right">
@@ -1327,12 +1328,13 @@ const renderQuickNotesManageList = () => {
     const groupItems = sortNotesItemsList(groups[groupName]);
     const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
     const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
+    const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
     const groupIcon = getGroupIcon(groupName);
 
     if (isReader) {
       html += `
-        <div class="reader-group-block">
-          <div class="reader-group-header">
+        <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
+          <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
             <div class="group-header-left">
               <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
               <span class="group-header-title">${groupName}</span>
@@ -1342,7 +1344,7 @@ const renderQuickNotesManageList = () => {
               <span class="group-header-total">${formattedTotal}</span>
             </div>
           </div>
-          <div class="reader-group-items">
+          <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
             ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
           </div>
         </div>
@@ -1358,8 +1360,8 @@ const renderQuickNotesManageList = () => {
       ` : '';
 
       html += `
-        <div class="quick-note-group-container">
-          <div class="quick-note-group-header">
+        <div class="quick-note-group-container ${isCollapsed ? 'collapsed' : ''}">
+          <div class="quick-note-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
             <div class="group-header-left">
               <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
               <span class="group-header-title">${groupName}</span>
@@ -1370,7 +1372,7 @@ const renderQuickNotesManageList = () => {
               ${groupActionsHtml}
             </div>
           </div>
-          <div class="quick-note-group-items">
+          <div class="quick-note-group-items ${isCollapsed ? 'hidden' : ''}">
             ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
           </div>
         </div>
@@ -2185,7 +2187,7 @@ const initEventHandlers = () => {
       // Preview Note in View Mode
       if (state.notesViewMode === 'view') {
         const previewRow = e.target.closest('[data-action="preview-note"]');
-        if (previewRow && !e.target.closest('button')) {
+        if (previewRow && !e.target.closest('button') && !e.target.closest('[data-action="toggle-group-collapse"]')) {
           const id = previewRow.getAttribute('data-id');
           if (id) {
             openQuickNotePreviewModal(id);
@@ -2199,6 +2201,22 @@ const initEventHandlers = () => {
       if (editBtn) {
         const id = editBtn.getAttribute('data-id');
         openQuickNoteModal(id);
+        return;
+      }
+
+      // Toggle Group Collapse on Header Click
+      const groupCollapseHeader = e.target.closest('[data-action="toggle-group-collapse"]');
+      if (groupCollapseHeader && !e.target.closest('button')) {
+        const groupName = groupCollapseHeader.getAttribute('data-group');
+        if (groupName) {
+          if (!state.collapsedGroups) state.collapsedGroups = new Set();
+          if (state.collapsedGroups.has(groupName)) {
+            state.collapsedGroups.delete(groupName);
+          } else {
+            state.collapsedGroups.add(groupName);
+          }
+          renderQuickNotesManageList();
+        }
         return;
       }
     });

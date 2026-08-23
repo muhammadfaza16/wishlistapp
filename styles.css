@@ -1177,6 +1177,7 @@ input, button, select, textarea {
   padding: 10px 4px 6px 4px;
   border-bottom: 1px solid #E5E5EA;
   gap: 8px;
+  cursor: pointer;
   user-select: none;
 }
 
@@ -1229,6 +1230,10 @@ input, button, select, textarea {
   margin-top: 4px;
 }
 
+.reader-group-block.collapsed .reader-group-header {
+  border-bottom: none;
+}
+
 .reader-group-header {
   display: flex;
   align-items: center;
@@ -1236,7 +1241,13 @@ input, button, select, textarea {
   padding: 10px 14px;
   background: #F4F4F6;
   border-bottom: 1px solid #E8E8EC;
+  cursor: pointer;
   user-select: none;
+  transition: background 150ms ease;
+}
+
+.reader-group-header:hover {
+  background: #ECECEF;
 }
 
 .reader-group-header .group-header-left {
@@ -1315,6 +1326,13 @@ input, button, select, textarea {
   gap: 8px;
   min-width: 0;
   flex: 1;
+}
+
+.reader-grouped-bullet {
+  font-size: 13px;
+  color: #A1A1AA;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .reader-grouped-title {
