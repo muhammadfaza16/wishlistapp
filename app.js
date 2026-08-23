@@ -3824,34 +3824,45 @@ const closeDeleteModal = () => {
 };
 
 const init = async () => {
-  const session = getActiveSession();
-  const token = getAuthToken();
-  if (session && token) {
-    state.currentUser = session;
-  }
-  loadScopedData();
-  
-  const gridBtn = document.getElementById('view-grid-btn');
-  const listBtn = document.getElementById('view-list-btn');
-  if (state.view === 'grid') {
-    gridBtn?.classList.add('active');
-    listBtn?.classList.remove('active');
-  } else {
-    listBtn?.classList.add('active');
-    gridBtn?.classList.remove('active');
-  }
-  
-  initEventHandlers();
-  updateUserProfileUI();
-  updateSortUI();
-  updateCurrencyUI();
-  render();
-  fetchLiveExchangeRate();
+  try {
+    const session = getActiveSession();
+    const token = getAuthToken();
+    if (session && token) {
+      state.currentUser = session;
+    }
+    loadScopedData();
+    
+    const gridBtn = document.getElementById('view-grid-btn');
+    const listBtn = document.getElementById('view-list-btn');
+    if (state.view === 'grid') {
+      gridBtn?.classList.add('active');
+      listBtn?.classList.remove('active');
+    } else {
+      listBtn?.classList.add('active');
+      gridBtn?.classList.remove('active');
+    }
+    
+    initEventHandlers();
+    updateUserProfileUI();
+    updateSortUI();
+    updateCurrencyUI();
+    render();
+    fetchLiveExchangeRate();
 
-  // Cross-device sync pull on load
-  if (token) {
-    await syncDataFromBackend();
+    // Cross-device sync pull on load (non-blocking)
+    if (token) {
+      syncDataFromBackend().catch(err => console.warn('Background sync failed:', err));
+    }
+  } catch (err) {
+    console.error('App initialization error:', err);
+    try {
+      render();
+    } catch (e) {}
   }
 };
 
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
