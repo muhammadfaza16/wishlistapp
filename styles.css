@@ -1724,6 +1724,54 @@ input, button, select, textarea {
   color: #71717A;
 }
 
+/* Category Preset Chips */
+.category-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #F4F4F6;
+  border: 1px solid #E5E5EA;
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #27272A;
+  cursor: pointer;
+  transition: all 150ms ease;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.category-preset-chip:hover {
+  background: #ECECEF;
+  border-color: #D4D4D8;
+  color: #09090B;
+}
+
+.category-preset-chip.active {
+  background: #18181B;
+  border-color: #18181B;
+  color: #FFFFFF;
+}
+
+.category-preset-chip.active svg {
+  color: #FFFFFF;
+}
+
+.category-preset-chip svg {
+  width: 13px;
+  height: 13px;
+  color: #71717A;
+  flex-shrink: 0;
+}
+
 /* Quick Note Photo Upload & Preview */
 .quick-note-upload-box {
   display: flex;

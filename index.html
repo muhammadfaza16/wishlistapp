@@ -412,11 +412,17 @@
       </div>
       <div class="modal-body">
         <form id="group-form">
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 12px;">
             <label for="group-name-input">Group Name</label>
-            <input type="text" id="group-name-input" placeholder="e.g. Desk Setup Gear" required autocomplete="off" list="group-options-list">
+            <input type="text" id="group-name-input" placeholder="e.g. Outfit, Electronics, Desk Setup" required autocomplete="off" list="group-options-list">
             <datalist id="group-options-list"></datalist>
           </div>
+
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 8px; display: block;">Suggested Categories</label>
+            <div class="category-preset-chips" id="group-modal-presets"></div>
+          </div>
+
           <div class="form-actions">
             <button type="submit" id="group-save-btn" class="btn-primary" style="width: 100%;">Save Group</button>
           </div>

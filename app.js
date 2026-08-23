@@ -454,8 +454,49 @@ const showConfirmDialog = ({ title = 'Confirm Action', message = 'Are you sure?'
   });
 };
 
+const groupIconPresets = [
+  { name: 'Outfit', icon: 'shirt', keywords: ['outfit', 'fashion', 'cloth', 'wear', 'shoes', 'apparel', 'wardrobe', 'jacket', 'pants', 'shirt', 'dress'] },
+  { name: 'Electronics', icon: 'laptop', keywords: ['electron', 'tech', 'gadget', 'device', 'phone', 'computer', 'apple', 'ipad', 'mac', 'pc'] },
+  { name: 'Desk Setup', icon: 'monitor', keywords: ['desk', 'setup', 'workspace', 'monitor', 'keyboard', 'mouse', 'chair', 'lamp', 'screen'] },
+  { name: 'Home & Living', icon: 'home', keywords: ['home', 'living', 'room', 'house', 'kitchen', 'furniture', 'decor', 'bed', 'sofa'] },
+  { name: 'Audio', icon: 'headphones', keywords: ['audio', 'music', 'sound', 'headphone', 'earphone', 'speaker', 'mic', 'iem', 'airpods'] },
+  { name: 'Gaming', icon: 'gamepad-2', keywords: ['game', 'gaming', 'console', 'playstation', 'nintendo', 'steam', 'xbox', 'switch'] },
+  { name: 'Travel', icon: 'plane', keywords: ['travel', 'trip', 'holiday', 'vacation', 'flight', 'bag', 'luggage', 'passport'] },
+  { name: 'Photography', icon: 'camera', keywords: ['photo', 'camera', 'lens', 'video', 'cinematography', 'leica', 'sony', 'fuji'] },
+  { name: 'Fitness', icon: 'dumbbell', keywords: ['fit', 'gym', 'sport', 'workout', 'exercise', 'health', 'running', 'training'] },
+  { name: 'Books', icon: 'book-open', keywords: ['book', 'read', 'study', 'course', 'learn', 'magazine', 'novel'] }
+];
+
+const getGroupIcon = (groupName) => {
+  if (!groupName || typeof groupName !== 'string') return 'folder';
+  const lower = groupName.toLowerCase().trim();
+  for (const preset of groupIconPresets) {
+    if (preset.keywords.some(k => lower.includes(k))) {
+      return preset.icon;
+    }
+  }
+  return 'folder';
+};
+
+const renderGroupPresets = (containerId, targetInputId) => {
+  const container = document.getElementById(containerId);
+  const targetInput = document.getElementById(targetInputId);
+  if (!container || !targetInput) return;
+
+  const currentVal = targetInput.value.trim().toLowerCase();
+  container.innerHTML = groupIconPresets.map(p => `
+    <button type="button" class="category-preset-chip ${currentVal === p.name.toLowerCase() ? 'active' : ''}" data-name="${p.name}">
+      <i data-lucide="${p.icon}"></i>
+      <span>${p.name}</span>
+    </button>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+};
+
 const getExistingGroupNames = () => {
   const groups = new Set();
+  groupIconPresets.forEach(p => groups.add(p.name));
   state.notesItems.forEach(i => {
     if (i.group && typeof i.group === 'string' && i.group.trim()) {
       groups.add(i.group.trim());
@@ -492,6 +533,8 @@ const openGroupModal = (isRename = false, groupName = '') => {
     if (saveBtn) saveBtn.textContent = 'Apply Group';
     input.value = '';
   }
+  
+  renderGroupPresets('group-modal-presets', 'group-name-input');
   
   modal.classList.remove('hidden');
   setTimeout(() => input.focus(), 100);
@@ -627,7 +670,8 @@ const openQuickNotePreviewModal = (noteId) => {
 
   if (groupEl) {
     if (item.group) {
-      groupEl.innerHTML = `<i data-lucide="folder" style="width: 13px; height: 13px; color: #71717A;"></i> <span>${item.group}</span>`;
+      const groupIcon = getGroupIcon(item.group);
+      groupEl.innerHTML = `<i data-lucide="${groupIcon}" style="width: 13px; height: 13px; color: #71717A;"></i> <span>${item.group}</span>`;
     } else {
       groupEl.innerHTML = `<span style="color: var(--text-tertiary);">None</span>`;
     }
@@ -1284,6 +1328,7 @@ const renderQuickNotesManageList = () => {
     const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
     const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
     const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
+    const groupIcon = getGroupIcon(groupName);
 
     if (isReader) {
       html += `
@@ -1291,7 +1336,7 @@ const renderQuickNotesManageList = () => {
           <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
             <div class="group-header-left">
               <i data-lucide="chevron-down" class="group-chevron-icon ${isCollapsed ? 'rotated' : ''}"></i>
-              <i data-lucide="folder" class="group-folder-icon"></i>
+              <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
               <span class="group-header-title">${groupName}</span>
               <span class="group-badge-pill">${groupItems.length}</span>
             </div>
@@ -1319,7 +1364,7 @@ const renderQuickNotesManageList = () => {
           <div class="quick-note-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
             <div class="group-header-left">
               <i data-lucide="chevron-down" class="group-chevron-icon ${isCollapsed ? 'rotated' : ''}"></i>
-              <i data-lucide="folder" class="group-folder-icon"></i>
+              <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
               <span class="group-header-title">${groupName}</span>
               <span class="group-badge-pill">${groupItems.length}</span>
             </div>
@@ -1722,6 +1767,38 @@ const initEventHandlers = () => {
       saveNotes();
       closeGroupModal();
       renderNotesView();
+    });
+  }
+
+  // Group Modal Preset Chip Selection
+  const groupModalPresets = document.getElementById('group-modal-presets');
+  if (groupModalPresets) {
+    groupModalPresets.addEventListener('click', (e) => {
+      const chip = e.target.closest('.category-preset-chip');
+      if (!chip) return;
+      const name = chip.getAttribute('data-name');
+      const input = document.getElementById('group-name-input');
+      if (name && input) {
+        input.value = name;
+        groupModalPresets.querySelectorAll('.category-preset-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        input.focus();
+      }
+    });
+  }
+
+  const groupNameInput = document.getElementById('group-name-input');
+  if (groupNameInput) {
+    groupNameInput.addEventListener('input', () => {
+      const val = groupNameInput.value.trim().toLowerCase();
+      document.querySelectorAll('#group-modal-presets .category-preset-chip').forEach(c => {
+        const cName = (c.getAttribute('data-name') || '').toLowerCase();
+        if (cName === val) {
+          c.classList.add('active');
+        } else {
+          c.classList.remove('active');
+        }
+      });
     });
   }
 
