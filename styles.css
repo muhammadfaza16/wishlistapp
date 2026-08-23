@@ -1762,6 +1762,27 @@ input, button, select, textarea {
   flex-shrink: 0;
 }
 
+/* Unique Link Validation Warning */
+.input-warning-hint {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #DC2626;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-warning-hint.hidden {
+  display: none !important;
+}
+
+.input-warning-border {
+  border-color: #DC2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12) !important;
+}
+
 /* Quick Note Photo Upload & Preview */
 .quick-note-upload-box {
   display: flex;

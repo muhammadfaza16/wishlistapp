@@ -99,6 +99,140 @@ const getValidUrl = (url) => {
   return `https://${trimmed}`;
 };
 
+const normalizeUrlForComparison = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  let clean = url.trim();
+  if (!clean) return '';
+  
+  // Prepend https:// if protocol missing for URL parser
+  if (!/^https?:\/\//i.test(clean)) {
+    clean = 'https://' + clean;
+  }
+  
+  try {
+    const parsed = new URL(clean);
+    // Lowercase hostname and strip leading 'www.'
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    // Strip trailing slashes from pathname
+    let pathname = parsed.pathname.replace(/\/+$/, '');
+    if (pathname === '/') pathname = '';
+    
+    // Strip common tracking query params
+    const searchParams = new URLSearchParams(parsed.search);
+    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref', 'source', 'fbclid', 'gclid', 'igshid'];
+    trackingParams.forEach(p => searchParams.delete(p));
+    const search = searchParams.toString();
+    
+    return host + pathname + (search ? '?' + search : '');
+  } catch {
+    return clean.toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
+  }
+};
+
+const findDuplicateItemByLink = (url, excludeId = null) => {
+  if (!url || typeof url !== 'string') return null;
+  const targetNorm = normalizeUrlForComparison(url);
+  if (!targetNorm) return null;
+
+  // Check Quick Notes items
+  if (state.notesItems && Array.isArray(state.notesItems)) {
+    for (const note of state.notesItems) {
+      if (note.id !== excludeId && note.link && note.link.trim()) {
+        const noteNorm = normalizeUrlForComparison(note.link);
+        if (noteNorm && noteNorm === targetNorm) {
+          return { item: note, title: note.title || 'Untitled Note', type: 'note' };
+        }
+      }
+    }
+  }
+
+  // Check Catalog Wishlist items
+  if (state.items && Array.isArray(state.items)) {
+    for (const catItem of state.items) {
+      if (catItem.id !== excludeId && catItem.link && catItem.link.trim()) {
+        const catNorm = normalizeUrlForComparison(catItem.link);
+        if (catNorm && catNorm === targetNorm) {
+          return { item: catItem, title: catItem.name || 'Untitled Item', type: 'catalog' };
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+const resetQuickNoteLinkWarning = () => {
+  const warningEl = document.getElementById('quick-note-link-warning');
+  const linkInput = document.getElementById('quick-note-link-input');
+  if (warningEl) {
+    warningEl.classList.add('hidden');
+    warningEl.textContent = '';
+  }
+  if (linkInput) {
+    linkInput.classList.remove('input-warning-border');
+  }
+};
+
+const validateQuickNoteLinkInput = () => {
+  const input = document.getElementById('quick-note-link-input');
+  const warningEl = document.getElementById('quick-note-link-warning');
+  if (!input || !warningEl) return null;
+
+  const val = input.value.trim();
+  if (!val) {
+    resetQuickNoteLinkWarning();
+    return null;
+  }
+
+  const duplicate = findDuplicateItemByLink(val, state.editingNoteId);
+  if (duplicate) {
+    warningEl.innerHTML = `<i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Link already exists in "${duplicate.title}"`;
+    warningEl.classList.remove('hidden');
+    input.classList.add('input-warning-border');
+    if (window.lucide) lucide.createIcons();
+    return duplicate;
+  } else {
+    resetQuickNoteLinkWarning();
+    return null;
+  }
+};
+
+const resetCatalogLinkWarning = () => {
+  const warningEl = document.getElementById('item-link-warning');
+  const linkInput = document.getElementById('item-link');
+  if (warningEl) {
+    warningEl.classList.add('hidden');
+    warningEl.textContent = '';
+  }
+  if (linkInput) {
+    linkInput.classList.remove('input-warning-border');
+  }
+};
+
+const validateCatalogLinkInput = () => {
+  const input = document.getElementById('item-link');
+  const warningEl = document.getElementById('item-link-warning');
+  if (!input || !warningEl) return null;
+
+  const val = input.value.trim();
+  if (!val) {
+    resetCatalogLinkWarning();
+    return null;
+  }
+
+  const duplicate = findDuplicateItemByLink(val, state.editingId);
+  if (duplicate) {
+    warningEl.innerHTML = `<i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Link already exists in "${duplicate.title}"`;
+    warningEl.classList.remove('hidden');
+    input.classList.add('input-warning-border');
+    if (window.lucide) lucide.createIcons();
+    return duplicate;
+  } else {
+    resetCatalogLinkWarning();
+    return null;
+  }
+};
+
 const processImageFile = (file, callback) => {
   if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
@@ -603,6 +737,7 @@ const openQuickNoteModal = (noteId = null) => {
     });
   }
 
+  resetQuickNoteLinkWarning();
   modal.classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
   setTimeout(() => titleInput?.focus(), 100);
@@ -632,6 +767,7 @@ const closeQuickNoteModal = () => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
   state.editingNoteId = null;
+  resetQuickNoteLinkWarning();
   setQuickNoteImage(null);
 };
 
@@ -1896,6 +2032,16 @@ const initEventHandlers = () => {
       const groupVal = groupInput?.value.trim() || null;
       const linkVal = linkInput?.value.trim() || '';
 
+      if (linkVal) {
+        const duplicate = findDuplicateItemByLink(linkVal, state.editingNoteId);
+        if (duplicate) {
+          validateQuickNoteLinkInput();
+          showToast(`Link already exists in "${duplicate.title}". Please use a unique link.`);
+          linkInput?.focus();
+          return;
+        }
+      }
+
       if (state.editingNoteId) {
         const item = state.notesItems.find(n => n.id === state.editingNoteId);
         if (item) {
@@ -1927,6 +2073,20 @@ const initEventHandlers = () => {
       saveNotes();
       closeQuickNoteModal();
       renderNotesView();
+    });
+  }
+
+  // Quick Note Link Input Live Duplicate Checker
+  const quickNoteLinkInput = document.getElementById('quick-note-link-input');
+  if (quickNoteLinkInput) {
+    quickNoteLinkInput.addEventListener('input', () => validateQuickNoteLinkInput());
+    quickNoteLinkInput.addEventListener('paste', () => {
+      setTimeout(() => {
+        const dup = validateQuickNoteLinkInput();
+        if (dup) {
+          showToast(`Link already saved in "${dup.title}"`);
+        }
+      }, 30);
     });
   }
 
@@ -2764,6 +2924,16 @@ const initEventHandlers = () => {
         showToast('Valid name and target price required');
         return;
       }
+
+      if (link) {
+        const duplicate = findDuplicateItemByLink(link, state.editingId);
+        if (duplicate) {
+          validateCatalogLinkInput();
+          showToast(`Link already exists in "${duplicate.title}". Please use a unique link.`);
+          document.getElementById('item-link')?.focus();
+          return;
+        }
+      }
       
       const isAchieved = inputSaved >= inputPrice;
       let triggeredAchieved = false;
@@ -2818,6 +2988,20 @@ const initEventHandlers = () => {
       showToast(state.editingId ? 'Catalog item updated' : 'New wish cataloged');
       
       if (triggeredAchieved) triggerConfetti();
+    });
+  }
+
+  // Catalog Item Link Input Live Duplicate Checker
+  const itemLinkInput = document.getElementById('item-link');
+  if (itemLinkInput) {
+    itemLinkInput.addEventListener('input', () => validateCatalogLinkInput());
+    itemLinkInput.addEventListener('paste', () => {
+      setTimeout(() => {
+        const dup = validateCatalogLinkInput();
+        if (dup) {
+          showToast(`Link already saved in "${dup.title}"`);
+        }
+      }, 30);
     });
   }
 };
@@ -2891,6 +3075,7 @@ const openModal = (id) => {
   }
   
   updatePriorityUI();
+  resetCatalogLinkWarning();
   modal.classList.remove('hidden');
 };
 
@@ -2898,6 +3083,7 @@ const closeModal = () => {
   const modal = document.getElementById('item-modal');
   if (modal) modal.classList.add('hidden');
   state.editingId = null;
+  resetCatalogLinkWarning();
 };
 
 const openProgressModal = (id) => {
