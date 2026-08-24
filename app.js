@@ -600,32 +600,40 @@ const loadScopedData = () => {
     storedNotepad = localStorage.getItem(scopedNotepadKey);
     storedPrefs = localStorage.getItem(scopedPrefsKey);
 
-    // Graceful backward compatibility migration from legacy un-scoped keys
-    if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
-      storedItems = localStorage.getItem('wishlist_items');
-      localStorage.setItem(scopedItemsKey, storedItems);
-    }
-    if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
-      storedNotes = localStorage.getItem('wishlist_notes_items');
-      localStorage.setItem(scopedNotesKey, storedNotes);
-    }
-    if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
-      storedNotepad = localStorage.getItem('wishlist_raw_notepad');
-      localStorage.setItem(scopedNotepadKey, storedNotepad);
-    }
-    if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
-      storedPrefs = localStorage.getItem('wishlist_state');
-      localStorage.setItem(scopedPrefsKey, storedPrefs);
+    // ONLY migrate legacy keys if current user is guest
+    if (userId === 'guest') {
+      if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
+        storedItems = localStorage.getItem('wishlist_items');
+        localStorage.setItem(scopedItemsKey, storedItems);
+        localStorage.removeItem('wishlist_items');
+      }
+      if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
+        storedNotes = localStorage.getItem('wishlist_notes_items');
+        localStorage.setItem(scopedNotesKey, storedNotes);
+        localStorage.removeItem('wishlist_notes_items');
+      }
+      if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
+        storedNotepad = localStorage.getItem('wishlist_raw_notepad');
+        localStorage.setItem(scopedNotepadKey, storedNotepad);
+        localStorage.removeItem('wishlist_raw_notepad');
+      }
+      if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
+        storedPrefs = localStorage.getItem('wishlist_state');
+        localStorage.setItem(scopedPrefsKey, storedPrefs);
+        localStorage.removeItem('wishlist_state');
+      }
     }
   } catch (e) {
     console.warn('localStorage read error:', e);
   }
 
   // Items Sanitization
+  // If storedItems is null: guest gets defaultItems, registered user gets []
+  const fallbackItems = userId === 'guest' ? defaultItems : [];
   if (storedItems !== null) {
     try {
       const parsed = JSON.parse(storedItems);
-      const list = Array.isArray(parsed) ? parsed : defaultItems;
+      const list = Array.isArray(parsed) ? parsed : fallbackItems;
       state.items = list.map(item => {
         if (!item || typeof item !== 'object') return null;
         let tags = [];
@@ -654,13 +662,15 @@ const loadScopedData = () => {
         };
       }).filter(Boolean);
     } catch {
-      state.items = defaultItems;
+      state.items = fallbackItems;
     }
   } else {
-    state.items = defaultItems;
+    state.items = fallbackItems;
   }
 
   // Notes Sanitization
+  // If storedNotes is null: guest gets defaultNotesItems, registered user gets []
+  const fallbackNotes = userId === 'guest' ? defaultNotesItems : [];
   if (storedNotes !== null) {
     try {
       const raw = JSON.parse(storedNotes);
@@ -681,17 +691,18 @@ const loadScopedData = () => {
           createdAt: i.createdAt || new Date().toISOString()
         }));
       } else {
-        state.notesItems = defaultNotesItems;
+        state.notesItems = fallbackNotes;
       }
     } catch (e) {
-      state.notesItems = defaultNotesItems;
+      state.notesItems = fallbackNotes;
     }
   } else {
-    state.notesItems = defaultNotesItems;
+    state.notesItems = fallbackNotes;
   }
 
   // Raw Notepad
-  state.rawNotepadText = storedNotepad !== null ? storedNotepad : "Keychron Keyboard - 3200000\nMonitor Light Bar - 650000 [x]\nErgonomic Chair - 4500000";
+  const fallbackNotepad = userId === 'guest' ? "Keychron Keyboard - 3200000\nMonitor Light Bar - 650000 [x]\nErgonomic Chair - 4500000" : "";
+  state.rawNotepadText = storedNotepad !== null ? storedNotepad : fallbackNotepad;
 
   // Preferences
   if (storedPrefs) {
@@ -786,24 +797,19 @@ const syncDataFromBackend = async () => {
       const userId = state.currentUser.id;
 
       // If server has items, load them
-      if (Array.isArray(d.items) && d.items.length > 0) {
+      if (Array.isArray(d.items)) {
         state.items = d.items;
         localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
-      } else if (state.items && state.items.length > 0) {
-        // Initial sync of existing client data to server
-        triggerSyncToBackend();
       }
 
       // If server has notes, load them
-      if (Array.isArray(d.notes) && d.notes.length > 0) {
+      if (Array.isArray(d.notes)) {
         state.notesItems = d.notes;
         localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-      } else if (state.notesItems && state.notesItems.length > 0) {
-        triggerSyncToBackend();
       }
 
       // Notepad text
-      if (typeof d.notepadText === 'string' && d.notepadText) {
+      if (typeof d.notepadText === 'string') {
         state.rawNotepadText = d.notepadText;
         localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
       }
@@ -922,8 +928,14 @@ const registerUser = async (name, emailOrUsername, password) => {
       setActiveSession(session);
       state.currentUser = session;
 
-      loadScopedData();
-      triggerSyncToBackend();
+      // Initialize fresh user storage cleanly
+      state.items = [];
+      state.notesItems = [];
+      state.rawNotepadText = "";
+      localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
+      localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify([]));
+      localStorage.setItem(`wishlist_u_${session.id}_notepad`, "");
+
       updateUserProfileUI();
       render();
       renderNotesView();
@@ -967,7 +979,12 @@ const registerUser = async (name, emailOrUsername, password) => {
   };
   setActiveSession(session);
   state.currentUser = session;
-  loadScopedData();
+  state.items = [];
+  state.notesItems = [];
+  state.rawNotepadText = "";
+  localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
+  localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify([]));
+  localStorage.setItem(`wishlist_u_${session.id}_notepad`, "");
   updateUserProfileUI();
   render();
   renderNotesView();
