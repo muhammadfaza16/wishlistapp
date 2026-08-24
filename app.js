@@ -851,6 +851,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
     }
 
     const userId = state.currentUser.id;
+    const metadata = (user && user.user_metadata) ? user.user_metadata : {};
     let cloudItems = null;
     if (Array.isArray(metadata.wishlist_items) && metadata.wishlist_items.length > 0) {
       cloudItems = metadata.wishlist_items;
@@ -1221,7 +1222,8 @@ const updateUserProfileUI = () => {
     if (dropdownNameEl) dropdownNameEl.textContent = u.name || u.username;
     if (dropdownEmailEl) dropdownEmailEl.textContent = u.email || '';
     if (logoutBtn) logoutBtn.classList.remove('hidden');
-    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Switch Account';
+    const span = switchBtn && typeof switchBtn.querySelector === 'function' ? switchBtn.querySelector('span') : null;
+    if (span) span.textContent = 'Switch Account';
   } else if (u && u.isGuest) {
     if (displayNameEl) displayNameEl.textContent = 'Guest';
     if (avatarBadgeEl) avatarBadgeEl.innerHTML = '<i data-lucide="user" class="avatar-icon"></i>';
@@ -1229,7 +1231,8 @@ const updateUserProfileUI = () => {
     if (dropdownNameEl) dropdownNameEl.textContent = 'Guest User';
     if (dropdownEmailEl) dropdownEmailEl.textContent = 'Temporary Local Session';
     if (logoutBtn) logoutBtn.classList.remove('hidden');
-    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Sign In / Register';
+    const span = switchBtn && typeof switchBtn.querySelector === 'function' ? switchBtn.querySelector('span') : null;
+    if (span) span.textContent = 'Sign In / Register';
   } else {
     if (displayNameEl) displayNameEl.textContent = 'Sign In';
     if (avatarBadgeEl) avatarBadgeEl.innerHTML = '<i data-lucide="user" class="avatar-icon"></i>';
@@ -1237,7 +1240,8 @@ const updateUserProfileUI = () => {
     if (dropdownNameEl) dropdownNameEl.textContent = 'Not Signed In';
     if (dropdownEmailEl) dropdownEmailEl.textContent = 'Click to sign in or register';
     if (logoutBtn) logoutBtn.classList.add('hidden');
-    if (switchBtn && switchBtn.querySelector('span')) switchBtn.querySelector('span').textContent = 'Sign In / Register';
+    const span = switchBtn && typeof switchBtn.querySelector === 'function' ? switchBtn.querySelector('span') : null;
+    if (span) span.textContent = 'Sign In / Register';
   }
 
   safeCreateLucideIcons();
@@ -2031,12 +2035,13 @@ const updateSelectionBarUI = () => {
   if (!bar) return;
 
   if (state.isSelectionMode) {
-    bar.classList.remove('hidden');
+    bar.classList.remove('hidden');    
     if (selectToggleBtn) {
       selectToggleBtn.classList.add('active');
-      const span = selectToggleBtn.querySelector('span');
-      if (span) span.textContent = 'Done';
+      const span = typeof selectToggleBtn.querySelector === 'function' ? selectToggleBtn.querySelector('span') : null;
+      if (span) span.textContent = 'Cancel';
     }
+
     const count = state.selectedNoteIds.size;
     if (countEl) countEl.textContent = `${count} selected`;
     
@@ -2057,7 +2062,7 @@ const updateSelectionBarUI = () => {
     bar.classList.add('hidden');
     if (selectToggleBtn) {
       selectToggleBtn.classList.remove('active');
-      const span = selectToggleBtn.querySelector('span');
+      const span = typeof selectToggleBtn.querySelector === 'function' ? selectToggleBtn.querySelector('span') : null;
       if (span) span.textContent = 'Select';
     }
   }
