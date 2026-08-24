@@ -325,12 +325,40 @@ const fetchProductMetadata = async (url) => {
   return null;
 };
 
+const uploadImageFileToCloud = async (fileOrBlob, fileNamePrefix = 'img') => {
+  const sb = getSupabase();
+  if (!sb || !state.currentUser || state.currentUser.isGuest) return null;
+
+  try {
+    const fileExt = fileOrBlob.type?.split('/')[1] || 'jpg';
+    const filePath = `${state.currentUser.id}/${fileNamePrefix}_${Date.now()}.${fileExt}`;
+    
+    const { data, error } = await sb.storage.from('wishlist-images').upload(filePath, fileOrBlob, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+    if (error) {
+      console.warn('Storage upload error (using local fallback):', error.message);
+      return null;
+    }
+
+    const { data: publicUrlData } = sb.storage.from('wishlist-images').getPublicUrl(filePath);
+    if (publicUrlData && publicUrlData.publicUrl) {
+      return publicUrlData.publicUrl;
+    }
+  } catch (e) {
+    console.warn('Storage upload exception (using local fallback):', e.message);
+  }
+  return null;
+};
+
 const processImageFile = (file, callback) => {
-  if (!file || !file.type.startsWith('image/')) return;
+  if (!file || !file.type || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const maxDim = 640;
       let w = img.width;
       let h = img.height;
@@ -349,7 +377,21 @@ const processImageFile = (file, callback) => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      
+      // 1. Instant local preview
       callback(dataUrl);
+
+      // 2. Background upload to Supabase Storage if signed in
+      try {
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const cloudUrl = await uploadImageFileToCloud(blob);
+            if (cloudUrl) {
+              callback(cloudUrl);
+            }
+          }
+        }, 'image/jpeg', 0.75);
+      } catch (err) {}
     };
     img.src = e.target.result;
   };
