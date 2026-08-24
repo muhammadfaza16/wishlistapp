@@ -893,15 +893,26 @@ const syncDataToBackend = async () => {
 
 const syncDataFromBackend = async (showFeedback = false) => {
   const sb = getSupabase();
-  if (!sb || !state.currentUser || state.currentUser.isGuest) return false;
+  if (!sb || !state.currentUser || state.currentUser.isGuest) {
+    if (showFeedback) showToast('Please sign in to sync cloud data');
+    return false;
+  }
 
   try {
-    let { data: { user }, error } = await sb.auth.getUser();
-    if (error || !user) {
+    let user = null;
+    try {
+      const { data, error } = await sb.auth.getUser();
+      if (!error && data && data.user) {
+        user = data.user;
+      }
+    } catch (e) {}
+
+    if (!user) {
       const { data: refreshData } = await sb.auth.refreshSession();
       if (refreshData && refreshData.user) {
         user = refreshData.user;
       } else {
+        if (showFeedback) showToast('Session expired. Please sign in again.');
         return false;
       }
     }
@@ -919,8 +930,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
     const localRealItems = (state.notesItems || []).filter(item => item && !['note-1', 'note-2', 'note-3'].includes(item.id));
 
     if (cloudItems.length > 0) {
-      const mergedItems = mergeWishlistItems(localRealItems, cloudItems, state.deletedNoteIds);
-      state.notesItems = mergedItems;
+      state.notesItems = mergeWishlistItems(localRealItems, cloudItems, state.deletedNoteIds);
     } else if (localRealItems.length > 0) {
       state.notesItems = localRealItems;
       await syncDataToBackend();
@@ -946,14 +956,15 @@ const syncDataFromBackend = async (showFeedback = false) => {
     updateCurrencyUI();
     updateUserProfileUI();
 
+    const count = (state.notesItems || []).length;
     if (showFeedback) {
-      showToast(`Cloud data synced (${mergedItems.length} items)!`);
+      showToast(`Cloud data synced (${count} items)!`);
     }
     return true;
   } catch (err) {
-    console.warn('Sync from cloud failed:', err.message);
+    console.warn('Sync from cloud failed:', err);
     if (showFeedback) {
-      showToast('Could not reach cloud server');
+      showToast('Sync error: ' + (err.message || 'Could not reach cloud server'));
     }
     return false;
   }
