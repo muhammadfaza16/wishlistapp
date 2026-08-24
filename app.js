@@ -331,7 +331,7 @@ const processImageFile = (file, callback) => {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      const maxDim = 1200;
+      const maxDim = 640;
       let w = img.width;
       let h = img.height;
       if (w > maxDim || h > maxDim) {
@@ -348,7 +348,7 @@ const processImageFile = (file, callback) => {
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
       callback(dataUrl);
     };
     img.src = e.target.result;
@@ -485,6 +485,42 @@ let state = {
 const AUTH_TOKEN_KEY = 'wishlist_auth_token';
 const SESSION_STORAGE_KEY = 'wishlist_active_session';
 
+const safeSetLocalStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`Storage quota handled for "${key}":`, err.message);
+    try {
+      // 1. Purge legacy or obsolete storage keys to free space
+      const keysToClean = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k !== key && (k.startsWith('wishlist_sample') || k.startsWith('wishlist_temp') || k === 'wishlist_items' || k === 'wishlist_notes_items' || k === 'wishlist_raw_notepad' || k === 'wishlist_state')) {
+          keysToClean.push(k);
+        }
+      }
+      keysToClean.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(key, value);
+    } catch (err2) {
+      // 2. If still full (e.g. heavy base64 image strings), strip large base64 thumbnails from local cache
+      try {
+        if (typeof value === 'string' && value.includes('data:image')) {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            const stripped = parsed.map(item => ({
+              ...item,
+              imageData: (item.imageData && item.imageData.length > 50000) ? null : item.imageData
+            }));
+            localStorage.setItem(key, JSON.stringify(stripped));
+          }
+        }
+      } catch (err3) {
+        console.warn('Storage fallback warning:', err3);
+      }
+    }
+  }
+};
+
 const getAuthToken = () => {
   try {
     return localStorage.getItem(AUTH_TOKEN_KEY) || null;
@@ -495,9 +531,9 @@ const getAuthToken = () => {
 
 const setAuthToken = (token) => {
   if (token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    safeSetLocalStorage(AUTH_TOKEN_KEY, token);
   } else {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
+    try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch (e) {}
   }
 };
 
@@ -512,9 +548,9 @@ const getActiveSession = () => {
 
 const setActiveSession = (session) => {
   if (session) {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    safeSetLocalStorage(SESSION_STORAGE_KEY, JSON.stringify(session));
   } else {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
   }
 };
 
@@ -604,23 +640,23 @@ const loadScopedData = () => {
     if (userId === 'guest') {
       if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
         storedItems = localStorage.getItem('wishlist_items');
-        localStorage.setItem(scopedItemsKey, storedItems);
-        localStorage.removeItem('wishlist_items');
+        safeSetLocalStorage(scopedItemsKey, storedItems);
+        try { localStorage.removeItem('wishlist_items'); } catch (e) {}
       }
       if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
         storedNotes = localStorage.getItem('wishlist_notes_items');
-        localStorage.setItem(scopedNotesKey, storedNotes);
-        localStorage.removeItem('wishlist_notes_items');
+        safeSetLocalStorage(scopedNotesKey, storedNotes);
+        try { localStorage.removeItem('wishlist_notes_items'); } catch (e) {}
       }
       if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
         storedNotepad = localStorage.getItem('wishlist_raw_notepad');
-        localStorage.setItem(scopedNotepadKey, storedNotepad);
-        localStorage.removeItem('wishlist_raw_notepad');
+        safeSetLocalStorage(scopedNotepadKey, storedNotepad);
+        try { localStorage.removeItem('wishlist_raw_notepad'); } catch (e) {}
       }
       if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
         storedPrefs = localStorage.getItem('wishlist_state');
-        localStorage.setItem(scopedPrefsKey, storedPrefs);
-        localStorage.removeItem('wishlist_state');
+        safeSetLocalStorage(scopedPrefsKey, storedPrefs);
+        try { localStorage.removeItem('wishlist_state'); } catch (e) {}
       }
     }
   } catch (e) {
@@ -837,19 +873,19 @@ const syncDataFromBackend = async () => {
 
     if (Array.isArray(cloudItems)) {
       state.notesItems = cloudItems;
-      localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+      safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
     }
 
     if (typeof metadata.raw_notepad === 'string') {
       state.rawNotepadText = metadata.raw_notepad;
-      localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+      safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
     }
 
     if (metadata.preferences && typeof metadata.preferences === 'object') {
       const p = metadata.preferences;
       if (p.currency) state.currency = p.currency;
       if (p.notesSortBy) state.notesSortBy = p.notesSortBy;
-      localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify(p));
+      safeSetLocalStorage(`wishlist_u_${userId}_state`, JSON.stringify(p));
     }
 
     render();
@@ -863,20 +899,20 @@ const syncDataFromBackend = async () => {
 
 const saveItems = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
-  localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+  safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
   triggerSyncToBackend();
 };
 
 const saveNotes = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
-  localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-  localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+  safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+  safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
   triggerSyncToBackend();
 };
 
 const savePreferences = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
-  localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify({
+  safeSetLocalStorage(`wishlist_u_${userId}_state`, JSON.stringify({
     view: state.view,
     sort: state.sort,
     currency: state.currency,
@@ -901,7 +937,7 @@ const getLocalUsers = () => {
 
 const saveLocalUsers = (users) => {
   try {
-    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+    safeSetLocalStorage(LOCAL_USERS_KEY, JSON.stringify(users));
   } catch (e) {}
 };
 
@@ -970,9 +1006,9 @@ const registerUser = async (name, emailOrUsername, password) => {
       state.items = [];
       state.notesItems = initialItems;
       state.rawNotepadText = initialNotepad;
-      localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
-      localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
-      localStorage.setItem(`wishlist_u_${session.id}_notepad`, initialNotepad);
+      safeSetLocalStorage(`wishlist_u_${session.id}_items`, JSON.stringify([]));
+      safeSetLocalStorage(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
+      safeSetLocalStorage(`wishlist_u_${session.id}_notepad`, initialNotepad);
 
       updateUserProfileUI();
       render();
@@ -1020,9 +1056,9 @@ const registerUser = async (name, emailOrUsername, password) => {
   state.items = [];
   state.notesItems = initialItems;
   state.rawNotepadText = initialNotepad;
-  localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
-  localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
-  localStorage.setItem(`wishlist_u_${session.id}_notepad`, initialNotepad);
+  safeSetLocalStorage(`wishlist_u_${session.id}_items`, JSON.stringify([]));
+  safeSetLocalStorage(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
+  safeSetLocalStorage(`wishlist_u_${session.id}_notepad`, initialNotepad);
   updateUserProfileUI();
   render();
   renderNotesView();
