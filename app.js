@@ -843,13 +843,28 @@ const triggerSyncToBackend = () => {
 
 const syncDataToBackend = async () => {
   const sb = getSupabase();
-  if (!sb || !state.currentUser || state.currentUser.isGuest) return false;
+  if (!sb) return { success: false, error: 'Supabase not initialized' };
+  if (!state.currentUser) return { success: false, error: 'Not signed in' };
+  if (state.currentUser.isGuest) return { success: false, error: 'Guest session (sign in to sync)' };
 
   try {
-    // Refresh session if needed so access token is active
-    const { data: sessionData } = await sb.auth.getSession();
-    if (!sessionData || !sessionData.session) {
-      await sb.auth.refreshSession();
+    // Verify active Supabase session
+    let session = null;
+    try {
+      const { data: sessionData } = await sb.auth.getSession();
+      if (sessionData && sessionData.session) {
+        session = sessionData.session;
+      }
+    } catch (e) {}
+
+    if (!session) {
+      const { data: refreshData, error: refreshErr } = await sb.auth.refreshSession();
+      if (refreshData && refreshData.session) {
+        session = refreshData.session;
+      } else {
+        console.warn('Supabase refreshSession failed:', refreshErr?.message);
+        return { success: false, error: 'Cloud session expired. Please Sign In again.' };
+      }
     }
 
     const cleanItems = (state.notesItems || []).map(item => ({
@@ -883,7 +898,7 @@ const syncDataToBackend = async () => {
     });
 
     if (error) {
-      console.warn('Supabase updateUser sync warning:', error.message);
+      console.warn('Supabase updateUser error:', error.message);
       // Fallback lightweight retry
       const lightweightItems = cleanItems.map(({ imageData, ...rest }) => rest);
       const { error: retryErr } = await sb.auth.updateUser({
@@ -895,17 +910,17 @@ const syncDataToBackend = async () => {
       });
       if (retryErr) {
         console.warn('Supabase fallback retry error:', retryErr.message);
-        return false;
+        return { success: false, error: retryErr.message || error.message };
       }
     }
 
     // Also update locally cached copy
     const userId = state.currentUser.id;
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-    return true;
+    return { success: true };
   } catch (err) {
     console.warn('Cloud sync error:', err.message);
-    return false;
+    return { success: false, error: err.message || 'Network error' };
   }
 };
 
@@ -2769,11 +2784,12 @@ const initEventHandlers = () => {
 
       // If logged in, push immediately to Supabase Cloud
       if (state.currentUser && !state.currentUser.isGuest) {
-        const synced = await syncDataToBackend();
-        if (synced) {
+        const syncResult = await syncDataToBackend();
+        if (syncResult && syncResult.success) {
           showToast(`Imported ${validItems.length} items & synced to Cloud!`);
         } else {
-          showToast(`Imported ${validItems.length} items locally (Cloud push failed, try Sync Cloud Now)`);
+          const errMsg = syncResult?.error || 'Cloud sync failed';
+          showToast(`Imported ${validItems.length} items locally (${errMsg})`);
         }
       } else {
         showToast(`Imported ${validItems.length} items locally (Please Sign In to sync to other devices)`);
@@ -2823,6 +2839,15 @@ const initEventHandlers = () => {
 
   if (syncBtn) {
     syncBtn.addEventListener('click', async () => {
+      if (!state.currentUser || state.currentUser.isGuest) {
+        showToast('Please Sign In to sync with Supabase Cloud');
+        openAuthModal('signin');
+        return;
+      }
+      showToast('Syncing with Supabase Cloud...');
+      if (Array.isArray(state.notesItems) && state.notesItems.length > 0) {
+        await syncDataToBackend();
+      }
       const ok = await syncDataFromBackend(true);
       if (ok) {
         if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
@@ -4366,9 +4391,11 @@ const init = async () => {
 
     if (!sessionRestored) {
       const localSession = getActiveSession();
-      if (localSession && localSession.id && localSession.name) {
+      if (localSession && localSession.id && localSession.name && (localSession.isGuest || localSession.id.startsWith('usr_'))) {
         state.currentUser = localSession;
       } else {
+        setActiveSession(null);
+        setAuthToken(null);
         state.currentUser = null;
       }
     }
