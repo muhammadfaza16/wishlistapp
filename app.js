@@ -478,7 +478,8 @@ let state = {
   selectedNoteIds: new Set(),
   renamingGroupName: null,
   collapsedGroups: new Set(),
-  currentQuickNoteImageData: null
+  currentQuickNoteImageData: null,
+  deletedNoteIds: new Set()
 };
 
 // Authentication & Backend SQLite Cross-Device Data Sync
@@ -759,6 +760,7 @@ const loadScopedData = () => {
   // Guarantee runtime state data structures
   if (!(state.selectedNoteIds instanceof Set)) state.selectedNoteIds = new Set();
   if (!(state.collapsedGroups instanceof Set)) state.collapsedGroups = new Set();
+  if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
   if (!Array.isArray(state.filters)) state.filters = [];
 };
 
@@ -782,6 +784,56 @@ const getSupabase = () => {
 
 let syncDebounceTimer = null;
 
+const mergeWishlistItems = (localItems = [], cloudItems = [], deletedIds = new Set()) => {
+  const itemMap = new Map();
+
+  // 1. Process cloud items
+  (cloudItems || []).forEach(item => {
+    if (!item || !item.id || deletedIds.has(String(item.id))) return;
+    const id = String(item.id);
+    itemMap.set(id, {
+      ...item,
+      id,
+      updatedAt: item.updatedAt || item.createdAt || new Date(0).toISOString()
+    });
+  });
+
+  // 2. Process local items with Last-Write-Wins comparison
+  (localItems || []).forEach(localItem => {
+    if (!localItem || !localItem.id || deletedIds.has(String(localItem.id))) return;
+    const id = String(localItem.id);
+
+    if (!itemMap.has(id)) {
+      // Exists only on local device -> keep it!
+      itemMap.set(id, {
+        ...localItem,
+        id,
+        updatedAt: localItem.updatedAt || localItem.createdAt || new Date().toISOString()
+      });
+    } else {
+      // Exists both locally and in cloud -> compare timestamps (Last-Write-Wins)
+      const cloudItem = itemMap.get(id);
+      const localTime = new Date(localItem.updatedAt || localItem.createdAt || 0).getTime();
+      const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+
+      if (localTime >= cloudTime) {
+        itemMap.set(id, {
+          ...localItem,
+          id,
+          updatedAt: localItem.updatedAt || localItem.createdAt || new Date().toISOString()
+        });
+      } else {
+        itemMap.set(id, {
+          ...cloudItem,
+          id
+        });
+      }
+    }
+  });
+
+  return Array.from(itemMap.values());
+};
+
 const triggerSyncToBackend = () => {
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
@@ -804,12 +856,16 @@ const syncDataToBackend = async () => {
       checked: !!item.checked,
       link: item.link || null,
       imageData: (item.imageData && item.imageData.length < 80000) ? item.imageData : null,
-      createdAt: item.createdAt || new Date().toISOString()
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
     }));
+
+    const deletedArr = Array.from(state.deletedNoteIds || []);
 
     const { error } = await sb.auth.updateUser({
       data: {
         wishlist_items: cleanItems,
+        deleted_item_ids: deletedArr,
         raw_notepad: state.rawNotepadText || "",
         preferences: {
           currency: state.currency,
@@ -852,16 +908,20 @@ const syncDataFromBackend = async (showFeedback = false) => {
 
     const userId = state.currentUser.id;
     const metadata = (user && user.user_metadata) ? user.user_metadata : {};
-    let cloudItems = null;
-    if (Array.isArray(metadata.wishlist_items) && metadata.wishlist_items.length > 0) {
-      cloudItems = metadata.wishlist_items;
-    }
+    const cloudItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
+    const cloudDeleted = Array.isArray(metadata.deleted_item_ids) ? metadata.deleted_item_ids : [];
 
-    if (Array.isArray(cloudItems) && cloudItems.length > 0) {
-      state.notesItems = cloudItems;
-      safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-    } else if (Array.isArray(state.notesItems) && state.notesItems.length > 0) {
-      // Local has items but cloud is empty -> push local items to cloud!
+    // Track cloud deleted IDs in local Set
+    if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+    cloudDeleted.forEach(id => state.deletedNoteIds.add(String(id)));
+
+    // Smart merge local and cloud items (union + conflict resolution)
+    const mergedItems = mergeWishlistItems(state.notesItems || [], cloudItems, state.deletedNoteIds);
+    state.notesItems = mergedItems;
+    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+
+    // If local added new items or merged differences, push back merged list to cloud
+    if (mergedItems.length !== cloudItems.length) {
       await syncDataToBackend();
     }
 
@@ -884,7 +944,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
     updateUserProfileUI();
 
     if (showFeedback) {
-      showToast(`Cloud data synced (${(cloudItems || []).length} items)!`);
+      showToast(`Cloud data synced (${mergedItems.length} items)!`);
     }
     return true;
   } catch (err) {
@@ -2977,6 +3037,7 @@ const initEventHandlers = () => {
         state.notesItems.forEach(item => {
           if (state.selectedNoteIds.has(item.id)) {
             item.group = null;
+            item.updatedAt = new Date().toISOString();
           }
         });
         state.isSelectionMode = false;
@@ -2999,6 +3060,8 @@ const initEventHandlers = () => {
           message: `Are you sure you want to delete ${count} selected item(s)?`,
           confirmText: 'Delete Items',
           onConfirm: () => {
+            if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+            state.selectedNoteIds.forEach(id => state.deletedNoteIds.add(String(id)));
             state.notesItems = state.notesItems.filter(item => !state.selectedNoteIds.has(item.id));
             state.isSelectionMode = false;
             state.selectedNoteIds.clear();
@@ -3024,6 +3087,7 @@ const initEventHandlers = () => {
         state.notesItems.forEach(item => {
           if (item.group === state.renamingGroupName) {
             item.group = groupName;
+            item.updatedAt = new Date().toISOString();
           }
         });
         showToast(`Group renamed to '${groupName}'`);
@@ -3031,6 +3095,7 @@ const initEventHandlers = () => {
         state.notesItems.forEach(item => {
           if (state.selectedNoteIds.has(item.id)) {
             item.group = groupName;
+            item.updatedAt = new Date().toISOString();
           }
         });
         showToast(`Grouped ${state.selectedNoteIds.size} items into '${groupName}'`);
@@ -3190,6 +3255,7 @@ const initEventHandlers = () => {
           item.link = linkVal;
           item.imageData = state.currentQuickNoteImageData || null;
           item.priority = priority;
+          item.updatedAt = new Date().toISOString();
           showToast('Item updated');
         }
       } else {
@@ -3203,7 +3269,8 @@ const initEventHandlers = () => {
           link: linkVal,
           imageData: state.currentQuickNoteImageData || null,
           priority: priority,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         state.notesItems.unshift(newNote);
         showToast('Added to Wishlist');
@@ -3446,6 +3513,8 @@ const initEventHandlers = () => {
     quickNoteDeleteBtn.addEventListener('click', () => {
       if (state.editingNoteId) {
         const id = state.editingNoteId;
+        if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+        state.deletedNoteIds.add(String(id));
         state.notesItems = state.notesItems.filter(n => n.id !== id);
         saveNotes();
         closeQuickNoteModal();
@@ -3466,6 +3535,7 @@ const initEventHandlers = () => {
         const item = state.notesItems.find(n => n.id === state.editingNoteId);
         if (item) {
           item.group = null;
+          item.updatedAt = new Date().toISOString();
           saveNotes();
           showToast('Removed from group');
           renderNotesView();
@@ -3500,6 +3570,7 @@ const initEventHandlers = () => {
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
           item.checked = toggleNoteChecked.checked;
+          item.updatedAt = new Date().toISOString();
           saveNotes();
           calculateNotesAccumulator();
           const row = toggleNoteChecked.closest('.quick-note-row');
