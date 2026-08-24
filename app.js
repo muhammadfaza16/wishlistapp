@@ -1372,8 +1372,8 @@ const openQuickNoteModal = (noteId = null) => {
   const titleInput = document.getElementById('quick-note-title-input');
   const priceInput = document.getElementById('quick-note-price-input');
   const groupInput = document.getElementById('quick-note-group-input');
+  const ungroupBtn = document.getElementById('quick-note-ungroup-btn');
   const linkInput = document.getElementById('quick-note-link-input');
-  const convertContainer = document.getElementById('quick-note-convert-container');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
   const submitBtnSpan = document.querySelector('#quick-note-submit-btn span');
 
@@ -1389,8 +1389,14 @@ const openQuickNoteModal = (noteId = null) => {
     if (titleInput) titleInput.value = item.title;
     if (priceInput) priceInput.value = item.price || '';
     if (groupInput) groupInput.value = item.group || '';
+    if (ungroupBtn) {
+      if (item.group) {
+        ungroupBtn.classList.remove('hidden');
+      } else {
+        ungroupBtn.classList.add('hidden');
+      }
+    }
     if (linkInput) linkInput.value = item.link || '';
-    if (convertContainer) convertContainer.classList.remove('hidden');
     if (submitBtnSpan) submitBtnSpan.textContent = 'Save Changes';
     if (deleteBtn) deleteBtn.classList.remove('hidden');
     setQuickNoteImage(item.imageData || item.imageUrl || null);
@@ -1408,8 +1414,8 @@ const openQuickNoteModal = (noteId = null) => {
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
+    if (ungroupBtn) ungroupBtn.classList.add('hidden');
     if (linkInput) linkInput.value = '';
-    if (convertContainer) convertContainer.classList.add('hidden');
     if (submitBtnSpan) submitBtnSpan.textContent = 'Add Item';
     if (deleteBtn) deleteBtn.classList.add('hidden');
     setQuickNoteImage(null);
@@ -1979,66 +1985,29 @@ const renderNoteItemRow = (item, isGrouped = false) => {
   const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
   const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
   const isSelected = state.selectedNoteIds.has(item.id);
-  const isReader = state.notesViewMode === 'view';
-
-  if (isReader) {
-    if (isGrouped) {
-      return `
-        <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
-          <div class="reader-row-left">
-            <span class="reader-grouped-bullet">•</span>
-            <span class="quick-note-title reader-grouped-title">${item.title}</span>
-          </div>
-          <div class="reader-row-right">
-            <span class="quick-note-price reader-grouped-price">${formattedPrice}</span>
-          </div>
-        </div>
-      `;
-    }
-    return `
-      <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note">
-        <div class="reader-row-left">
-          <span class="quick-note-title">${item.title}</span>
-        </div>
-        <div class="reader-row-right">
-          <span class="quick-note-price">${formattedPrice}</span>
-        </div>
-      </div>
-    `;
-  }
 
   if (state.isSelectionMode) {
     return `
       <div class="quick-note-row ${isSelected ? 'selected-row' : ''}" data-id="${item.id}" data-action="select-item-row" style="cursor: pointer;">
         <div class="quick-note-left">
           <input type="checkbox" class="quick-note-select-checkbox" data-action="select-item-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''}>
-          <span class="quick-note-title">${item.title}</span>
+          <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${item.title}</span>
         </div>
         <div class="quick-note-right">
-          <span class="quick-note-price">${formattedPrice}</span>
+          <span class="quick-note-price ${isGrouped ? 'reader-grouped-price' : ''}">${formattedPrice}</span>
         </div>
       </div>
     `;
   }
 
-  const ungroupBtn = isGrouped
-    ? `<button type="button" class="btn-icon-subtle" data-action="ungroup-note" data-id="${item.id}" title="Remove from group"><i data-lucide="corner-up-left"></i></button>`
-    : '';
-
   return `
-    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+    <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isGrouped ? 'reader-grouped-row' : ''}" data-id="${item.id}" data-action="open-edit-row" style="cursor: pointer;">
       <div class="quick-note-left">
         <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
-        <span class="quick-note-title">${item.title}</span>
+        <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${item.title}</span>
       </div>
       <div class="quick-note-right">
-        <span class="quick-note-price">${formattedPrice}</span>
-        <div class="quick-note-actions-always">
-          <button type="button" class="btn-icon-subtle edit-btn" data-action="edit-note" data-id="${item.id}" title="Edit item">
-            <i data-lucide="edit-2"></i>
-          </button>
-          ${ungroupBtn}
-        </div>
+        <span class="quick-note-price ${isGrouped ? 'reader-grouped-price' : ''}">${formattedPrice}</span>
       </div>
     </div>
   `;
@@ -2164,16 +2133,11 @@ const renderQuickNotesManageList = () => {
   updateNotesSortUI();
 
   if (!state.notesItems || state.notesItems.length === 0) {
-    const emptyIcon = isReader ? 'book-open' : 'inbox';
-    const emptyTitle = isReader ? 'Item list is empty' : 'No wishlist items yet';
-    const emptySub = isReader
-      ? 'Click <b>Edit</b> above to start adding and managing your wishlist items.'
-      : 'Click <b>+ Add Item</b> above to start building your wishlist notes.';
     container.innerHTML = `
       <div style="text-align:center;padding:36px 16px;color:var(--text-tertiary);">
-        <i data-lucide="${emptyIcon}" style="width:24px;height:24px;margin:0 auto 10px auto;opacity:0.4;display:block;"></i>
-        <div style="font-family:var(--font-sans);font-size:13.5px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${emptyTitle}</div>
-        <div style="font-family:var(--font-sans);font-size:12px;color:var(--text-tertiary);max-width:280px;margin:0 auto;line-height:1.4;">${emptySub}</div>
+        <i data-lucide="inbox" style="width:24px;height:24px;margin:0 auto 10px auto;opacity:0.4;display:block;"></i>
+        <div style="font-family:var(--font-sans);font-size:13.5px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Item list is empty</div>
+        <div style="font-family:var(--font-sans);font-size:12px;color:var(--text-tertiary);max-width:280px;margin:0 auto;line-height:1.4;">Click <b>+ Add</b> above to start curating your wishlist items.</div>
       </div>
     `;
     safeCreateLucideIcons();
@@ -2196,81 +2160,40 @@ const renderQuickNotesManageList = () => {
   let html = '';
 
   Object.keys(groups).forEach(groupName => {
-    const groupItems = isReader ? sortNotesItemsList(groups[groupName]) : groups[groupName];
+    const groupItems = sortNotesItemsList(groups[groupName]);
     const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
     const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
     const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
     const groupIcon = getGroupIcon(groupName);
 
-    if (isReader) {
-      html += `
-        <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
-          <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
-            <div class="group-header-left">
-              <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
-              <span class="group-header-title">${groupName}</span>
-              <span class="group-badge-pill">${groupItems.length}</span>
-            </div>
-            <div class="group-header-right">
-              <span class="group-header-total">${formattedTotal}</span>
-            </div>
+    html += `
+      <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
+        <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
+          <div class="group-header-left">
+            <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
+            <span class="group-header-title">${groupName}</span>
+            <span class="group-badge-pill">${groupItems.length}</span>
           </div>
-          <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
-            ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
+          <div class="group-header-right">
+            <span class="group-header-total">${formattedTotal}</span>
           </div>
         </div>
-      `;
-    } else {
-      const groupActionsHtml = !state.isSelectionMode ? `
-        <button type="button" class="btn-icon-subtle" data-action="rename-group" data-group="${groupName}" title="Rename Group">
-          <i data-lucide="edit-2"></i>
-        </button>
-        <button type="button" class="btn-icon-subtle" data-action="ungroup-all" data-group="${groupName}" title="Ungroup All Items">
-          <i data-lucide="corner-up-left"></i>
-        </button>
-      ` : '';
-
-      html += `
-        <div class="quick-note-group-container ${isCollapsed ? 'collapsed' : ''}">
-          <div class="quick-note-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
-            <div class="group-header-left">
-              <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
-              <span class="group-header-title">${groupName}</span>
-              <span class="group-badge-pill">${groupItems.length}</span>
-            </div>
-            <div class="group-header-right">
-              <span class="group-header-total">${formattedTotal}</span>
-              ${groupActionsHtml}
-            </div>
-          </div>
-          <div class="quick-note-group-items ${isCollapsed ? 'hidden' : ''}">
-            ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
-          </div>
+        <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
+          ${groupItems.map(item => renderNoteItemRow(item, true)).join('')}
         </div>
-      `;
-    }
+      </div>
+    `;
   });
 
   if (standalone.length > 0) {
-    const sortedStandalone = isReader ? sortNotesItemsList(standalone) : standalone;
+    const sortedStandalone = sortNotesItemsList(standalone);
     if (Object.keys(groups).length > 0) {
-      if (isReader) {
-        html += `
-          <div class="reader-standalone-header">
-            <span class="standalone-header-title">Other Items</span>
-            <span class="group-badge-pill">${sortedStandalone.length}</span>
-          </div>
-        `;
-      } else {
-        html += `
-          <div class="quick-note-group-header" style="margin-top: 14px;">
-            <div class="group-header-left">
-              <span class="group-header-title" style="color: var(--text-tertiary);">Standalone Items</span>
-              <span class="group-badge-pill">${sortedStandalone.length}</span>
-            </div>
-          </div>
-        `;
-      }
+      html += `
+        <div class="reader-standalone-header">
+          <span class="standalone-header-title">Other Items</span>
+          <span class="group-badge-pill">${sortedStandalone.length}</span>
+        </div>
+      `;
     }
     html += sortedStandalone.map(item => renderNoteItemRow(item, false)).join('');
   }
@@ -2284,71 +2207,8 @@ const renderNotesView = () => {
   calculateNotesAccumulator();
 };
 
-const renderTabUI = () => {
-  const catalogView = document.getElementById('catalog-view');
-  const notesView = document.getElementById('notes-view');
-  const mobileFloatingBar = document.getElementById('mobile-floating-bar');
-  const navBtns = document.querySelectorAll('.nav-tab-btn');
-  
-  navBtns.forEach(btn => {
-    const tab = btn.getAttribute('data-tab');
-    if (tab === state.activeTab) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-  
-  if (state.activeTab === 'catalog') {
-    if (catalogView) catalogView.classList.remove('hidden');
-    if (notesView) notesView.classList.add('hidden');
-    if (mobileFloatingBar) mobileFloatingBar.classList.remove('hidden');
-  } else {
-    if (catalogView) catalogView.classList.add('hidden');
-    if (notesView) notesView.classList.remove('hidden');
-    if (mobileFloatingBar) mobileFloatingBar.classList.add('hidden');
-    renderNotesView();
-  }
-};
-
-const convertNoteToCatalog = (noteId) => {
-  const note = state.notesItems.find(n => n.id === noteId);
-  if (!note) return;
-  
-  const newItem = {
-    id: generateId(),
-    currency: note.currency || state.currency,
-    originalPrice: note.price || 0,
-    originalSaved: note.checked ? (note.price || 0) : 0,
-    brand: '',
-    name: note.title,
-    price: convertCurrency(note.price || 0, note.currency || state.currency, 'IDR'),
-    saved: note.checked ? convertCurrency(note.price || 0, note.currency || state.currency, 'IDR') : 0,
-    imageUrl: note.imageUrl || '',
-    imageData: note.imageData || null,
-    link: note.link || '',
-    tags: ['Quick Note'],
-    priority: 2,
-    achieved: note.checked,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  state.items.push(newItem);
-  saveItems();
-  showToast(`Converted "${note.title}" to Catalog Wish!`);
-  render();
-};
-
 const render = () => {
-  renderTabUI();
-  
-  const { active, achieved } = getFilteredItems();
-  
-  renderHeader(active);
-  renderTagFilters();
-  renderItems(active);
-  renderAchieved(achieved);
+  renderNotesView();
   updateUserProfileUI();
   safeCreateLucideIcons();
 };
@@ -3205,6 +3065,25 @@ const initEventHandlers = () => {
     });
   }
 
+  // Quick Note Ungroup Button Inside Modal Handler
+  const quickNoteUngroupBtn = document.getElementById('quick-note-ungroup-btn');
+  if (quickNoteUngroupBtn) {
+    quickNoteUngroupBtn.addEventListener('click', () => {
+      const groupInput = document.getElementById('quick-note-group-input');
+      if (groupInput) groupInput.value = '';
+      quickNoteUngroupBtn.classList.add('hidden');
+      if (state.editingNoteId) {
+        const item = state.notesItems.find(n => n.id === state.editingNoteId);
+        if (item) {
+          item.group = null;
+          saveNotes();
+          showToast('Removed from group');
+          renderNotesView();
+        }
+      }
+    });
+  }
+
   // Quick Notes List Delegation
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
@@ -3232,65 +3111,10 @@ const initEventHandlers = () => {
         if (item) {
           item.checked = toggleNoteChecked.checked;
           saveNotes();
-          renderNotesView();
+          calculateNotesAccumulator();
+          const row = toggleNoteChecked.closest('.quick-note-row');
+          if (row) row.classList.toggle('checked', item.checked);
         }
-        return;
-      }
-
-      // Ungroup Single Note
-      const ungroupBtn = e.target.closest('[data-action="ungroup-note"]');
-      if (ungroupBtn) {
-        const id = ungroupBtn.getAttribute('data-id');
-        const item = state.notesItems.find(n => n.id === id);
-        if (item) {
-          item.group = null;
-          saveNotes();
-          showToast('Removed from group');
-          renderNotesView();
-        }
-        return;
-      }
-
-      // Rename Group
-      const renameGroupBtn = e.target.closest('[data-action="rename-group"]');
-      if (renameGroupBtn) {
-        const groupName = renameGroupBtn.getAttribute('data-group');
-        openGroupModal(true, groupName);
-        return;
-      }
-
-      // Ungroup All Items in Group
-      const ungroupAllBtn = e.target.closest('[data-action="ungroup-all"]');
-      if (ungroupAllBtn) {
-        const groupName = ungroupAllBtn.getAttribute('data-group');
-        state.notesItems.forEach(item => {
-          if (item.group === groupName) {
-            item.group = null;
-          }
-        });
-        saveNotes();
-        showToast(`Ungrouped all items in '${groupName}'`);
-        renderNotesView();
-        return;
-      }
-
-      // Preview Note in View Mode
-      if (state.notesViewMode === 'view') {
-        const previewRow = e.target.closest('[data-action="preview-note"]');
-        if (previewRow && !e.target.closest('button') && !e.target.closest('[data-action="toggle-group-collapse"]')) {
-          const id = previewRow.getAttribute('data-id');
-          if (id) {
-            openQuickNotePreviewModal(id);
-            return;
-          }
-        }
-      }
-
-      // Edit Note
-      const editBtn = e.target.closest('[data-action="edit-note"]');
-      if (editBtn) {
-        const id = editBtn.getAttribute('data-id');
-        openQuickNoteModal(id);
         return;
       }
 
@@ -3309,8 +3133,17 @@ const initEventHandlers = () => {
         }
         return;
       }
-    });
 
+      // Click on Note Row -> Open Edit Modal!
+      const noteRow = e.target.closest('.quick-note-row');
+      if (noteRow && !e.target.closest('input')) {
+        const id = noteRow.getAttribute('data-id');
+        if (id) {
+          openQuickNoteModal(id);
+          return;
+        }
+      }
+    });
   }
 
   // Raw Notepad Input
@@ -3450,42 +3283,19 @@ const initEventHandlers = () => {
     });
   }
   
-  const addBtn = document.getElementById('add-item-btn');
   const mobileAddBtn = document.getElementById('mobile-add-btn');
-  const emptyAddBtn = document.getElementById('empty-add-btn');
-  const openAddModal = () => openModal(null);
-  if (addBtn) addBtn.addEventListener('click', openAddModal);
-  if (mobileAddBtn) mobileAddBtn.addEventListener('click', openAddModal);
-  if (emptyAddBtn) emptyAddBtn.addEventListener('click', openAddModal);
-  
-  const modalCloseBtn = document.getElementById('modal-close-btn');
-  const modalCancelBtn = document.getElementById('modal-cancel-btn');
-  if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
-  if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeModal);
-  
-  document.querySelectorAll('.progress-close').forEach(btn => {
-    btn.addEventListener('click', closeProgressModal);
-  });
-  
-  document.querySelectorAll('.delete-close').forEach(btn => {
-    btn.addEventListener('click', closeDeleteModal);
-  });
-  
-  document.getElementById('item-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'item-modal') closeModal();
-  });
-  document.getElementById('progress-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'progress-modal') closeProgressModal();
-  });
-  document.getElementById('delete-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'delete-modal') closeDeleteModal();
-  });
-  
+  if (mobileAddBtn) {
+    mobileAddBtn.addEventListener('click', () => {
+      openQuickNoteModal(null);
+    });
+  }
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeModal();
-      closeProgressModal();
-      closeDeleteModal();
+      closeQuickNoteModal();
+      closeGroupModal();
+      closeAuthModal();
+      closeConfirmDialog();
     }
   });
   

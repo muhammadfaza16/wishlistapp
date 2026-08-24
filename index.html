@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=182">
+  <link rel="stylesheet" href="styles.css?v=183">
 </head>
 <body>
   <div id="app">
@@ -24,20 +24,8 @@
             </svg>
           </div>
         </div>
-        <!-- Header Right Group: Nav Tabs + User Profile -->
+        <!-- Header Right Group: User Profile -->
         <div class="header-right-group">
-          <!-- App Nav Tabs -->
-          <div class="app-nav-tabs" id="app-nav-tabs">
-            <button type="button" class="nav-tab-btn active" data-tab="notes">
-              <i data-lucide="file-text"></i>
-              <span>Quick Notes</span>
-            </button>
-            <button type="button" class="nav-tab-btn" data-tab="catalog">
-              <i data-lucide="layout-grid"></i>
-              <span>Catalog</span>
-            </button>
-          </div>
-
           <!-- User Profile / Auth Button -->
           <div class="user-profile-wrapper" id="user-profile-wrapper">
             <button type="button" class="user-profile-btn" id="user-profile-btn" aria-label="User Account" title="Account Menu">
@@ -61,11 +49,7 @@
               <div class="user-dropdown-stats">
                 <div class="user-stat-item">
                   <span class="user-stat-count" id="dropdown-notes-count">0</span>
-                  <span class="user-stat-label">Notes</span>
-                </div>
-                <div class="user-stat-item">
-                  <span class="user-stat-count" id="dropdown-catalog-count">0</span>
-                  <span class="user-stat-label">Wishes</span>
+                  <span class="user-stat-label">Items</span>
                 </div>
               </div>
               <div class="user-dropdown-divider"></div>
@@ -85,110 +69,8 @@
       </div>
     </header>
 
-    <!-- Catalog View Container -->
-    <div id="catalog-view">
-      <!-- Financial Metrics Grid (Catalog Only) -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <span class="stat-label">TOTAL GOAL</span>
-          <span class="stat-value" id="total-value">Rp 0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">ACCUMULATED</span>
-          <span class="stat-value" id="total-saved">Rp 0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">REMAINING</span>
-          <span class="stat-value" id="total-remaining">Rp 0</span>
-        </div>
-      </div>
-
-      <!-- Master Progress Bar (Catalog Only) -->
-      <div class="overall-progress">
-        <div class="progress-bar-container">
-          <div class="progress-bar">
-            <div class="progress-fill" id="overall-progress-fill"></div>
-          </div>
-        </div>
-        <span class="progress-text mono-text" id="overall-progress-text">0%</span>
-      </div>
-
-      <!-- Controls Bar -->
-      <div id="toolbar">
-        <div class="toolbar-left">
-          <div class="search-wrapper">
-            <i data-lucide="search" class="search-icon"></i>
-            <input type="text" id="search-input" placeholder="Search wishlist..." autocomplete="off">
-          </div>
-          <div class="sort-dropdown-custom" id="sort-dropdown">
-            <button type="button" class="sort-dropdown-btn" id="sort-dropdown-trigger" aria-haspopup="true">
-              <i data-lucide="arrow-up-down"></i>
-              <span id="sort-current-label">Sort: Priority</span>
-              <i data-lucide="chevron-down" class="sort-chevron"></i>
-            </button>
-            <div class="sort-dropdown-menu hidden" id="sort-dropdown-menu">
-              <button type="button" class="sort-menu-item active" data-sort-category="priority" data-sort="priority">
-                <span>Priority (P1 → P3)</span>
-                <i data-lucide="check" class="sort-check"></i>
-              </button>
-              <button type="button" class="sort-menu-item" data-sort-category="price" data-sort="price-desc">
-                <span>Price: High → Low</span>
-                <i data-lucide="check" class="sort-check"></i>
-              </button>
-              <button type="button" class="sort-menu-item" data-sort-category="progress" data-sort="progress">
-                <span>Goal Progress: High → Low</span>
-                <i data-lucide="check" class="sort-check"></i>
-              </button>
-              <button type="button" class="sort-menu-item" data-sort-category="name" data-sort="name">
-                <span>Alphabetical (A → Z)</span>
-                <i data-lucide="check" class="sort-check"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="toolbar-right">
-          <button id="add-item-btn" class="btn-subtle-pill desktop-only">
-            <i data-lucide="plus"></i>
-            <span>New Wish</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Category / Tag Filters -->
-      <div id="tag-filters"></div>
-
-      <!-- Items Container -->
-      <main id="items-container" class="grid-view"></main>
-
-      <!-- Empty State -->
-      <div id="empty-state" class="hidden">
-        <div class="empty-icon-badge">
-          <i data-lucide="inbox"></i>
-        </div>
-        <h2>No Wishes Cataloged Yet</h2>
-        <p>Start curating the items and goals you strive for.</p>
-        <button class="btn-empty-add" id="empty-add-btn">
-          <i data-lucide="plus"></i>
-          <span>Add First Wish</span>
-        </button>
-      </div>
-
-      <!-- Achieved Section -->
-      <section id="achieved-section" class="hidden">
-        <button id="achieved-toggle">
-          <div class="achieved-toggle-left">
-            <i data-lucide="check-square"></i>
-            <span>ACQUIRED / ACHIEVED</span>
-            <span class="achieved-badge mono-badge" id="achieved-count">0</span>
-          </div>
-          <i data-lucide="chevron-down" class="achieved-chevron"></i>
-        </button>
-        <div id="achieved-items" class="grid-view collapsed"></div>
-      </section>
-    </div>
-
-    <!-- Quick Notes View (Direct Item-Focused & Simple Multi-Select Grouping) -->
-    <div id="notes-view" class="hidden">
+    <!-- Main Item List View (Quick Notes) -->
+    <div id="notes-view">
       <div class="notes-summary-bar">
         <div class="stat-card">
           <span class="stat-label">TOTAL ESTIMATED</span>
@@ -296,152 +178,9 @@
 
   <!-- Floating Mobile Action Bar -->
   <div id="mobile-floating-bar" class="mobile-only">
-    <button id="mobile-add-btn" class="floating-primary-btn" title="Add Wish">
+    <button id="mobile-add-btn" class="floating-primary-btn" title="Add Item">
       <i data-lucide="plus"></i>
     </button>
-  </div>
-
-  <!-- Add/Edit Catalog Item Modal -->
-  <div id="item-modal" class="modal-overlay hidden">
-    <div class="modal">
-      <div class="modal-sheet-handle mobile-only"></div>
-      <div class="modal-header">
-        <h2 id="modal-title">Add Wish</h2>
-        <button id="modal-close-btn" class="modal-close" aria-label="Close modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <form id="item-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="item-brand">Brand / Maker <span class="optional">(optional)</span></label>
-            <input type="text" id="item-brand" placeholder="e.g. Teenage Engineering" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="item-name">Item Name <span class="required">*</span></label>
-            <input type="text" id="item-name" required placeholder="e.g. OP-1 Field" autocomplete="off">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group form-group-sm">
-            <label for="item-currency">Currency</label>
-            <select id="item-currency" class="form-select">
-              <option value="IDR">IDR (Rp)</option>
-              <option value="USD">USD ($)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="item-price" id="item-price-label">Target Price <span class="required">*</span></label>
-            <input type="number" id="item-price" required placeholder="0" min="0" step="any">
-          </div>
-          <div class="form-group">
-            <label for="item-saved" id="item-saved-label">Current Savings</label>
-            <input type="number" id="item-saved" placeholder="0" min="0" step="any">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Priority Level</label>
-          <div class="priority-options" id="priority-options">
-            <button type="button" class="priority-btn active" data-priority="1">
-              <span class="priority-badge">P1</span>
-              <span class="priority-label">High Priority</span>
-            </button>
-            <button type="button" class="priority-btn" data-priority="2">
-              <span class="priority-badge">P2</span>
-              <span class="priority-label">Medium</span>
-            </button>
-            <button type="button" class="priority-btn" data-priority="3">
-              <span class="priority-badge">P3</span>
-              <span class="priority-label">Low</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <label style="margin-bottom: 0;">Image Representation <span class="optional">(optional)</span></label>
-            <button type="button" id="catalog-paste-btn" class="btn-paste-chip" title="Paste photo from clipboard">
-              <i data-lucide="clipboard" style="width: 12px; height: 12px;"></i>
-              <span>Paste Photo</span>
-            </button>
-          </div>
-          <input type="url" id="item-image" placeholder="Image URL (https://...)" autocomplete="off">
-          <div class="upload-divider"><span>OR UPLOAD</span></div>
-          <div class="upload-area" id="upload-area">
-            <i data-lucide="arrow-up-circle" class="upload-icon"></i>
-            <span>Select or drop image file</span>
-            <input type="file" id="item-image-upload" accept="image/*">
-          </div>
-          <div id="image-preview" class="hidden">
-            <img id="preview-img" alt="Preview">
-            <button type="button" id="remove-preview" class="btn-icon">
-              <i data-lucide="x"></i>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="item-link">Reference Link <span class="optional">(optional)</span></label>
-          <input type="url" id="item-link" placeholder="https://..." autocomplete="off">
-          <div id="item-link-warning" class="input-warning-hint hidden"></div>
-        </div>
-        <div class="form-group">
-          <label>Tags / Categories <span class="optional">(optional)</span></label>
-          <div class="tag-input-wrapper" id="tag-input-wrapper">
-            <div id="selected-tags"></div>
-            <input type="text" id="item-tags" placeholder="Type tag & press Enter" autocomplete="off">
-          </div>
-          <div id="tag-suggestions" class="hidden"></div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" id="modal-save-btn" class="btn-primary">Save Wish</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Quick Progress Modal -->
-  <div id="progress-modal" class="modal-overlay hidden">
-    <div class="modal modal-sm">
-      <div class="modal-sheet-handle mobile-only"></div>
-      <div class="modal-header">
-        <h2>Update Savings</h2>
-        <button class="modal-close progress-close" aria-label="Close modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <p class="progress-item-name" id="progress-item-name"></p>
-      <div class="progress-modal-bar">
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-modal-fill"></div>
-        </div>
-        <span class="progress-text mono-text" id="progress-modal-text">0%</span>
-      </div>
-      <div class="form-group">
-        <label for="quick-saved">New Savings Amount (IDR)</label>
-        <input type="number" id="quick-saved" min="0" step="1000" placeholder="0">
-      </div>
-      <div class="form-actions">
-        <button type="button" id="quick-save-btn" class="btn-primary">Update Savings</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete Confirmation Modal -->
-  <div id="delete-modal" class="modal-overlay hidden">
-    <div class="modal modal-sm">
-      <div class="modal-sheet-handle mobile-only"></div>
-      <div class="modal-header">
-        <h2>Delete Item</h2>
-        <button type="button" class="modal-close delete-close" aria-label="Close modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p id="delete-message">Are you sure you want to remove this item from your wishlist?</p>
-        <div class="form-actions">
-          <button type="button" id="delete-confirm-btn" class="btn-danger">Delete</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Group / Rename Modal -->
@@ -535,11 +274,7 @@
         </div>
 
         <div class="preview-modal-actions">
-          <button type="button" id="quick-note-preview-convert-btn" class="btn-preview-secondary" title="Transfer to Wishlist Catalog">
-            <i data-lucide="box"></i>
-            <span>Transfer</span>
-          </button>
-          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
+          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" style="width: 100%;" title="Edit this item">
             <i data-lucide="edit-2"></i>
             <span>Edit Item</span>
           </button>
@@ -569,7 +304,10 @@
             <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
           </div>
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
-            <label for="quick-note-group-input">Group <span class="optional">(optional)</span></label>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <label for="quick-note-group-input" style="margin-bottom: 0;">Group <span class="optional">(optional)</span></label>
+              <button type="button" id="quick-note-ungroup-btn" class="btn-text-subtle hidden" style="font-size: 11.5px; color: #DC2626; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline;">Remove from group</button>
+            </div>
             <input type="text" id="quick-note-group-input" placeholder="e.g. Desk Setup" autocomplete="off" list="group-options-list">
           </div>
         </div>
@@ -620,12 +358,6 @@
               <span class="priority-label">Low</span>
             </button>
           </div>
-        </div>
-        <div id="quick-note-convert-container" class="form-group hidden" style="margin-bottom: 16px;">
-          <button type="button" id="quick-note-convert-btn" class="btn-subtle-convert-card" title="Convert item to Wishlist Catalog">
-            <i data-lucide="box"></i>
-            <span>Transfer to Wishlist Catalog</span>
-          </button>
         </div>
         <div class="form-actions" style="display: flex; gap: 10px; align-items: center;">
           <button type="button" id="quick-note-delete-btn" class="btn-danger hidden" style="padding: 10px 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
@@ -711,6 +443,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=182"></script>
+  <script src="app.js?v=183"></script>
 </body>
 </html>
