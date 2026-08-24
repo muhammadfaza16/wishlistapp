@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=181">
+  <link rel="stylesheet" href="styles.css?v=182">
 </head>
 <body>
   <div id="app">
@@ -127,24 +127,20 @@
               <i data-lucide="chevron-down" class="sort-chevron"></i>
             </button>
             <div class="sort-dropdown-menu hidden" id="sort-dropdown-menu">
-              <button type="button" class="sort-menu-item active" data-sort="priority">
+              <button type="button" class="sort-menu-item active" data-sort-category="priority" data-sort="priority">
                 <span>Priority (P1 → P3)</span>
                 <i data-lucide="check" class="sort-check"></i>
               </button>
-              <button type="button" class="sort-menu-item" data-sort="price-desc">
+              <button type="button" class="sort-menu-item" data-sort-category="price" data-sort="price-desc">
                 <span>Price: High → Low</span>
                 <i data-lucide="check" class="sort-check"></i>
               </button>
-              <button type="button" class="sort-menu-item" data-sort="price-asc">
-                <span>Price: Low → High</span>
+              <button type="button" class="sort-menu-item" data-sort-category="progress" data-sort="progress">
+                <span>Goal Progress: High → Low</span>
                 <i data-lucide="check" class="sort-check"></i>
               </button>
-              <button type="button" class="sort-menu-item" data-sort="progress">
-                <span>Goal Progress</span>
-                <i data-lucide="check" class="sort-check"></i>
-              </button>
-              <button type="button" class="sort-menu-item" data-sort="name">
-                <span>Alphabetical</span>
+              <button type="button" class="sort-menu-item" data-sort-category="name" data-sort="name">
+                <span>Alphabetical (A → Z)</span>
                 <i data-lucide="check" class="sort-check"></i>
               </button>
             </div>
@@ -235,20 +231,20 @@
                 <i data-lucide="chevron-down" class="sort-chevron"></i>
               </button>
               <div class="sort-dropdown-menu hidden" id="notes-sort-menu">
-                <button type="button" class="sort-menu-item" data-sort="title">
-                  <span>Title</span>
+                <button type="button" class="sort-menu-item" data-sort-category="title" data-sort="title">
+                  <span>Title (A → Z)</span>
                   <i data-lucide="check" class="sort-check"></i>
                 </button>
-                <button type="button" class="sort-menu-item" data-sort="price">
-                  <span>Price</span>
+                <button type="button" class="sort-menu-item" data-sort-category="price" data-sort="price">
+                  <span>Price: High → Low</span>
                   <i data-lucide="check" class="sort-check"></i>
                 </button>
-                <button type="button" class="sort-menu-item" data-sort="date">
-                  <span>Date</span>
+                <button type="button" class="sort-menu-item" data-sort-category="date" data-sort="date">
+                  <span>Date: Newest First</span>
                   <i data-lucide="check" class="sort-check"></i>
                 </button>
-                <button type="button" class="sort-menu-item" data-sort="priority">
-                  <span>Priority</span>
+                <button type="button" class="sort-menu-item" data-sort-category="priority" data-sort="priority">
+                  <span>Priority: High → Low</span>
                   <i data-lucide="check" class="sort-check"></i>
                 </button>
               </div>
@@ -715,6 +711,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=181"></script>
+  <script src="app.js?v=182"></script>
 </body>
 </html>

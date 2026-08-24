@@ -1576,15 +1576,25 @@ const getSortedItems = (items) => {
   return [...items].sort((a, b) => {
     switch (state.sort) {
       case 'priority':
+      case 'priority-asc':
         return (a.priority || 1) - (b.priority || 1);
+      case 'priority-desc':
+        return (b.priority || 1) - (a.priority || 1);
+      case 'price':
       case 'price-desc':
         return b.price - a.price;
       case 'price-asc':
         return a.price - b.price;
       case 'progress':
+      case 'progress-desc':
         return getProgress(b) - getProgress(a);
+      case 'progress-asc':
+        return getProgress(a) - getProgress(b);
       case 'name':
+      case 'name-asc':
         return a.name.localeCompare(b.name);
+      case 'name-desc':
+        return b.name.localeCompare(a.name);
       default:
         return 0;
     }
@@ -2035,10 +2045,18 @@ const renderNoteItemRow = (item, isGrouped = false) => {
 };
 
 const notesSortLabelsMap = {
-  'title': 'Title',
-  'price': 'Price',
-  'date': 'Date',
-  'priority': 'Priority'
+  'title': 'Title (A → Z)',
+  'title-asc': 'Title (A → Z)',
+  'title-desc': 'Title (Z → A)',
+  'price': 'Price: High → Low',
+  'price-desc': 'Price: High → Low',
+  'price-asc': 'Price: Low → High',
+  'date': 'Date: Newest First',
+  'date-desc': 'Date: Newest First',
+  'date-asc': 'Date: Oldest First',
+  'priority': 'Priority: High → Low',
+  'priority-asc': 'Priority: High → Low',
+  'priority-desc': 'Priority: Low → High'
 };
 
 const updateNotesSortUI = () => {
@@ -2050,7 +2068,25 @@ const updateNotesSortUI = () => {
   const menu = document.getElementById('notes-sort-menu');
   if (menu) {
     menu.querySelectorAll('.sort-menu-item').forEach(item => {
-      if (item.getAttribute('data-sort') === currentSort) {
+      const category = item.getAttribute('data-sort-category') || item.getAttribute('data-sort');
+      const span = item.querySelector('span');
+
+      let isActive = false;
+      if (category === 'title') {
+        isActive = currentSort === 'title' || currentSort === 'title-asc' || currentSort === 'title-desc';
+        if (span) span.textContent = currentSort === 'title-desc' ? 'Title (Z → A)' : 'Title (A → Z)';
+      } else if (category === 'price') {
+        isActive = currentSort === 'price' || currentSort === 'price-desc' || currentSort === 'price-asc';
+        if (span) span.textContent = currentSort === 'price-asc' ? 'Price: Low → High' : 'Price: High → Low';
+      } else if (category === 'date') {
+        isActive = currentSort === 'date' || currentSort === 'date-desc' || currentSort === 'date-asc';
+        if (span) span.textContent = currentSort === 'date-asc' ? 'Date: Oldest First' : 'Date: Newest First';
+      } else if (category === 'priority') {
+        isActive = currentSort === 'priority' || currentSort === 'priority-asc' || currentSort === 'priority-desc';
+        if (span) span.textContent = currentSort === 'priority-desc' ? 'Priority: Low → High' : 'Priority: High → Low';
+      }
+
+      if (isActive) {
         item.classList.add('active');
       } else {
         item.classList.remove('active');
@@ -2064,15 +2100,31 @@ const sortNotesItemsList = (items) => {
   return [...items].sort((a, b) => {
     switch (state.notesSortBy) {
       case 'title':
+      case 'title-asc':
         return (a.title || '').localeCompare(b.title || '');
+      case 'title-desc':
+        return (b.title || '').localeCompare(a.title || '');
       case 'price':
+      case 'price-desc':
         return (b.price || 0) - (a.price || 0);
+      case 'price-asc':
+        return (a.price || 0) - (b.price || 0);
       case 'date':
+      case 'date-desc':
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      case 'priority': {
+      case 'date-asc':
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      case 'priority':
+      case 'priority-asc': {
         const pA = Number(a.priority) || 2;
         const pB = Number(b.priority) || 2;
         if (pA !== pB) return pA - pB;
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      case 'priority-desc': {
+        const pA = Number(a.priority) || 2;
+        const pB = Number(b.priority) || 2;
+        if (pA !== pB) return pB - pA;
         return (a.title || '').localeCompare(b.title || '');
       }
       default:
@@ -2317,23 +2369,51 @@ const updatePriorityUI = () => {
 };
 
 const sortLabelsMap = {
-  'priority': 'Sort: Priority',
+  'priority': 'Priority: High → Low',
+  'priority-asc': 'Priority: High → Low',
+  'priority-desc': 'Priority: Low → High',
+  'price': 'Price: High → Low',
   'price-desc': 'Price: High → Low',
   'price-asc': 'Price: Low → High',
-  'progress': 'Goal Progress',
-  'name': 'Alphabetical'
+  'progress': 'Goal Progress: High → Low',
+  'progress-desc': 'Goal Progress: High → Low',
+  'progress-asc': 'Goal Progress: Low → High',
+  'name': 'Name (A → Z)',
+  'name-asc': 'Name (A → Z)',
+  'name-desc': 'Name (Z → A)'
 };
 
 const updateSortUI = () => {
   const sortLabel = document.getElementById('sort-current-label');
-  if (sortLabel) sortLabel.textContent = sortLabelsMap[state.sort] || 'Sort: Priority';
-  document.querySelectorAll('.sort-menu-item').forEach(item => {
-    if (item.getAttribute('data-sort') === state.sort) {
-      item.classList.add('active');
-    } else {
-      item.classList.remove('active');
-    }
-  });
+  if (sortLabel) sortLabel.textContent = sortLabelsMap[state.sort] || 'Priority: High → Low';
+  const sortMenu = document.getElementById('sort-dropdown-menu');
+  if (sortMenu) {
+    sortMenu.querySelectorAll('.sort-menu-item').forEach(item => {
+      const category = item.getAttribute('data-sort-category') || item.getAttribute('data-sort');
+      const span = item.querySelector('span');
+
+      let isActive = false;
+      if (category === 'priority') {
+        isActive = state.sort === 'priority' || state.sort === 'priority-asc' || state.sort === 'priority-desc';
+        if (span) span.textContent = state.sort === 'priority-desc' ? 'Priority (P3 → P1)' : 'Priority (P1 → P3)';
+      } else if (category === 'price') {
+        isActive = state.sort === 'price' || state.sort === 'price-desc' || state.sort === 'price-asc';
+        if (span) span.textContent = state.sort === 'price-asc' ? 'Price: Low → High' : 'Price: High → Low';
+      } else if (category === 'progress') {
+        isActive = state.sort === 'progress' || state.sort === 'progress-desc' || state.sort === 'progress-asc';
+        if (span) span.textContent = state.sort === 'progress-asc' ? 'Goal Progress: Low → High' : 'Goal Progress: High → Low';
+      } else if (category === 'name') {
+        isActive = state.sort === 'name' || state.sort === 'name-asc' || state.sort === 'name-desc';
+        if (span) span.textContent = state.sort === 'name-desc' ? 'Alphabetical (Z → A)' : 'Alphabetical (A → Z)';
+      }
+
+      if (isActive) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
 };
 
 const updateCurrencyUI = () => {
@@ -2554,9 +2634,23 @@ const initEventHandlers = () => {
     notesSortMenu.addEventListener('click', (e) => {
       const item = e.target.closest('.sort-menu-item');
       if (item) {
-        const val = item.getAttribute('data-sort');
-        if (val) {
-          state.notesSortBy = val;
+        const category = item.getAttribute('data-sort-category') || item.getAttribute('data-sort');
+        if (category) {
+          const current = state.notesSortBy || '';
+          let nextSort = category;
+
+          if (category === 'title') {
+            nextSort = (current === 'title-asc' || current === 'title') ? 'title-desc' : 'title-asc';
+          } else if (category === 'price') {
+            nextSort = (current === 'price-desc' || current === 'price') ? 'price-asc' : 'price-desc';
+          } else if (category === 'date') {
+            nextSort = (current === 'date-desc' || current === 'date') ? 'date-asc' : 'date-desc';
+          } else if (category === 'priority') {
+            nextSort = (current === 'priority-asc' || current === 'priority') ? 'priority-desc' : 'priority-asc';
+          }
+
+          state.notesSortBy = nextSort;
+          updateNotesSortUI();
           savePreferences();
           renderQuickNotesManageList();
         }
@@ -3270,9 +3364,22 @@ const initEventHandlers = () => {
     sortMenu.addEventListener('click', (e) => {
       const item = e.target.closest('.sort-menu-item');
       if (item) {
-        const val = item.getAttribute('data-sort');
-        if (val) {
-          state.sort = val;
+        const category = item.getAttribute('data-sort-category') || item.getAttribute('data-sort');
+        if (category) {
+          const current = state.sort || 'priority';
+          let nextSort = category;
+
+          if (category === 'priority') {
+            nextSort = (current === 'priority' || current === 'priority-asc') ? 'priority-desc' : 'priority-asc';
+          } else if (category === 'price' || category === 'price-desc' || category === 'price-asc') {
+            nextSort = current === 'price-desc' ? 'price-asc' : 'price-desc';
+          } else if (category === 'progress') {
+            nextSort = (current === 'progress' || current === 'progress-desc') ? 'progress-asc' : 'progress-desc';
+          } else if (category === 'name') {
+            nextSort = (current === 'name' || current === 'name-asc') ? 'name-desc' : 'name-asc';
+          }
+
+          state.sort = nextSort;
           updateSortUI();
           savePreferences();
           render();
