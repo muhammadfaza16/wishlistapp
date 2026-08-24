@@ -846,6 +846,12 @@ const syncDataToBackend = async () => {
   if (!sb || !state.currentUser || state.currentUser.isGuest) return false;
 
   try {
+    // Refresh session if needed so access token is active
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData || !sessionData.session) {
+      await sb.auth.refreshSession();
+    }
+
     const cleanItems = (state.notesItems || []).map(item => ({
       id: String(item.id),
       title: String(item.title || 'Untitled'),
@@ -862,7 +868,7 @@ const syncDataToBackend = async () => {
 
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
-    const { error } = await sb.auth.updateUser({
+    const { data: updateRes, error } = await sb.auth.updateUser({
       data: {
         wishlist_items: cleanItems,
         deleted_item_ids: deletedArr,
@@ -877,7 +883,7 @@ const syncDataToBackend = async () => {
     });
 
     if (error) {
-      console.warn('Supabase updateUser sync warning:', error.message);
+      console.warn('Supabase updateUser sync error:', error.message);
       return false;
     }
 
@@ -894,27 +900,30 @@ const syncDataToBackend = async () => {
 const syncDataFromBackend = async (showFeedback = false) => {
   const sb = getSupabase();
   if (!sb || !state.currentUser || state.currentUser.isGuest) {
-    if (showFeedback) showToast('Please sign in to sync cloud data');
+    if (showFeedback) showToast('Please Sign In to sync cloud data');
     return false;
   }
 
   try {
+    // Force refresh session to guarantee freshest JWT and metadata from Supabase
     let user = null;
     try {
-      const { data, error } = await sb.auth.getUser();
-      if (!error && data && data.user) {
-        user = data.user;
+      const { data: refreshData } = await sb.auth.refreshSession();
+      if (refreshData && refreshData.user) {
+        user = refreshData.user;
       }
     } catch (e) {}
 
     if (!user) {
-      const { data: refreshData } = await sb.auth.refreshSession();
-      if (refreshData && refreshData.user) {
-        user = refreshData.user;
-      } else {
-        if (showFeedback) showToast('Session expired. Please sign in again.');
-        return false;
+      const { data: userData } = await sb.auth.getUser();
+      if (userData && userData.user) {
+        user = userData.user;
       }
+    }
+
+    if (!user) {
+      if (showFeedback) showToast('Session expired. Please Sign In again.');
+      return false;
     }
 
     const userId = state.currentUser.id;
@@ -958,7 +967,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
 
     const count = (state.notesItems || []).length;
     if (showFeedback) {
-      showToast(`Cloud data synced (${count} items)!`);
+      showToast(`Cloud synced: ${count} items loaded!`);
     }
     return true;
   } catch (err) {
@@ -2748,7 +2757,14 @@ const initEventHandlers = () => {
 
       // If logged in, push immediately to Supabase Cloud
       if (state.currentUser && !state.currentUser.isGuest) {
-        await syncDataToBackend();
+        const synced = await syncDataToBackend();
+        if (synced) {
+          showToast(`Imported ${validItems.length} items & synced to Cloud!`);
+        } else {
+          showToast(`Imported ${validItems.length} items locally (Cloud push failed, try Sync Cloud Now)`);
+        }
+      } else {
+        showToast(`Imported ${validItems.length} items locally (Please Sign In to sync to other devices)`);
       }
 
       render();
@@ -2756,8 +2772,6 @@ const initEventHandlers = () => {
       updateUserProfileUI();
       updateSortUI();
       updateCurrencyUI();
-
-      showToast(`Successfully imported ${validItems.length} items!`);
 
       const userProfileDropdown = document.getElementById('user-profile-dropdown');
       const userProfileWrapper = document.getElementById('user-profile-wrapper');
