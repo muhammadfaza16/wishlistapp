@@ -1292,51 +1292,7 @@ input, button, select, textarea {
   color: #DC2626;
 }
 
-/* Drag & Drop Reordering in Edit Mode */
-.quick-note-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 24px;
-  color: #A1A1AA;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  flex-shrink: 0;
-  border-radius: 5px;
-  border: 1px solid transparent;
-  transition: all var(--transition-fast);
-  padding: 0;
-}
 
-.quick-note-drag-handle:hover {
-  color: #09090B;
-  background: #F4F4F6;
-  border-color: #E5E5EA;
-}
-
-.quick-note-drag-handle:active {
-  cursor: grabbing;
-}
-
-.quick-note-drag-handle svg {
-  width: 13px;
-  height: 13px;
-}
-
-.quick-note-row.is-dragging {
-  opacity: 0.35;
-  background: #F4F4F6 !important;
-}
-
-.quick-note-row.drag-over-top {
-  border-top: 2px solid #09090B !important;
-}
-
-.quick-note-row.drag-over-bottom {
-  border-bottom: 2px solid #09090B !important;
-}
 
 /* Quick Notes Grouping & Accordion Dropdown Styles */
 .notes-header-left-btns {

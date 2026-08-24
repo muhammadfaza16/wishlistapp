@@ -1999,7 +1999,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
     : '';
 
   return `
-    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" draggable="true">
+    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
       <div class="quick-note-left">
         <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
         <span class="quick-note-title">${item.title}</span>
@@ -2011,9 +2011,6 @@ const renderNoteItemRow = (item, isGrouped = false) => {
             <i data-lucide="edit-2"></i>
           </button>
           ${ungroupBtn}
-          <span class="btn-icon-subtle quick-note-drag-handle" draggable="true" title="Drag to reorder" aria-label="Drag to reorder">
-            <i data-lucide="grip-vertical"></i>
-          </span>
         </div>
       </div>
     </div>
@@ -3203,175 +3200,6 @@ const initEventHandlers = () => {
       }
     });
 
-    // Reorder Notes Helper
-    const reorderNotes = (srcId, tgtId, isTop) => {
-      if (!srcId || !tgtId || srcId === tgtId) return;
-      const srcIdx = state.notesItems.findIndex(i => i.id === srcId);
-      const tgtIdx = state.notesItems.findIndex(i => i.id === tgtId);
-
-      if (srcIdx !== -1 && tgtIdx !== -1) {
-        const targetItem = state.notesItems[tgtIdx];
-        const [draggedItem] = state.notesItems.splice(srcIdx, 1);
-        draggedItem.group = targetItem.group || null;
-
-        const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
-        const insertIdx = isTop ? newTgtIdx : newTgtIdx + 1;
-        state.notesItems.splice(insertIdx, 0, draggedItem);
-
-        state.notesSortBy = null;
-        savePreferences();
-        saveNotes();
-        renderQuickNotesManageList();
-        calculateNotesAccumulator();
-      }
-    };
-
-    // HTML5 Drag & Drop Reordering in Edit Mode
-    let draggedNoteId = null;
-
-    quickNotesManageList.addEventListener('dragstart', (e) => {
-      if (state.notesViewMode !== 'edit' || state.isSelectionMode) {
-        e.preventDefault();
-        return;
-      }
-      if (e.target.closest('input') || e.target.closest('button')) {
-        e.preventDefault();
-        return;
-      }
-      const row = e.target.closest('.quick-note-row');
-      if (!row) {
-        e.preventDefault();
-        return;
-      }
-
-      draggedNoteId = row.getAttribute('data-id');
-      if (!draggedNoteId) {
-        e.preventDefault();
-        return;
-      }
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', draggedNoteId);
-      setTimeout(() => {
-        if (row) row.classList.add('is-dragging');
-      }, 0);
-    });
-
-    quickNotesManageList.addEventListener('dragover', (e) => {
-      if (!draggedNoteId || state.notesViewMode !== 'edit' || state.isSelectionMode) return;
-      const targetRow = e.target.closest('.quick-note-row');
-      if (!targetRow || targetRow.getAttribute('data-id') === draggedNoteId) {
-        return;
-      }
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-
-      const rect = targetRow.getBoundingClientRect();
-      const isTop = (e.clientY - rect.top) < rect.height / 2;
-
-      quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
-        if (el !== targetRow) el.classList.remove('drag-over-top', 'drag-over-bottom');
-      });
-
-      if (isTop) {
-        targetRow.classList.add('drag-over-top');
-        targetRow.classList.remove('drag-over-bottom');
-      } else {
-        targetRow.classList.add('drag-over-bottom');
-        targetRow.classList.remove('drag-over-top');
-      }
-    });
-
-    quickNotesManageList.addEventListener('dragleave', (e) => {
-      const targetRow = e.target.closest('.quick-note-row');
-      if (targetRow && !targetRow.contains(e.relatedTarget)) {
-        targetRow.classList.remove('drag-over-top', 'drag-over-bottom');
-      }
-    });
-
-    quickNotesManageList.addEventListener('drop', (e) => {
-      if (!draggedNoteId || state.notesViewMode !== 'edit' || state.isSelectionMode) return;
-      e.preventDefault();
-
-      const targetRow = e.target.closest('.quick-note-row');
-      if (targetRow) {
-        const targetId = targetRow.getAttribute('data-id');
-        if (targetId && targetId !== draggedNoteId) {
-          const rect = targetRow.getBoundingClientRect();
-          const isTop = (e.clientY - rect.top) < rect.height / 2;
-          reorderNotes(draggedNoteId, targetId, isTop);
-        }
-      }
-
-      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
-        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
-      });
-      draggedNoteId = null;
-    });
-
-    quickNotesManageList.addEventListener('dragend', () => {
-      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
-        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
-      });
-      draggedNoteId = null;
-    });
-
-    // Touch Drag & Drop Reordering for Mobile Devices
-    let touchDragRow = null;
-    let touchDropTarget = null;
-    let touchDropIsTop = true;
-
-    quickNotesManageList.addEventListener('touchstart', (e) => {
-      if (state.notesViewMode !== 'edit' || state.isSelectionMode) return;
-      const handle = e.target.closest('.quick-note-drag-handle');
-      if (!handle) return;
-
-      touchDragRow = handle.closest('.quick-note-row');
-      if (touchDragRow) {
-        touchDragRow.classList.add('is-dragging');
-      }
-    }, { passive: true });
-
-    quickNotesManageList.addEventListener('touchmove', (e) => {
-      if (!touchDragRow) return;
-      if (e.cancelable) e.preventDefault();
-      
-      touchDragRow.style.pointerEvents = 'none';
-      const touch = e.touches[0];
-      const element = document.elementFromPoint(touch.clientX, touch.clientY);
-      touchDragRow.style.pointerEvents = '';
-
-      const targetRow = element ? element.closest('.quick-note-row') : null;
-
-      quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
-        if (el !== targetRow) el.classList.remove('drag-over-top', 'drag-over-bottom');
-      });
-
-      if (targetRow && targetRow !== touchDragRow) {
-        touchDropTarget = targetRow;
-        const rect = targetRow.getBoundingClientRect();
-        touchDropIsTop = (touch.clientY - rect.top) < rect.height / 2;
-        targetRow.classList.add(touchDropIsTop ? 'drag-over-top' : 'drag-over-bottom');
-      } else {
-        touchDropTarget = null;
-      }
-    }, { passive: false });
-
-    quickNotesManageList.addEventListener('touchend', () => {
-      if (!touchDragRow) return;
-
-      if (touchDropTarget && touchDropTarget !== touchDragRow) {
-        const srcId = touchDragRow.getAttribute('data-id');
-        const tgtId = touchDropTarget.getAttribute('data-id');
-        reorderNotes(srcId, tgtId, touchDropIsTop);
-      }
-
-      quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
-        el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
-      });
-      if (touchDragRow) touchDragRow.style.pointerEvents = '';
-      touchDragRow = null;
-      touchDropTarget = null;
-    });
   }
 
   // Raw Notepad Input
