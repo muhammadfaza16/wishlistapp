@@ -1381,15 +1381,101 @@ input, button, select, textarea {
   position: relative;
 }
 
+.notes-sort-trigger {
+  height: 29px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #18181B;
+  background: #FFFFFF;
+  border: 1px solid #E4E4E7;
+  border-radius: 7px;
+  padding: 0 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 140ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+
+.notes-sort-trigger:hover {
+  background: #F4F4F6;
+  border-color: #D4D4D8;
+  color: #09090B;
+}
+
+.notes-sort-trigger:active {
+  transform: scale(0.96);
+}
+
+.notes-sort-dropdown.open .notes-sort-trigger {
+  border-color: #18181B;
+  background: #FAFAFA;
+}
+
 .notes-sort-dropdown.open .sort-chevron {
   transform: rotate(180deg);
 }
 
 .notes-sort-dropdown .sort-dropdown-menu {
-  width: 195px;
+  position: absolute;
   top: calc(100% + 4px);
   right: 0;
+  left: auto;
+  width: 136px;
+  background: #FFFFFF;
+  border: 1px solid #E4E4E7;
+  border-radius: 9px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  padding: 4px;
   z-index: 600;
+  animation: modalSlideIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notes-sort-dropdown .sort-menu-item {
+  width: 100%;
+  height: 29px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: #3F3F46;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  transition: all 120ms ease;
+}
+
+.notes-sort-dropdown .sort-menu-item:hover {
+  background: #F4F4F6;
+  color: #18181B;
+}
+
+.notes-sort-dropdown .sort-menu-item.active {
+  background: #F4F4F5;
+  color: #18181B;
+  font-weight: 600;
+}
+
+.notes-sort-dropdown .sort-menu-item .sort-check {
+  width: 12px;
+  height: 12px;
+  color: #18181B;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.notes-sort-dropdown .sort-menu-item.active .sort-check {
+  opacity: 1;
 }
 
 .btn-clean-action {

@@ -2047,18 +2047,18 @@ const renderNoteItemRow = (item, isGrouped = false) => {
 };
 
 const notesSortLabelsMap = {
-  'title': 'Title (A → Z)',
-  'title-asc': 'Title (A → Z)',
-  'title-desc': 'Title (Z → A)',
-  'price': 'Price: High → Low',
-  'price-desc': 'Price: High → Low',
-  'price-asc': 'Price: Low → High',
-  'date': 'Date: Newest First',
-  'date-desc': 'Date: Newest First',
-  'date-asc': 'Date: Oldest First',
-  'priority': 'Priority: High → Low',
-  'priority-asc': 'Priority: High → Low',
-  'priority-desc': 'Priority: Low → High'
+  'title': 'Title',
+  'title-asc': 'Title',
+  'title-desc': 'Title',
+  'price': 'Price',
+  'price-desc': 'Price',
+  'price-asc': 'Price',
+  'date': 'Date',
+  'date-desc': 'Date',
+  'date-asc': 'Date',
+  'priority': 'Priority',
+  'priority-asc': 'Priority',
+  'priority-desc': 'Priority'
 };
 
 const updateNotesSortUI = () => {
@@ -2076,16 +2076,16 @@ const updateNotesSortUI = () => {
       let isActive = false;
       if (category === 'title') {
         isActive = currentSort === 'title' || currentSort === 'title-asc' || currentSort === 'title-desc';
-        if (span) span.textContent = currentSort === 'title-desc' ? 'Title (Z → A)' : 'Title (A → Z)';
+        if (span) span.textContent = 'Title';
       } else if (category === 'price') {
         isActive = currentSort === 'price' || currentSort === 'price-desc' || currentSort === 'price-asc';
-        if (span) span.textContent = currentSort === 'price-asc' ? 'Price: Low → High' : 'Price: High → Low';
+        if (span) span.textContent = 'Price';
       } else if (category === 'date') {
         isActive = currentSort === 'date' || currentSort === 'date-desc' || currentSort === 'date-asc';
-        if (span) span.textContent = currentSort === 'date-asc' ? 'Date: Oldest First' : 'Date: Newest First';
+        if (span) span.textContent = 'Date';
       } else if (category === 'priority') {
         isActive = currentSort === 'priority' || currentSort === 'priority-asc' || currentSort === 'priority-desc';
-        if (span) span.textContent = currentSort === 'priority-desc' ? 'Priority: Low → High' : 'Priority: High → Low';
+        if (span) span.textContent = 'Priority';
       }
 
       if (isActive) {
