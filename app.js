@@ -915,15 +915,18 @@ const syncDataFromBackend = async (showFeedback = false) => {
     if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
     cloudDeleted.forEach(id => state.deletedNoteIds.add(String(id)));
 
-    // Smart merge local and cloud items (union + conflict resolution)
-    const mergedItems = mergeWishlistItems(state.notesItems || [], cloudItems, state.deletedNoteIds);
-    state.notesItems = mergedItems;
-    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+    // Filter out dummy sample items from local state
+    const localRealItems = (state.notesItems || []).filter(item => item && !['note-1', 'note-2', 'note-3'].includes(item.id));
 
-    // If local added new items or merged differences, push back merged list to cloud
-    if (mergedItems.length !== cloudItems.length) {
+    if (cloudItems.length > 0) {
+      const mergedItems = mergeWishlistItems(localRealItems, cloudItems, state.deletedNoteIds);
+      state.notesItems = mergedItems;
+    } else if (localRealItems.length > 0) {
+      state.notesItems = localRealItems;
       await syncDataToBackend();
     }
+
+    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
 
     if (typeof metadata.raw_notepad === 'string') {
       state.rawNotepadText = metadata.raw_notepad;
@@ -2714,8 +2717,14 @@ const initEventHandlers = () => {
         checked: !!(item.checked || item.achieved),
         link: item.link || null,
         imageData: item.imageData || item.imageUrl || null,
-        createdAt: item.createdAt || new Date().toISOString()
+        createdAt: item.createdAt || new Date().toISOString(),
+        updatedAt: item.updatedAt || new Date().toISOString()
       })).filter(i => i.title.length > 0);
+
+      // Un-delete any imported IDs from deletion tracker
+      if (state.deletedNoteIds instanceof Set) {
+        validItems.forEach(item => state.deletedNoteIds.delete(String(item.id)));
+      }
 
       state.notesItems = validItems;
       state.items = validItems;
