@@ -981,6 +981,36 @@ const syncDataToBackend = async () => {
 
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
+    // 1. If public.wishlist_items PostgreSQL table exists, sync rows directly to table
+    try {
+      const tableRows = cleanItems.map(item => ({
+        id: String(item.id),
+        user_id: state.currentUser.id,
+        title: String(item.title || 'Untitled'),
+        price: Number(item.price) || 0,
+        currency: item.currency || state.currency || 'IDR',
+        group: item.group || null,
+        priority: Number(item.priority) || 2,
+        checked: !!item.checked,
+        link: item.link || null,
+        image_data: item.imageData || null,
+        created_at: item.createdAt || new Date().toISOString(),
+        updated_at: item.updatedAt || new Date().toISOString()
+      }));
+
+      if (tableRows.length > 0) {
+        const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows);
+        if (upsertErr) console.warn('Supabase table upsert note:', upsertErr.message);
+      }
+
+      if (deletedArr.length > 0) {
+        await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', state.currentUser.id);
+      }
+    } catch (tblErr) {
+      console.warn('Table sync fallback:', tblErr.message);
+    }
+
+    // 2. Also keep Auth user_metadata synchronized as reliable redundancy
     const { data: updateRes, error } = await sb.auth.updateUser({
       data: {
         wishlist_items: cleanItems,
@@ -1008,7 +1038,6 @@ const syncDataToBackend = async () => {
       });
       if (retryErr) {
         console.warn('Supabase fallback retry error:', retryErr.message);
-        return { success: false, error: retryErr.message || error.message };
       }
     }
 
@@ -1052,9 +1081,43 @@ const syncDataFromBackend = async (showFeedback = false) => {
     }
 
     const userId = state.currentUser.id;
+    let cloudItems = [];
+    let cloudDeleted = [];
+    let fromTable = false;
+
+    // 1. Try pulling directly from PostgreSQL wishlist_items table
+    try {
+      const { data: tableData, error: tableErr } = await sb
+        .from('wishlist_items')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
+        cloudItems = tableData.map(row => ({
+          id: String(row.id),
+          title: String(row.title || 'Untitled'),
+          price: Number(row.price) || 0,
+          currency: row.currency || state.currency || 'IDR',
+          group: row.group || null,
+          priority: Number(row.priority) || 2,
+          checked: !!row.checked,
+          link: row.link || null,
+          imageData: row.image_data || row.imageData || null,
+          createdAt: row.created_at || row.createdAt,
+          updatedAt: row.updated_at || row.updatedAt
+        }));
+        fromTable = true;
+      }
+    } catch (tblReadErr) {
+      console.warn('Table read note:', tblReadErr.message);
+    }
+
+    // 2. Fallback to user_metadata if table was empty or not created yet
     const metadata = (user && user.user_metadata) ? user.user_metadata : {};
-    const cloudItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
-    const cloudDeleted = Array.isArray(metadata.deleted_item_ids) ? metadata.deleted_item_ids : [];
+    if (!fromTable) {
+      cloudItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
+    }
+    cloudDeleted = Array.isArray(metadata.deleted_item_ids) ? metadata.deleted_item_ids : [];
 
     // Track cloud deleted IDs in local Set
     if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
