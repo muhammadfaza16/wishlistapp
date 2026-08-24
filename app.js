@@ -2433,7 +2433,7 @@ const initEventHandlers = () => {
       };
 
       const dataStr = JSON.stringify(exportPayload, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
+      const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
 
       const now = new Date();
@@ -2460,44 +2460,136 @@ const initEventHandlers = () => {
     }
   };
 
+  const readFileContent = (file) => {
+    return new Promise((resolve, reject) => {
+      if (typeof file.text === 'function') {
+        file.text().then(resolve).catch(() => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsText(file, 'utf-8');
+        });
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsText(file, 'utf-8');
+      }
+    });
+  };
+
   const importWishlistData = async (file) => {
     if (!file) return;
 
     try {
-      const text = await file.text();
-      let parsed = JSON.parse(text);
+      const rawText = await readFileContent(file);
+      // Remove UTF-8 BOM, zero-width spaces, and trim
+      const cleanText = (rawText || '').replace(/^\uFEFF/, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+
+      if (!cleanText) {
+        showToast('Uploaded file is empty');
+        return;
+      }
+
+      let parsed = null;
+      // 1. Try standard JSON parse
+      try {
+        parsed = JSON.parse(cleanText);
+      } catch (e) {
+        // Try fixing common trailing comma JSON errors
+        try {
+          const fixedJson = cleanText.replace(/,\s*([\]}])/g, '$1');
+          parsed = JSON.parse(fixedJson);
+        } catch (e2) {
+          parsed = null;
+        }
+      }
 
       let incomingItems = [];
       let incomingNotepad = '';
       let incomingPrefs = null;
 
-      if (Array.isArray(parsed)) {
-        incomingItems = parsed;
-      } else if (parsed && typeof parsed === 'object') {
-        if (parsed.data && Array.isArray(parsed.data.notesItems)) {
-          incomingItems = parsed.data.notesItems;
-          incomingNotepad = parsed.data.rawNotepadText || '';
-          incomingPrefs = parsed.data.preferences || null;
-        } else if (Array.isArray(parsed.notesItems)) {
-          incomingItems = parsed.notesItems;
-          incomingNotepad = parsed.rawNotepadText || '';
-          incomingPrefs = parsed.preferences || null;
-        } else if (Array.isArray(parsed.items)) {
-          incomingItems = parsed.items;
+      if (parsed) {
+        if (Array.isArray(parsed)) {
+          incomingItems = parsed;
+        } else if (typeof parsed === 'object') {
+          if (parsed.data && Array.isArray(parsed.data.notesItems)) {
+            incomingItems = parsed.data.notesItems;
+            incomingNotepad = parsed.data.rawNotepadText || '';
+            incomingPrefs = parsed.data.preferences || null;
+          } else if (Array.isArray(parsed.notesItems)) {
+            incomingItems = parsed.notesItems;
+            incomingNotepad = parsed.rawNotepadText || '';
+            incomingPrefs = parsed.preferences || null;
+          } else if (Array.isArray(parsed.items)) {
+            incomingItems = parsed.items;
+          } else if (Array.isArray(parsed.wishlist_items)) {
+            incomingItems = parsed.wishlist_items;
+          } else if (parsed.data && Array.isArray(parsed.data)) {
+            incomingItems = parsed.data;
+          }
+        }
+      }
+
+      // 2. Fallback: Parse line-by-line plain text / notepad if JSON extraction was empty
+      if (!Array.isArray(incomingItems) || incomingItems.length === 0) {
+        const lines = cleanText.split(/\r?\n/);
+        const extractedItems = [];
+
+        lines.forEach((line, idx) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+
+          const isChecked = /\[x\]/i.test(trimmed);
+          const cleanLine = trimmed.replace(/\[x\]/gi, '').replace(/^[•\-\*]\s*/, '').trim();
+
+          const match = cleanLine.match(/^(.*?)(?:\s*[-–—:|]\s*|\s+)([0-9.,]+(?:k|rb|jt|m|b)?)$/i);
+          if (match) {
+            let rawNum = match[2].toLowerCase();
+            let mult = 1;
+            if (rawNum.endsWith('k') || rawNum.endsWith('rb')) { mult = 1000; rawNum = rawNum.replace(/(k|rb)$/, ''); }
+            else if (rawNum.endsWith('jt') || rawNum.endsWith('m')) { mult = 1000000; rawNum = rawNum.replace(/(jt|m)$/, ''); }
+            else if (rawNum.endsWith('b')) { mult = 1000000000; rawNum = rawNum.replace(/b$/, ''); }
+            const numVal = parseFloat(rawNum.replace(/[^\d.]/g, '')) * mult || 0;
+
+            extractedItems.push({
+              id: `imported_${Date.now()}_${idx}`,
+              title: match[1].trim() || 'Imported Item',
+              price: numVal,
+              currency: state.currency || 'IDR',
+              checked: isChecked,
+              group: null,
+              priority: 2
+            });
+          } else if (cleanLine.length > 0) {
+            extractedItems.push({
+              id: `imported_${Date.now()}_${idx}`,
+              title: cleanLine,
+              price: 0,
+              currency: state.currency || 'IDR',
+              checked: isChecked,
+              group: null,
+              priority: 2
+            });
+          }
+        });
+
+        if (extractedItems.length > 0) {
+          incomingItems = extractedItems;
         }
       }
 
       if (!Array.isArray(incomingItems) || incomingItems.length === 0) {
-        showToast('No valid items found in JSON file');
+        showToast('No valid items could be found in the file');
         return;
       }
 
       const validItems = incomingItems.map((item, idx) => ({
-        id: item.id || `item_${Date.now()}_${idx}`,
-        title: (item.title || item.name || 'Untitled Item').trim(),
-        price: Number(item.price) || 0,
+        id: String(item.id || `item_${Date.now()}_${idx}`),
+        title: String(item.title || item.name || 'Untitled Item').trim(),
+        price: Math.max(0, Number(item.price) || 0),
         currency: item.currency || state.currency || 'IDR',
-        group: item.group || null,
+        group: (item.group && typeof item.group === 'string' && item.group.trim()) ? item.group.trim() : null,
         priority: Number(item.priority) || 2,
         checked: !!item.checked,
         link: item.link || null,
@@ -2526,7 +2618,7 @@ const initEventHandlers = () => {
       if (userProfileWrapper) userProfileWrapper.classList.remove('open');
     } catch (err) {
       console.error('Import failed:', err);
-      showToast('Failed to parse JSON file');
+      showToast('Failed to import file: ' + err.message);
     }
   };
 
