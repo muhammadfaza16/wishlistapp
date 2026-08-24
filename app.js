@@ -726,114 +726,138 @@ const loadScopedData = () => {
   if (!Array.isArray(state.filters)) state.filters = [];
 };
 
+// Supabase Cloud Configuration
+const SUPABASE_URL = 'https://rdsueqccskkhjnbbmpjm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_z1xg-Bwxosn3rdzcFqwASw_S9Hr3Vuk';
+
+let supabaseClient = null;
+const getSupabase = () => {
+  if (!supabaseClient && typeof window !== 'undefined' && window.supabase && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+  }
+  return supabaseClient;
+};
+
 let syncDebounceTimer = null;
 
 const triggerSyncToBackend = () => {
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
     syncDataToBackend();
-  }, 600);
+  }, 500);
 };
 
 const syncDataToBackend = async () => {
-  const token = getAuthToken();
-  if (!token || !state.currentUser || state.currentUser.isGuest) return;
+  const sb = getSupabase();
+  if (!sb || !state.currentUser || state.currentUser.isGuest) return;
 
   try {
-    const payload = {
-      items: state.items,
-      notes: state.notesItems,
-      notepadText: state.rawNotepadText,
-      preferences: {
-        view: state.view,
-        sort: state.sort,
-        currency: state.currency,
-        activeTab: state.activeTab,
-        notesMode: state.notesMode,
-        notesViewMode: state.notesViewMode || 'view',
-        notesSortBy: state.notesSortBy || null
+    // 1. Update user metadata for instant, reliable multi-device cloud persistence
+    await sb.auth.updateUser({
+      data: {
+        wishlist_items: state.notesItems || [],
+        raw_notepad: state.rawNotepadText || "",
+        preferences: {
+          currency: state.currency,
+          notesSortBy: state.notesSortBy,
+          notesMode: state.notesMode,
+          view: state.view
+        }
       }
-    };
-
-    await fetch('/api/user/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
     });
+
+    // 2. Also try upserting to relational table if created
+    try {
+      if (Array.isArray(state.notesItems) && state.notesItems.length > 0) {
+        const rows = state.notesItems.map(item => ({
+          id: item.id,
+          user_id: state.currentUser.id,
+          title: item.title,
+          price: item.price || 0,
+          currency: item.currency || state.currency,
+          group: item.group || null,
+          priority: Number(item.priority) || 2,
+          checked: !!item.checked,
+          link: item.link || null,
+          image_data: item.imageData || item.imageUrl || null,
+          updated_at: new Date().toISOString()
+        }));
+        await sb.from('wishlist_items').upsert(rows, { onConflict: 'id' });
+      }
+    } catch (e) {
+      // Relational table optional
+    }
   } catch (err) {
-    console.warn('Backend sync failed:', err.message);
+    console.warn('Cloud sync error:', err.message);
   }
 };
 
 const syncDataFromBackend = async () => {
-  const token = getAuthToken();
-  if (!token || !state.currentUser || state.currentUser.isGuest) return;
+  const sb = getSupabase();
+  if (!sb || !state.currentUser || state.currentUser.isGuest) return;
 
   try {
-    const res = await fetch('/api/user/sync', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    const { data: { user }, error } = await sb.auth.getUser();
+    if (error || !user) return;
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        setAuthToken(null);
-      }
-      return;
-    }
+    const userId = state.currentUser.id;
+    const metadata = user.user_metadata || {};
 
-    let json = null;
+    let cloudItems = null;
+
+    // Check wishlist_items table first if available
     try {
-      json = await res.json();
-    } catch (e) {
-      json = null;
+      const { data: tableData, error: tableErr } = await sb.from('wishlist_items').select('*').eq('user_id', userId);
+      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
+        cloudItems = tableData.map(row => ({
+          id: row.id,
+          title: row.title,
+          price: row.price,
+          currency: row.currency || state.currency,
+          group: row.group,
+          priority: row.priority,
+          checked: row.checked,
+          link: row.link,
+          imageData: row.image_data,
+          createdAt: row.created_at
+        }));
+      }
+    } catch (e) {}
+
+    // Fallback to user_metadata
+    if (!cloudItems && Array.isArray(metadata.wishlist_items)) {
+      cloudItems = metadata.wishlist_items;
     }
-    if (json && json.success && json.data) {
-      const d = json.data;
-      const userId = state.currentUser.id;
 
-      // If server has items, load them
-      if (Array.isArray(d.items)) {
-        state.items = d.items;
-        localStorage.setItem(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
-      }
-
-      // If server has notes, load them
-      if (Array.isArray(d.notes)) {
-        state.notesItems = d.notes;
-        localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-      }
-
-      // Notepad text
-      if (typeof d.notepadText === 'string') {
-        state.rawNotepadText = d.notepadText;
-        localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
-      }
-
-      // Preferences
-      if (d.preferences && typeof d.preferences === 'object') {
-        const p = d.preferences;
-        if (p.view) state.view = p.view;
-        if (p.sort) state.sort = p.sort;
-        if (p.currency) state.currency = p.currency;
-        if (p.activeTab) state.activeTab = p.activeTab;
-        if (p.notesMode) state.notesMode = p.notesMode;
-        if (p.notesViewMode) state.notesViewMode = p.notesViewMode;
-        if (p.notesSortBy) state.notesSortBy = p.notesSortBy;
-        localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify(p));
-      }
-
-      render();
-      renderNotesView();
-      updateSortUI();
-      updateCurrencyUI();
+    if (Array.isArray(cloudItems)) {
+      state.notesItems = cloudItems;
+      localStorage.setItem(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
     }
+
+    if (typeof metadata.raw_notepad === 'string') {
+      state.rawNotepadText = metadata.raw_notepad;
+      localStorage.setItem(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+    }
+
+    if (metadata.preferences && typeof metadata.preferences === 'object') {
+      const p = metadata.preferences;
+      if (p.currency) state.currency = p.currency;
+      if (p.notesSortBy) state.notesSortBy = p.notesSortBy;
+      localStorage.setItem(`wishlist_u_${userId}_state`, JSON.stringify(p));
+    }
+
+    render();
+    renderNotesView();
+    updateSortUI();
+    updateCurrencyUI();
   } catch (err) {
-    console.warn('Sync from backend failed:', err.message);
+    console.warn('Sync from cloud failed:', err.message);
   }
 };
 
@@ -893,42 +917,52 @@ const simpleHash = (str) => {
 
 const registerUser = async (name, emailOrUsername, password) => {
   const cleanName = (name || '').trim();
-  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
+  let cleanEmail = (emailOrUsername || '').trim().toLowerCase();
 
   if (!cleanName) throw new Error('Please enter your full name');
-  if (!cleanIdent || cleanIdent.length < 3) throw new Error('Email or username must be at least 3 characters');
-  if (!password || password.length < 4) throw new Error('Password must be at least 4 characters');
+  if (!cleanEmail || cleanEmail.length < 3) throw new Error('Please enter a valid email address');
+  if (!password || password.length < 6) throw new Error('Password must be at least 6 characters');
 
-  let serverOk = false;
-  try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: cleanName, emailOrUsername: cleanIdent, password })
+  if (!cleanEmail.includes('@')) {
+    cleanEmail = `${cleanEmail.replace(/[^a-z0-9._-]/g, '')}@wishlist.app`;
+  }
+
+  const sb = getSupabase();
+  if (sb) {
+    const { data, error } = await sb.auth.signUp({
+      email: cleanEmail,
+      password: password,
+      options: {
+        data: {
+          name: cleanName,
+          username: cleanEmail.split('@')[0],
+          wishlist_items: [],
+          raw_notepad: "",
+          preferences: {
+            currency: state.currency,
+            notesSortBy: state.notesSortBy
+          }
+        }
+      }
     });
 
-    let json = null;
-    try {
-      json = await res.json();
-    } catch (e) {
-      json = null;
+    if (error) {
+      throw new Error(error.message);
     }
 
-    if (json && res.ok && json.success) {
-      serverOk = true;
-      setAuthToken(json.token);
+    if (data.session && data.user) {
       const session = {
-        id: json.user.id,
-        name: json.user.name,
-        email: json.user.email,
-        username: json.user.username,
+        id: data.user.id,
+        name: cleanName,
+        email: data.user.email,
+        username: cleanEmail.split('@')[0],
         isGuest: false,
         loggedInAt: new Date().toISOString()
       };
       setActiveSession(session);
       state.currentUser = session;
+      setAuthToken(data.session.access_token);
 
-      // Initialize fresh user storage cleanly
       state.items = [];
       state.notesItems = [];
       state.rawNotepadText = "";
@@ -942,27 +976,27 @@ const registerUser = async (name, emailOrUsername, password) => {
       showToast(`Account created! Welcome, ${session.name}!`);
       closeAuthModal();
       return;
-    } else if (json && json.error) {
-      throw new Error(json.error);
-    }
-  } catch (err) {
-    if (err.message && !err.message.includes('fetch') && !err.message.includes('JSON') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
-      throw err;
+    } else if (data.user) {
+      showToast('Account created! Please sign in with your credentials.');
+      const signinTab = document.getElementById('auth-tab-signin');
+      if (signinTab) signinTab.click();
+      const emailInput = document.getElementById('auth-email-input');
+      if (emailInput) emailInput.value = cleanEmail;
+      return;
     }
   }
 
-  // Local fallback registration if backend unavailable
-  const isEmail = cleanIdent.includes('@');
+  // Local fallback if Supabase not loaded
   const userId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
   const localUsers = getLocalUsers();
-  const existing = localUsers.find(u => (u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent));
-  if (existing) throw new Error('An account with this email/username already exists');
+  const existing = localUsers.find(u => (u.email && u.email.toLowerCase() === cleanEmail) || (u.username && u.username.toLowerCase() === cleanEmail));
+  if (existing) throw new Error('An account with this email already exists');
 
   const newUser = {
     id: userId,
     name: cleanName,
-    email: isEmail ? cleanIdent : cleanIdent + '@user',
-    username: isEmail ? cleanIdent.split('@')[0] : cleanIdent,
+    email: cleanEmail,
+    username: cleanEmail.split('@')[0],
     passwordHash: simpleHash(password),
     createdAt: new Date().toISOString()
   };
@@ -993,35 +1027,41 @@ const registerUser = async (name, emailOrUsername, password) => {
 };
 
 const loginUser = async (emailOrUsername, password) => {
-  const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
-  if (!cleanIdent || !password) throw new Error('Please enter your email/username and password');
+  let cleanEmail = (emailOrUsername || '').trim().toLowerCase();
+  if (!cleanEmail || !password) throw new Error('Please enter your email and password');
 
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrUsername: cleanIdent, password })
+  if (!cleanEmail.includes('@')) {
+    cleanEmail = `${cleanEmail.replace(/[^a-z0-9._-]/g, '')}@wishlist.app`;
+  }
+
+  const sb = getSupabase();
+  if (sb) {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: cleanEmail,
+      password: password
     });
 
-    let json = null;
-    try {
-      json = await res.json();
-    } catch (e) {
-      json = null;
+    if (error) {
+      if (error.message.toLowerCase().includes('invalid login credentials')) {
+        throw new Error('Invalid email or password');
+      }
+      throw new Error(error.message);
     }
 
-    if (json && res.ok && json.success) {
-      setAuthToken(json.token);
+    if (data && data.user) {
+      const user = data.user;
+      const metadata = user.user_metadata || {};
       const session = {
-        id: json.user.id,
-        name: json.user.name,
-        email: json.user.email,
-        username: json.user.username,
+        id: user.id,
+        name: metadata.name || user.email.split('@')[0],
+        email: user.email,
+        username: metadata.username || user.email.split('@')[0],
         isGuest: false,
         loggedInAt: new Date().toISOString()
       };
       setActiveSession(session);
       state.currentUser = session;
+      if (data.session) setAuthToken(data.session.access_token);
 
       loadScopedData();
       updateUserProfileUI();
@@ -1031,14 +1071,6 @@ const loginUser = async (emailOrUsername, password) => {
       showToast(`Welcome back, ${session.name}!`);
       closeAuthModal();
       return;
-    } else if (json && json.error) {
-      throw new Error(json.error);
-    } else if (res.status === 401) {
-      throw new Error('Invalid email/username or password');
-    }
-  } catch (err) {
-    if (err.message && !err.message.includes('fetch') && !err.message.includes('JSON') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
-      throw err;
     }
   }
 
@@ -1046,12 +1078,12 @@ const loginUser = async (emailOrUsername, password) => {
   const localUsers = getLocalUsers();
   const pwdHash = simpleHash(password);
   const user = localUsers.find(u =>
-    ((u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent)) &&
+    ((u.email && u.email.toLowerCase() === cleanEmail) || (u.username && u.username.toLowerCase() === cleanEmail)) &&
     u.passwordHash === pwdHash
   );
 
   if (!user) {
-    throw new Error('Invalid email/username or password');
+    throw new Error('Invalid email or password');
   }
 
   const session = {
@@ -1073,6 +1105,10 @@ const loginUser = async (emailOrUsername, password) => {
 };
 
 const loginAsGuest = () => {
+  const sb = getSupabase();
+  if (sb) {
+    sb.auth.signOut().catch(() => {});
+  }
   setAuthToken(null);
   const session = {
     id: 'guest',
@@ -1093,13 +1129,10 @@ const loginAsGuest = () => {
 };
 
 const logoutUser = async () => {
-  const token = getAuthToken();
-  if (token) {
+  const sb = getSupabase();
+  if (sb) {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await sb.auth.signOut();
     } catch (e) {}
   }
 
@@ -3788,24 +3821,72 @@ const init = async () => {
       }
     }
 
-    const session = getActiveSession();
-    const token = getAuthToken();
-    if (session && session.id && session.name) {
-      state.currentUser = session;
-    } else {
-      state.currentUser = null;
+    const sb = getSupabase();
+    let sessionRestored = false;
+
+    if (sb) {
+      try {
+        const { data: { session: sbSession } } = await sb.auth.getSession();
+        if (sbSession && sbSession.user) {
+          sessionRestored = true;
+          const u = sbSession.user;
+          const meta = u.user_metadata || {};
+          const session = {
+            id: u.id,
+            name: meta.name || u.email.split('@')[0],
+            email: u.email,
+            username: meta.username || u.email.split('@')[0],
+            isGuest: false,
+            loggedInAt: new Date().toISOString()
+          };
+          setActiveSession(session);
+          state.currentUser = session;
+          setAuthToken(sbSession.access_token);
+        }
+      } catch (e) {
+        console.warn('Supabase getSession error:', e);
+      }
+
+      // Realtime auth state listener
+      sb.auth.onAuthStateChange(async (event, sbSession) => {
+        if (event === 'SIGNED_IN' && sbSession && sbSession.user) {
+          const u = sbSession.user;
+          const meta = u.user_metadata || {};
+          const session = {
+            id: u.id,
+            name: meta.name || u.email.split('@')[0],
+            email: u.email,
+            username: meta.username || u.email.split('@')[0],
+            isGuest: false,
+            loggedInAt: new Date().toISOString()
+          };
+          setActiveSession(session);
+          state.currentUser = session;
+          setAuthToken(sbSession.access_token);
+          loadScopedData();
+          updateUserProfileUI();
+          syncDataFromBackend();
+        } else if (event === 'SIGNED_OUT') {
+          setAuthToken(null);
+          setActiveSession(null);
+          state.currentUser = null;
+          loadScopedData();
+          updateUserProfileUI();
+          render();
+        }
+      });
     }
+
+    if (!sessionRestored) {
+      const localSession = getActiveSession();
+      if (localSession && localSession.id && localSession.name) {
+        state.currentUser = localSession;
+      } else {
+        state.currentUser = null;
+      }
+    }
+
     loadScopedData();
-    
-    const gridBtn = document.getElementById('view-grid-btn');
-    const listBtn = document.getElementById('view-list-btn');
-    if (state.view === 'grid') {
-      gridBtn?.classList.add('active');
-      listBtn?.classList.remove('active');
-    } else {
-      listBtn?.classList.add('active');
-      gridBtn?.classList.remove('active');
-    }
     
     initEventHandlers();
     updateUserProfileUI();
@@ -3815,7 +3896,7 @@ const init = async () => {
     fetchLiveExchangeRate();
 
     // Cross-device sync pull on load (non-blocking)
-    if (token) {
+    if (state.currentUser && !state.currentUser.isGuest) {
       syncDataFromBackend().catch(err => console.warn('Background sync failed:', err));
     }
   } catch (err) {
