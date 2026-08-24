@@ -927,6 +927,10 @@ const registerUser = async (name, emailOrUsername, password) => {
     cleanEmail = `${cleanEmail.replace(/[^a-z0-9._-]/g, '')}@wishlist.app`;
   }
 
+  // Preserve existing active items if any (e.g. from Guest session)
+  const initialItems = (Array.isArray(state.notesItems) && state.notesItems.length > 0) ? state.notesItems : [];
+  const initialNotepad = state.rawNotepadText || "";
+
   const sb = getSupabase();
   if (sb) {
     const { data, error } = await sb.auth.signUp({
@@ -936,8 +940,8 @@ const registerUser = async (name, emailOrUsername, password) => {
         data: {
           name: cleanName,
           username: cleanEmail.split('@')[0],
-          wishlist_items: [],
-          raw_notepad: "",
+          wishlist_items: initialItems,
+          raw_notepad: initialNotepad,
           preferences: {
             currency: state.currency,
             notesSortBy: state.notesSortBy
@@ -964,11 +968,11 @@ const registerUser = async (name, emailOrUsername, password) => {
       setAuthToken(data.session.access_token);
 
       state.items = [];
-      state.notesItems = [];
-      state.rawNotepadText = "";
+      state.notesItems = initialItems;
+      state.rawNotepadText = initialNotepad;
       localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
-      localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify([]));
-      localStorage.setItem(`wishlist_u_${session.id}_notepad`, "");
+      localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
+      localStorage.setItem(`wishlist_u_${session.id}_notepad`, initialNotepad);
 
       updateUserProfileUI();
       render();
@@ -1014,11 +1018,11 @@ const registerUser = async (name, emailOrUsername, password) => {
   setActiveSession(session);
   state.currentUser = session;
   state.items = [];
-  state.notesItems = [];
-  state.rawNotepadText = "";
+  state.notesItems = initialItems;
+  state.rawNotepadText = initialNotepad;
   localStorage.setItem(`wishlist_u_${session.id}_items`, JSON.stringify([]));
-  localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify([]));
-  localStorage.setItem(`wishlist_u_${session.id}_notepad`, "");
+  localStorage.setItem(`wishlist_u_${session.id}_notes`, JSON.stringify(initialItems));
+  localStorage.setItem(`wishlist_u_${session.id}_notepad`, initialNotepad);
   updateUserProfileUI();
   render();
   renderNotesView();
@@ -2403,12 +2407,138 @@ const initEventHandlers = () => {
     });
   }
 
+  // Export & Import Wishlist Backup
+  const exportWishlistData = () => {
+    try {
+      const items = state.notesItems || [];
+      const notepad = state.rawNotepadText || '';
+      const preferences = {
+        currency: state.currency || 'IDR',
+        notesSortBy: state.notesSortBy || null,
+        notesMode: state.notesMode || 'list',
+        view: state.view || 'grid'
+      };
+
+      const exportPayload = {
+        version: 1,
+        app: 'Wishlist App',
+        exportedAt: new Date().toISOString(),
+        user: state.currentUser ? { name: state.currentUser.name, email: state.currentUser.email, isGuest: !!state.currentUser.isGuest } : { isGuest: true },
+        itemsCount: items.length,
+        data: {
+          notesItems: items,
+          rawNotepadText: notepad,
+          preferences: preferences
+        }
+      };
+
+      const dataStr = JSON.stringify(exportPayload, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      const filename = `wishlist_backup_${dateStr}_${timeStr}.json`;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`Exported ${items.length} items to ${filename}!`);
+      const userProfileDropdown = document.getElementById('user-profile-dropdown');
+      const userProfileWrapper = document.getElementById('user-profile-wrapper');
+      if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
+      if (userProfileWrapper) userProfileWrapper.classList.remove('open');
+    } catch (err) {
+      console.error('Export failed:', err);
+      showToast('Failed to export data');
+    }
+  };
+
+  const importWishlistData = async (file) => {
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      let parsed = JSON.parse(text);
+
+      let incomingItems = [];
+      let incomingNotepad = '';
+      let incomingPrefs = null;
+
+      if (Array.isArray(parsed)) {
+        incomingItems = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        if (parsed.data && Array.isArray(parsed.data.notesItems)) {
+          incomingItems = parsed.data.notesItems;
+          incomingNotepad = parsed.data.rawNotepadText || '';
+          incomingPrefs = parsed.data.preferences || null;
+        } else if (Array.isArray(parsed.notesItems)) {
+          incomingItems = parsed.notesItems;
+          incomingNotepad = parsed.rawNotepadText || '';
+          incomingPrefs = parsed.preferences || null;
+        } else if (Array.isArray(parsed.items)) {
+          incomingItems = parsed.items;
+        }
+      }
+
+      if (!Array.isArray(incomingItems) || incomingItems.length === 0) {
+        showToast('No valid items found in JSON file');
+        return;
+      }
+
+      const validItems = incomingItems.map((item, idx) => ({
+        id: item.id || `item_${Date.now()}_${idx}`,
+        title: (item.title || item.name || 'Untitled Item').trim(),
+        price: Number(item.price) || 0,
+        currency: item.currency || state.currency || 'IDR',
+        group: item.group || null,
+        priority: Number(item.priority) || 2,
+        checked: !!item.checked,
+        link: item.link || null,
+        imageData: item.imageData || item.imageUrl || null,
+        createdAt: item.createdAt || new Date().toISOString()
+      }));
+
+      state.notesItems = validItems;
+      if (incomingNotepad) state.rawNotepadText = incomingNotepad;
+      if (incomingPrefs && incomingPrefs.currency) state.currency = incomingPrefs.currency;
+
+      saveNotes();
+      savePreferences();
+
+      render();
+      renderNotesView();
+      updateUserProfileUI();
+      updateSortUI();
+      updateCurrencyUI();
+
+      showToast(`Successfully imported ${validItems.length} items!`);
+
+      const userProfileDropdown = document.getElementById('user-profile-dropdown');
+      const userProfileWrapper = document.getElementById('user-profile-wrapper');
+      if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
+      if (userProfileWrapper) userProfileWrapper.classList.remove('open');
+    } catch (err) {
+      console.error('Import failed:', err);
+      showToast('Failed to parse JSON file');
+    }
+  };
+
   // User Profile & Auth Button Handlers
   const userProfileBtn = document.getElementById('user-profile-btn');
   const userProfileDropdown = document.getElementById('user-profile-dropdown');
   const userProfileWrapper = document.getElementById('user-profile-wrapper');
   const switchUserBtn = document.getElementById('dropdown-switch-user-btn');
   const logoutBtn = document.getElementById('dropdown-logout-btn');
+  const exportBtn = document.getElementById('dropdown-export-btn');
+  const importBtn = document.getElementById('dropdown-import-btn');
+  const importInput = document.getElementById('import-json-input');
   const authModalClose = document.getElementById('auth-modal-close');
   const authTabSignin = document.getElementById('auth-tab-signin');
   const authTabSignup = document.getElementById('auth-tab-signup');
@@ -2420,18 +2550,35 @@ const initEventHandlers = () => {
   if (userProfileBtn && userProfileDropdown) {
     userProfileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const u = state.currentUser;
-      if (!u || u.isGuest) {
-        openAuthModal('signin');
-      } else {
-        userProfileDropdown.classList.toggle('hidden');
-        userProfileWrapper?.classList.toggle('open');
+      userProfileDropdown.classList.toggle('hidden');
+      userProfileWrapper?.classList.toggle('open');
+    });
+  }
+
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      exportWishlistData();
+    });
+  }
+
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => {
+      importInput.click();
+    });
+
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        importWishlistData(file);
       }
+      importInput.value = '';
     });
   }
 
   if (switchUserBtn) {
     switchUserBtn.addEventListener('click', () => {
+      if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
+      if (userProfileWrapper) userProfileWrapper.classList.remove('open');
       openAuthModal('signin');
     });
   }

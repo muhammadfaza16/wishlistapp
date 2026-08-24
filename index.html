@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=186">
+  <link rel="stylesheet" href="styles.css?v=187">
 </head>
 <body>
   <div id="app">
@@ -54,6 +54,16 @@
               </div>
               <div class="user-dropdown-divider"></div>
               <div class="user-dropdown-actions">
+                <input type="file" id="import-json-input" accept=".json,application/json" style="display: none;">
+                <button type="button" class="dropdown-action-btn" id="dropdown-export-btn">
+                  <i data-lucide="download"></i>
+                  <span>Export Backup (.json)</span>
+                </button>
+                <button type="button" class="dropdown-action-btn" id="dropdown-import-btn">
+                  <i data-lucide="upload"></i>
+                  <span>Import Backup (.json)</span>
+                </button>
+                <div class="user-dropdown-divider"></div>
                 <button type="button" class="dropdown-action-btn" id="dropdown-switch-user-btn">
                   <i data-lucide="user-check"></i>
                   <span>Switch Account</span>
@@ -444,6 +454,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=186"></script>
+  <script src="app.js?v=187"></script>
 </body>
 </html>
