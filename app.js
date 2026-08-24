@@ -770,12 +770,17 @@ const syncDataFromBackend = async () => {
 
     if (!res.ok) {
       if (res.status === 401) {
-        logoutUser();
+        setAuthToken(null);
       }
       return;
     }
 
-    const json = await res.json();
+    let json = null;
+    try {
+      json = await res.json();
+    } catch (e) {
+      json = null;
+    }
     if (json && json.success && json.data) {
       const d = json.data;
       const userId = state.currentUser.id;
@@ -4023,9 +4028,7 @@ const init = async () => {
 
     const session = getActiveSession();
     const token = getAuthToken();
-    if (session && token) {
-      state.currentUser = session;
-    } else if (session && session.isGuest) {
+    if (session && session.id && session.name) {
       state.currentUser = session;
     } else {
       state.currentUser = null;
