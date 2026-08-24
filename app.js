@@ -325,6 +325,51 @@ const fetchProductMetadata = async (url) => {
   return null;
 };
 
+const compressBase64ImageAsync = (dataUrl, maxDim = 480, quality = 0.70) => {
+  return new Promise((resolve) => {
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      resolve(null);
+      return;
+    }
+    if (!dataUrl.startsWith('data:image/')) {
+      resolve(dataUrl);
+      return;
+    }
+    if (dataUrl.length < 35000) {
+      resolve(dataUrl);
+      return;
+    }
+
+    try {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch (e) {
+      resolve(dataUrl);
+    }
+  });
+};
+
 const uploadImageFileToCloud = async (fileOrBlob, fileNamePrefix = 'img') => {
   const sb = getSupabase();
   if (!sb || !state.currentUser || state.currentUser.isGuest) return null;
@@ -857,17 +902,20 @@ const mergeWishlistItems = (localItems = [], cloudItems = [], deletedIds = new S
       const cloudItem = itemMap.get(id);
       const localTime = new Date(localItem.updatedAt || localItem.createdAt || 0).getTime();
       const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+      const preservedImg = localItem.imageData || cloudItem.imageData || null;
 
       if (localTime >= cloudTime) {
         itemMap.set(id, {
           ...localItem,
           id,
+          imageData: localItem.imageData || preservedImg,
           updatedAt: localItem.updatedAt || localItem.createdAt || new Date().toISOString()
         });
       } else {
         itemMap.set(id, {
           ...cloudItem,
-          id
+          id,
+          imageData: cloudItem.imageData || preservedImg
         });
       }
     }
@@ -909,19 +957,27 @@ const syncDataToBackend = async () => {
       }
     }
 
-    const cleanItems = (state.notesItems || []).map(item => ({
-      id: String(item.id),
-      title: String(item.title || 'Untitled'),
-      price: Number(item.price) || 0,
-      currency: item.currency || state.currency || 'IDR',
-      group: item.group || null,
-      priority: Number(item.priority) || 2,
-      checked: !!item.checked,
-      link: item.link || null,
-      imageData: (item.imageData && (item.imageData.startsWith('http') || item.imageData.length < 85000)) ? item.imageData : null,
-      createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-    }));
+    const cleanItems = await Promise.all(
+      (state.notesItems || []).map(async item => {
+        let finalImg = item.imageData || null;
+        if (finalImg && finalImg.startsWith('data:image/') && finalImg.length > 40000) {
+          finalImg = await compressBase64ImageAsync(finalImg, 400, 0.65);
+        }
+        return {
+          id: String(item.id),
+          title: String(item.title || 'Untitled'),
+          price: Number(item.price) || 0,
+          currency: item.currency || state.currency || 'IDR',
+          group: item.group || null,
+          priority: Number(item.priority) || 2,
+          checked: !!item.checked,
+          link: item.link || null,
+          imageData: finalImg,
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+        };
+      })
+    );
 
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
@@ -2800,19 +2856,27 @@ const initEventHandlers = () => {
         return;
       }
 
-      const validItems = incomingItems.map((item, idx) => ({
-        id: String(item.id || `item_${Date.now()}_${idx}`),
-        title: String(item.title || item.name || 'Untitled Item').trim(),
-        price: Math.max(0, Number(item.price) || Number(item.originalPrice) || 0),
-        currency: item.currency || state.currency || 'IDR',
-        group: (item.group && typeof item.group === 'string' && item.group.trim()) ? item.group.trim() : (item.tags && Array.isArray(item.tags) && item.tags[0]) ? String(item.tags[0]).trim() : null,
-        priority: Number(item.priority) || 2,
-        checked: !!(item.checked || item.achieved),
-        link: item.link || null,
-        imageData: item.imageData || item.imageUrl || null,
-        createdAt: item.createdAt || new Date().toISOString(),
-        updatedAt: item.updatedAt || new Date().toISOString()
-      })).filter(i => i.title.length > 0);
+      const processedItems = await Promise.all(
+        incomingItems.map(async (item, idx) => {
+          const rawImg = item.imageData || item.imageUrl || null;
+          const cleanImg = rawImg ? await compressBase64ImageAsync(rawImg, 480, 0.70) : null;
+          return {
+            id: String(item.id || `item_${Date.now()}_${idx}`),
+            title: String(item.title || item.name || 'Untitled Item').trim(),
+            price: Math.max(0, Number(item.price) || Number(item.originalPrice) || 0),
+            currency: item.currency || state.currency || 'IDR',
+            group: (item.group && typeof item.group === 'string' && item.group.trim()) ? item.group.trim() : (item.tags && Array.isArray(item.tags) && item.tags[0]) ? String(item.tags[0]).trim() : null,
+            priority: Number(item.priority) || 2,
+            checked: !!(item.checked || item.achieved),
+            link: item.link || null,
+            imageData: cleanImg,
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString()
+          };
+        })
+      );
+
+      const validItems = processedItems.filter(i => i.title.length > 0);
 
       // Un-delete any imported IDs from deletion tracker
       if (state.deletedNoteIds instanceof Set) {
