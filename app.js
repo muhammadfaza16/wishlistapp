@@ -2400,7 +2400,6 @@ const renderQuickNotesManageList = () => {
           <div class="group-header-left">
             <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
             <span class="group-header-title">${groupName}</span>
-            ${isEditMode ? `<i data-lucide="edit-2" class="group-edit-hint-icon" title="Rename group"></i>` : ''}
             <span class="group-badge-pill">${groupItems.length}</span>
           </div>
           <div class="group-header-right">

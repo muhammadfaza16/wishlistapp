@@ -1764,21 +1764,6 @@ input, button, select, textarea {
   color: #2563EB;
 }
 
-.reader-group-header .group-edit-hint-icon {
-  width: 12px;
-  height: 12px;
-  color: #71717A;
-  opacity: 0.6;
-  margin-left: 2px;
-  transition: opacity 150ms ease, color 150ms ease, transform 150ms ease;
-}
-
-.reader-group-header.editable-group-header:hover .group-edit-hint-icon {
-  opacity: 1;
-  color: #2563EB;
-  transform: scale(1.1);
-}
-
 .reader-group-header .group-header-left {
   display: flex;
   align-items: center;
