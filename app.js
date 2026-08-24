@@ -786,18 +786,30 @@ const triggerSyncToBackend = () => {
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
     syncDataToBackend();
-  }, 500);
+  }, 400);
 };
 
 const syncDataToBackend = async () => {
   const sb = getSupabase();
-  if (!sb || !state.currentUser || state.currentUser.isGuest) return;
+  if (!sb || !state.currentUser || state.currentUser.isGuest) return false;
 
   try {
-    // 1. Update user metadata for instant, reliable multi-device cloud persistence
-    await sb.auth.updateUser({
+    const cleanItems = (state.notesItems || []).map(item => ({
+      id: String(item.id),
+      title: String(item.title || 'Untitled'),
+      price: Number(item.price) || 0,
+      currency: item.currency || state.currency || 'IDR',
+      group: item.group || null,
+      priority: Number(item.priority) || 2,
+      checked: !!item.checked,
+      link: item.link || null,
+      imageData: (item.imageData && item.imageData.length < 80000) ? item.imageData : null,
+      createdAt: item.createdAt || new Date().toISOString()
+    }));
+
+    const { error } = await sb.auth.updateUser({
       data: {
-        wishlist_items: state.notesItems || [],
+        wishlist_items: cleanItems,
         raw_notepad: state.rawNotepadText || "",
         preferences: {
           currency: state.currency,
@@ -808,66 +820,41 @@ const syncDataToBackend = async () => {
       }
     });
 
-    // 2. Also try upserting to relational table if created
-    try {
-      if (Array.isArray(state.notesItems) && state.notesItems.length > 0) {
-        const rows = state.notesItems.map(item => ({
-          id: item.id,
-          user_id: state.currentUser.id,
-          title: item.title,
-          price: item.price || 0,
-          currency: item.currency || state.currency,
-          group: item.group || null,
-          priority: Number(item.priority) || 2,
-          checked: !!item.checked,
-          link: item.link || null,
-          image_data: item.imageData || item.imageUrl || null,
-          updated_at: new Date().toISOString()
-        }));
-        await sb.from('wishlist_items').upsert(rows, { onConflict: 'id' });
-      }
-    } catch (e) {
-      // Relational table optional
+    if (error) {
+      console.warn('Supabase updateUser sync warning:', error.message);
+      return false;
     }
+
+    // Also update locally cached copy
+    const userId = state.currentUser.id;
+    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(cleanItems));
+    return true;
   } catch (err) {
     console.warn('Cloud sync error:', err.message);
+    return false;
   }
 };
 
-const syncDataFromBackend = async () => {
+const syncDataFromBackend = async (showFeedback = false) => {
   const sb = getSupabase();
-  if (!sb || !state.currentUser || state.currentUser.isGuest) return;
+  if (!sb || !state.currentUser || state.currentUser.isGuest) return false;
 
   try {
-    const { data: { user }, error } = await sb.auth.getUser();
-    if (error || !user) return;
+    let { data: { user }, error } = await sb.auth.getUser();
+    if (error || !user) {
+      const { data: refreshData } = await sb.auth.refreshSession();
+      if (refreshData && refreshData.user) {
+        user = refreshData.user;
+      } else {
+        return false;
+      }
+    }
 
     const userId = state.currentUser.id;
     const metadata = user.user_metadata || {};
 
     let cloudItems = null;
-
-    // Check wishlist_items table first if available
-    try {
-      const { data: tableData, error: tableErr } = await sb.from('wishlist_items').select('*').eq('user_id', userId);
-      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
-        cloudItems = tableData.map(row => ({
-          id: row.id,
-          title: row.title,
-          price: row.price,
-          currency: row.currency || state.currency,
-          group: row.group,
-          priority: row.priority,
-          checked: row.checked,
-          link: row.link,
-          imageData: row.image_data,
-          createdAt: row.created_at
-        }));
-      }
-    } catch (e) {}
-
-    // Fallback to user_metadata
-    if (!cloudItems && Array.isArray(metadata.wishlist_items)) {
+    if (Array.isArray(metadata.wishlist_items)) {
       cloudItems = metadata.wishlist_items;
     }
 
@@ -892,8 +879,18 @@ const syncDataFromBackend = async () => {
     renderNotesView();
     updateSortUI();
     updateCurrencyUI();
+    updateUserProfileUI();
+
+    if (showFeedback) {
+      showToast(`Cloud data synced (${(cloudItems || []).length} items)!`);
+    }
+    return true;
   } catch (err) {
     console.warn('Sync from cloud failed:', err.message);
+    if (showFeedback) {
+      showToast('Could not reach cloud server');
+    }
+    return false;
   }
 };
 
@@ -1100,12 +1097,23 @@ const loginUser = async (emailOrUsername, password) => {
         loggedInAt: new Date().toISOString()
       };
       setActiveSession(session);
+      const guestItems = Array.isArray(state.notesItems) ? [...state.notesItems] : [];
+      setActiveSession(session);
       state.currentUser = session;
       if (data.session) setAuthToken(data.session.access_token);
 
-      loadScopedData();
+      const cloudItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
+      if (cloudItems.length === 0 && guestItems.length > 0) {
+        // Cloud account has no items yet, but current session has items (e.g. from import) -> push to cloud!
+        state.notesItems = guestItems;
+        safeSetLocalStorage(`wishlist_u_${session.id}_notes`, JSON.stringify(state.notesItems));
+        await syncDataToBackend();
+      } else {
+        loadScopedData();
+        await syncDataFromBackend();
+      }
+
       updateUserProfileUI();
-      await syncDataFromBackend();
       render();
       renderNotesView();
       showToast(`Welcome back, ${session.name}!`);
@@ -2640,6 +2648,11 @@ const initEventHandlers = () => {
       saveNotes();
       savePreferences();
 
+      // If logged in, push immediately to Supabase Cloud
+      if (state.currentUser && !state.currentUser.isGuest) {
+        await syncDataToBackend();
+      }
+
       render();
       renderNotesView();
       updateUserProfileUI();
@@ -2666,6 +2679,7 @@ const initEventHandlers = () => {
   const logoutBtn = document.getElementById('dropdown-logout-btn');
   const exportBtn = document.getElementById('dropdown-export-btn');
   const importBtn = document.getElementById('dropdown-import-btn');
+  const syncBtn = document.getElementById('dropdown-sync-btn');
   const importInput = document.getElementById('import-json-input');
   const authModalClose = document.getElementById('auth-modal-close');
   const authTabSignin = document.getElementById('auth-tab-signin');
@@ -2680,6 +2694,16 @@ const initEventHandlers = () => {
       e.stopPropagation();
       userProfileDropdown.classList.toggle('hidden');
       userProfileWrapper?.classList.toggle('open');
+    });
+  }
+
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      const ok = await syncDataFromBackend(true);
+      if (ok) {
+        if (userProfileDropdown) userProfileDropdown.classList.add('hidden');
+        if (userProfileWrapper) userProfileWrapper.classList.remove('open');
+      }
     });
   }
 
@@ -2710,6 +2734,19 @@ const initEventHandlers = () => {
       openAuthModal('signin');
     });
   }
+
+  // Cross-device live sync: auto-pull on tab focus & visibility change
+  window.addEventListener('focus', () => {
+    if (state.currentUser && !state.currentUser.isGuest) {
+      syncDataFromBackend();
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.currentUser && !state.currentUser.isGuest) {
+      syncDataFromBackend();
+    }
+  });
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
