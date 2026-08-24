@@ -359,7 +359,7 @@ const processImageFile = (file, callback) => {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = async () => {
-      const maxDim = 640;
+      const maxDim = 480;
       let w = img.width;
       let h = img.height;
       if (w > maxDim || h > maxDim) {
@@ -376,7 +376,7 @@ const processImageFile = (file, callback) => {
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
       
       // 1. Instant local preview
       callback(dataUrl);
@@ -390,7 +390,7 @@ const processImageFile = (file, callback) => {
               callback(cloudUrl);
             }
           }
-        }, 'image/jpeg', 0.75);
+        }, 'image/jpeg', 0.70);
       } catch (err) {}
     };
     img.src = e.target.result;
@@ -918,7 +918,7 @@ const syncDataToBackend = async () => {
       priority: Number(item.priority) || 2,
       checked: !!item.checked,
       link: item.link || null,
-      imageData: (item.imageData && item.imageData.startsWith('http')) ? item.imageData : null,
+      imageData: (item.imageData && (item.imageData.startsWith('http') || item.imageData.length < 85000)) ? item.imageData : null,
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
     }));
