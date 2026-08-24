@@ -3970,24 +3970,43 @@ input#search-input:focus {
   text-transform: uppercase;
 }
 
-.modal-close {
+.modal-close,
+.auth-modal-close,
+.close-btn {
   background: transparent;
   border: none;
-  padding: 6px;
-  border-radius: var(--radius-xs);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: #71717A;
   display: flex;
-  transition: color var(--transition);
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.modal-close:hover {
-  color: var(--text-primary);
+.modal-close:hover,
+.auth-modal-close:hover,
+.close-btn:hover {
+  color: #18181B;
+  background: #F4F4F6;
 }
 
-.modal-close svg {
-  width: 20px;
-  height: 20px;
+.modal-close:active,
+.auth-modal-close:active,
+.close-btn:active {
+  transform: scale(0.94);
+}
+
+.modal-close svg,
+.auth-modal-close svg,
+.close-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .modal form, .modal-body {
