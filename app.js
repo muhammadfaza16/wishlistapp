@@ -2018,6 +2018,33 @@ const renderNoteItemRow = (item, isGrouped = false) => {
   const displayPrice = convertCurrency(item.price || 0, item.currency || 'IDR', state.currency);
   const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
   const isSelected = state.selectedNoteIds.has(item.id);
+  const isReader = (state.notesViewMode || 'view') === 'view';
+
+  if (isReader) {
+    if (isGrouped) {
+      return `
+        <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note" style="cursor: pointer;">
+          <div class="reader-row-left">
+            <span class="reader-grouped-bullet">•</span>
+            <span class="quick-note-title reader-grouped-title">${item.title}</span>
+          </div>
+          <div class="reader-row-right">
+            <span class="quick-note-price reader-grouped-price">${formattedPrice}</span>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note" style="cursor: pointer;">
+        <div class="reader-row-left">
+          <span class="quick-note-title">${item.title}</span>
+        </div>
+        <div class="reader-row-right">
+          <span class="quick-note-price">${formattedPrice}</span>
+        </div>
+      </div>
+    `;
+  }
 
   if (state.isSelectionMode) {
     return `
@@ -3167,7 +3194,20 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Click on Note Row -> Open Edit Modal!
+      // View Mode: Click on Note Row -> Open Preview Modal (aturan lama)
+      if ((state.notesViewMode || 'view') === 'view') {
+        const previewRow = e.target.closest('[data-action="preview-note"]') || e.target.closest('.quick-note-row');
+        if (previewRow && !e.target.closest('button') && !e.target.closest('input')) {
+          const id = previewRow.getAttribute('data-id');
+          if (id) {
+            openQuickNotePreviewModal(id);
+            return;
+          }
+        }
+        return;
+      }
+
+      // Edit Mode: Click on Note Row -> Open Edit Modal!
       const noteRow = e.target.closest('.quick-note-row');
       if (noteRow && !e.target.closest('input')) {
         const id = noteRow.getAttribute('data-id');
