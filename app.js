@@ -2387,15 +2387,20 @@ const renderQuickNotesManageList = () => {
     const groupItems = sortNotesItemsList(groups[groupName]);
     const groupTotal = groups[groupName].reduce((sum, i) => sum + convertCurrency(i.price || 0, i.currency || 'IDR', state.currency), 0);
     const formattedTotal = formatCurrencyValue(groupTotal, state.currency);
-    const isCollapsed = state.collapsedGroups && state.collapsedGroups.has(groupName);
+    const isEditMode = (state.notesViewMode || 'view') === 'edit';
+    const isCollapsed = !isEditMode && state.collapsedGroups && state.collapsedGroups.has(groupName);
     const groupIcon = getGroupIcon(groupName);
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
-        <div class="reader-group-header" data-action="toggle-group-collapse" data-group="${groupName}" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
+        <div class="reader-group-header ${isEditMode ? 'editable-group-header' : ''}" 
+             data-action="${isEditMode ? 'edit-group-name' : 'toggle-group-collapse'}" 
+             data-group="${groupName}" 
+             title="${isEditMode ? 'Click to rename group' : (isCollapsed ? 'Expand folder' : 'Collapse folder')}">
           <div class="group-header-left">
             <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
             <span class="group-header-title">${groupName}</span>
+            ${isEditMode ? `<i data-lucide="edit-2" class="group-edit-hint-icon" title="Rename group"></i>` : ''}
             <span class="group-badge-pill">${groupItems.length}</span>
           </div>
           <div class="group-header-right">
@@ -3650,7 +3655,7 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Toggle Group Collapse on Header Click
+      // Toggle Group Collapse on Header Click (View Mode)
       const groupCollapseHeader = e.target.closest('[data-action="toggle-group-collapse"]');
       if (groupCollapseHeader && !e.target.closest('button')) {
         const groupName = groupCollapseHeader.getAttribute('data-group');
@@ -3662,6 +3667,16 @@ const initEventHandlers = () => {
             state.collapsedGroups.add(groupName);
           }
           renderQuickNotesManageList();
+        }
+        return;
+      }
+
+      // Edit / Rename Group on Header Click (Edit Mode)
+      const groupEditHeader = e.target.closest('[data-action="edit-group-name"]');
+      if (groupEditHeader && !e.target.closest('button') && !e.target.closest('input')) {
+        const groupName = groupEditHeader.getAttribute('data-group');
+        if (groupName) {
+          openGroupModal(true, groupName);
         }
         return;
       }
