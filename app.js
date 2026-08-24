@@ -861,7 +861,7 @@ const syncDataToBackend = async () => {
       priority: Number(item.priority) || 2,
       checked: !!item.checked,
       link: item.link || null,
-      imageData: (item.imageData && item.imageData.length < 80000) ? item.imageData : null,
+      imageData: (item.imageData && item.imageData.startsWith('http')) ? item.imageData : null,
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
     }));
@@ -883,13 +883,25 @@ const syncDataToBackend = async () => {
     });
 
     if (error) {
-      console.warn('Supabase updateUser sync error:', error.message);
-      return false;
+      console.warn('Supabase updateUser sync warning:', error.message);
+      // Fallback lightweight retry
+      const lightweightItems = cleanItems.map(({ imageData, ...rest }) => rest);
+      const { error: retryErr } = await sb.auth.updateUser({
+        data: {
+          wishlist_items: lightweightItems,
+          deleted_item_ids: deletedArr,
+          raw_notepad: state.rawNotepadText || ""
+        }
+      });
+      if (retryErr) {
+        console.warn('Supabase fallback retry error:', retryErr.message);
+        return false;
+      }
     }
 
     // Also update locally cached copy
     const userId = state.currentUser.id;
-    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(cleanItems));
+    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
     return true;
   } catch (err) {
     console.warn('Cloud sync error:', err.message);
