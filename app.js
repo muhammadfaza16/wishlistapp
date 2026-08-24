@@ -851,16 +851,17 @@ const syncDataFromBackend = async (showFeedback = false) => {
     }
 
     const userId = state.currentUser.id;
-    const metadata = user.user_metadata || {};
-
     let cloudItems = null;
-    if (Array.isArray(metadata.wishlist_items)) {
+    if (Array.isArray(metadata.wishlist_items) && metadata.wishlist_items.length > 0) {
       cloudItems = metadata.wishlist_items;
     }
 
-    if (Array.isArray(cloudItems)) {
+    if (Array.isArray(cloudItems) && cloudItems.length > 0) {
       state.notesItems = cloudItems;
       safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+    } else if (Array.isArray(state.notesItems) && state.notesItems.length > 0) {
+      // Local has items but cloud is empty -> push local items to cloud!
+      await syncDataToBackend();
     }
 
     if (typeof metadata.raw_notepad === 'string') {
@@ -2454,7 +2455,7 @@ const initEventHandlers = () => {
   // Export & Import Wishlist Backup
   const exportWishlistData = () => {
     try {
-      const items = state.notesItems || [];
+      const items = (state.notesItems && state.notesItems.length > 0) ? state.notesItems : (state.items || []);
       const notepad = state.rawNotepadText || '';
       const preferences = {
         currency: state.currency || 'IDR',
@@ -2471,6 +2472,7 @@ const initEventHandlers = () => {
         itemsCount: items.length,
         data: {
           notesItems: items,
+          items: items,
           rawNotepadText: notepad,
           preferences: preferences
         }
@@ -2554,23 +2556,32 @@ const initEventHandlers = () => {
       let incomingPrefs = null;
 
       if (parsed) {
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           incomingItems = parsed;
         } else if (typeof parsed === 'object') {
-          if (parsed.data && Array.isArray(parsed.data.notesItems)) {
-            incomingItems = parsed.data.notesItems;
-            incomingNotepad = parsed.data.rawNotepadText || '';
-            incomingPrefs = parsed.data.preferences || null;
-          } else if (Array.isArray(parsed.notesItems)) {
-            incomingItems = parsed.notesItems;
-            incomingNotepad = parsed.rawNotepadText || '';
-            incomingPrefs = parsed.preferences || null;
-          } else if (Array.isArray(parsed.items)) {
-            incomingItems = parsed.items;
-          } else if (Array.isArray(parsed.wishlist_items)) {
-            incomingItems = parsed.wishlist_items;
-          } else if (parsed.data && Array.isArray(parsed.data)) {
-            incomingItems = parsed.data;
+          if (parsed.data && typeof parsed.data === 'object') {
+            if (Array.isArray(parsed.data.notesItems) && parsed.data.notesItems.length > 0) {
+              incomingItems = parsed.data.notesItems;
+            } else if (Array.isArray(parsed.data.items) && parsed.data.items.length > 0) {
+              incomingItems = parsed.data.items;
+            } else if (Array.isArray(parsed.data.wishlist_items) && parsed.data.wishlist_items.length > 0) {
+              incomingItems = parsed.data.wishlist_items;
+            }
+            if (typeof parsed.data.rawNotepadText === 'string') incomingNotepad = parsed.data.rawNotepadText;
+            if (parsed.data.preferences) incomingPrefs = parsed.data.preferences;
+          }
+          if (incomingItems.length === 0) {
+            if (Array.isArray(parsed.notesItems) && parsed.notesItems.length > 0) {
+              incomingItems = parsed.notesItems;
+            } else if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+              incomingItems = parsed.items;
+            } else if (Array.isArray(parsed.wishlist_items) && parsed.wishlist_items.length > 0) {
+              incomingItems = parsed.wishlist_items;
+            } else if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+              incomingItems = parsed.data;
+            }
+            if (typeof parsed.rawNotepadText === 'string') incomingNotepad = parsed.rawNotepadText;
+            if (parsed.preferences) incomingPrefs = parsed.preferences;
           }
         }
       }
@@ -2631,21 +2642,23 @@ const initEventHandlers = () => {
       const validItems = incomingItems.map((item, idx) => ({
         id: String(item.id || `item_${Date.now()}_${idx}`),
         title: String(item.title || item.name || 'Untitled Item').trim(),
-        price: Math.max(0, Number(item.price) || 0),
+        price: Math.max(0, Number(item.price) || Number(item.originalPrice) || 0),
         currency: item.currency || state.currency || 'IDR',
-        group: (item.group && typeof item.group === 'string' && item.group.trim()) ? item.group.trim() : null,
+        group: (item.group && typeof item.group === 'string' && item.group.trim()) ? item.group.trim() : (item.tags && Array.isArray(item.tags) && item.tags[0]) ? String(item.tags[0]).trim() : null,
         priority: Number(item.priority) || 2,
-        checked: !!item.checked,
+        checked: !!(item.checked || item.achieved),
         link: item.link || null,
         imageData: item.imageData || item.imageUrl || null,
         createdAt: item.createdAt || new Date().toISOString()
-      }));
+      })).filter(i => i.title.length > 0);
 
       state.notesItems = validItems;
+      state.items = validItems;
       if (incomingNotepad) state.rawNotepadText = incomingNotepad;
       if (incomingPrefs && incomingPrefs.currency) state.currency = incomingPrefs.currency;
 
       saveNotes();
+      saveItems();
       savePreferences();
 
       // If logged in, push immediately to Supabase Cloud
