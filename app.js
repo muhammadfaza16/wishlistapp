@@ -853,6 +853,33 @@ const savePreferences = () => {
   triggerSyncToBackend();
 };
 
+const LOCAL_USERS_KEY = 'wishlist_local_users';
+
+const getLocalUsers = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveLocalUsers = (users) => {
+  try {
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  } catch (e) {}
+};
+
+const simpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return 'h_' + Math.abs(hash).toString(36);
+};
+
 const registerUser = async (name, emailOrUsername, password) => {
   const cleanName = (name || '').trim();
   const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
@@ -861,32 +888,81 @@ const registerUser = async (name, emailOrUsername, password) => {
   if (!cleanIdent || cleanIdent.length < 3) throw new Error('Email or username must be at least 3 characters');
   if (!password || password.length < 4) throw new Error('Password must be at least 4 characters');
 
-  const res = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: cleanName, emailOrUsername: cleanIdent, password })
-  });
+  let serverOk = false;
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: cleanName, emailOrUsername: cleanIdent, password })
+    });
 
-  const json = await res.json();
-  if (!res.ok || !json.success) {
-    throw new Error(json.error || 'Registration failed');
+    let json = null;
+    try {
+      json = await res.json();
+    } catch (e) {
+      json = null;
+    }
+
+    if (json && res.ok && json.success) {
+      serverOk = true;
+      setAuthToken(json.token);
+      const session = {
+        id: json.user.id,
+        name: json.user.name,
+        email: json.user.email,
+        username: json.user.username,
+        isGuest: false,
+        loggedInAt: new Date().toISOString()
+      };
+      setActiveSession(session);
+      state.currentUser = session;
+
+      loadScopedData();
+      triggerSyncToBackend();
+      updateUserProfileUI();
+      render();
+      renderNotesView();
+      showToast(`Account created! Welcome, ${session.name}!`);
+      closeAuthModal();
+      return;
+    } else if (json && json.error) {
+      throw new Error(json.error);
+    }
+  } catch (err) {
+    if (err.message && !err.message.includes('fetch') && !err.message.includes('JSON') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
+      throw err;
+    }
   }
 
-  setAuthToken(json.token);
+  // Local fallback registration if backend unavailable
+  const isEmail = cleanIdent.includes('@');
+  const userId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  const localUsers = getLocalUsers();
+  const existing = localUsers.find(u => (u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent));
+  if (existing) throw new Error('An account with this email/username already exists');
+
+  const newUser = {
+    id: userId,
+    name: cleanName,
+    email: isEmail ? cleanIdent : cleanIdent + '@user',
+    username: isEmail ? cleanIdent.split('@')[0] : cleanIdent,
+    passwordHash: simpleHash(password),
+    createdAt: new Date().toISOString()
+  };
+  localUsers.push(newUser);
+  saveLocalUsers(localUsers);
+
   const session = {
-    id: json.user.id,
-    name: json.user.name,
-    email: json.user.email,
-    username: json.user.username,
+    id: newUser.id,
+    name: newUser.name,
+    email: newUser.email,
+    username: newUser.username,
     isGuest: false,
     loggedInAt: new Date().toISOString()
   };
   setActiveSession(session);
   state.currentUser = session;
-
   loadScopedData();
-  // Push initial items/notes to backend
-  triggerSyncToBackend();
   updateUserProfileUI();
   render();
   renderNotesView();
@@ -898,32 +974,76 @@ const loginUser = async (emailOrUsername, password) => {
   const cleanIdent = (emailOrUsername || '').trim().toLowerCase();
   if (!cleanIdent || !password) throw new Error('Please enter your email/username and password');
 
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ emailOrUsername: cleanIdent, password })
-  });
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrUsername: cleanIdent, password })
+    });
 
-  const json = await res.json();
-  if (!res.ok || !json.success) {
-    throw new Error(json.error || 'Invalid email/username or password');
+    let json = null;
+    try {
+      json = await res.json();
+    } catch (e) {
+      json = null;
+    }
+
+    if (json && res.ok && json.success) {
+      setAuthToken(json.token);
+      const session = {
+        id: json.user.id,
+        name: json.user.name,
+        email: json.user.email,
+        username: json.user.username,
+        isGuest: false,
+        loggedInAt: new Date().toISOString()
+      };
+      setActiveSession(session);
+      state.currentUser = session;
+
+      loadScopedData();
+      updateUserProfileUI();
+      await syncDataFromBackend();
+      render();
+      renderNotesView();
+      showToast(`Welcome back, ${session.name}!`);
+      closeAuthModal();
+      return;
+    } else if (json && json.error) {
+      throw new Error(json.error);
+    } else if (res.status === 401) {
+      throw new Error('Invalid email/username or password');
+    }
+  } catch (err) {
+    if (err.message && !err.message.includes('fetch') && !err.message.includes('JSON') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
+      throw err;
+    }
   }
 
-  setAuthToken(json.token);
+  // Local fallback login
+  const localUsers = getLocalUsers();
+  const pwdHash = simpleHash(password);
+  const user = localUsers.find(u =>
+    ((u.email && u.email.toLowerCase() === cleanIdent) || (u.username && u.username.toLowerCase() === cleanIdent)) &&
+    u.passwordHash === pwdHash
+  );
+
+  if (!user) {
+    throw new Error('Invalid email/username or password');
+  }
+
   const session = {
-    id: json.user.id,
-    name: json.user.name,
-    email: json.user.email,
-    username: json.user.username,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
     isGuest: false,
     loggedInAt: new Date().toISOString()
   };
   setActiveSession(session);
   state.currentUser = session;
-
   loadScopedData();
   updateUserProfileUI();
-  await syncDataFromBackend();
   render();
   renderNotesView();
   showToast(`Welcome back, ${session.name}!`);
@@ -1874,7 +1994,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
     : '';
 
   return `
-    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+    <div class="quick-note-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" draggable="true">
       <div class="quick-note-left">
         <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
         <span class="quick-note-title">${item.title}</span>
@@ -3078,6 +3198,29 @@ const initEventHandlers = () => {
       }
     });
 
+    // Reorder Notes Helper
+    const reorderNotes = (srcId, tgtId, isTop) => {
+      if (!srcId || !tgtId || srcId === tgtId) return;
+      const srcIdx = state.notesItems.findIndex(i => i.id === srcId);
+      const tgtIdx = state.notesItems.findIndex(i => i.id === tgtId);
+
+      if (srcIdx !== -1 && tgtIdx !== -1) {
+        const targetItem = state.notesItems[tgtIdx];
+        const [draggedItem] = state.notesItems.splice(srcIdx, 1);
+        draggedItem.group = targetItem.group || null;
+
+        const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
+        const insertIdx = isTop ? newTgtIdx : newTgtIdx + 1;
+        state.notesItems.splice(insertIdx, 0, draggedItem);
+
+        state.notesSortBy = null;
+        savePreferences();
+        saveNotes();
+        renderQuickNotesManageList();
+        calculateNotesAccumulator();
+      }
+    };
+
     // HTML5 Drag & Drop Reordering in Edit Mode
     let draggedNoteId = null;
 
@@ -3148,28 +3291,9 @@ const initEventHandlers = () => {
       if (targetRow) {
         const targetId = targetRow.getAttribute('data-id');
         if (targetId && targetId !== draggedNoteId) {
-          const srcIdx = state.notesItems.findIndex(i => i.id === draggedNoteId);
-          const tgtIdx = state.notesItems.findIndex(i => i.id === targetId);
-
-          if (srcIdx !== -1 && tgtIdx !== -1) {
-            const rect = targetRow.getBoundingClientRect();
-            const isTop = (e.clientY - rect.top) < rect.height / 2;
-
-            const draggedItem = state.notesItems[srcIdx];
-            const targetItem = state.notesItems[tgtIdx];
-            draggedItem.group = targetItem.group || null;
-
-            state.notesItems.splice(srcIdx, 1);
-            const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
-            const insertIdx = isTop ? newTgtIdx : newTgtIdx + 1;
-            state.notesItems.splice(insertIdx, 0, draggedItem);
-
-            state.notesSortBy = null;
-            savePreferences();
-            saveNotes();
-            renderQuickNotesManageList();
-            calculateNotesAccumulator();
-          }
+          const rect = targetRow.getBoundingClientRect();
+          const isTop = (e.clientY - rect.top) < rect.height / 2;
+          reorderNotes(draggedNoteId, targetId, isTop);
         }
       }
 
@@ -3205,8 +3329,12 @@ const initEventHandlers = () => {
     quickNotesManageList.addEventListener('touchmove', (e) => {
       if (!touchDragRow) return;
       if (e.cancelable) e.preventDefault();
+      
+      touchDragRow.style.pointerEvents = 'none';
       const touch = e.touches[0];
       const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      touchDragRow.style.pointerEvents = '';
+
       const targetRow = element ? element.closest('.quick-note-row') : null;
 
       quickNotesManageList.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
@@ -3229,31 +3357,13 @@ const initEventHandlers = () => {
       if (touchDropTarget && touchDropTarget !== touchDragRow) {
         const srcId = touchDragRow.getAttribute('data-id');
         const tgtId = touchDropTarget.getAttribute('data-id');
-
-        const srcIdx = state.notesItems.findIndex(i => i.id === srcId);
-        const tgtIdx = state.notesItems.findIndex(i => i.id === tgtId);
-
-        if (srcIdx !== -1 && tgtIdx !== -1) {
-          const draggedItem = state.notesItems[srcIdx];
-          const targetItem = state.notesItems[tgtIdx];
-          draggedItem.group = targetItem.group || null;
-
-          state.notesItems.splice(srcIdx, 1);
-          const newTgtIdx = state.notesItems.findIndex(i => i.id === targetItem.id);
-          const insertIdx = touchDropIsTop ? newTgtIdx : newTgtIdx + 1;
-          state.notesItems.splice(insertIdx, 0, draggedItem);
-
-          state.notesSortBy = null;
-          savePreferences();
-          saveNotes();
-          renderQuickNotesManageList();
-          calculateNotesAccumulator();
-        }
+        reorderNotes(srcId, tgtId, touchDropIsTop);
       }
 
       quickNotesManageList.querySelectorAll('.is-dragging, .drag-over-top, .drag-over-bottom').forEach(el => {
         el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
       });
+      if (touchDragRow) touchDragRow.style.pointerEvents = '';
       touchDragRow = null;
       touchDropTarget = null;
     });
