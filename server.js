@@ -531,6 +531,104 @@ const server = http.createServer({ maxHeaderSize: 65536 }, async (req, res) => {
     }
   }
 
+  // 8. Supabase Proxy — routes all Supabase REST calls through the server to
+  //    avoid browser extension fetch interceptors (ERR_HTTP2_PROTOCOL_ERROR etc.)
+  const SUPABASE_URL = 'https://rdsueqccskkhjnbbmpjm.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_z1xg-Bwxosn3rdzcFqwASw_S9Hr3Vuk';
+
+  if (reqPath === '/api/sb/auth/user' && req.method === 'GET') {
+    // Verify JWT token → returns Supabase user object
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const sbRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': authHeader }
+      });
+      const data = await sbRes.json();
+      return sendJson(res, sbRes.status, data);
+    } catch (e) {
+      return sendJson(res, 502, { error: 'Supabase auth proxy error', detail: e.message });
+    }
+  }
+
+  if (reqPath === '/api/sb/auth/token' && req.method === 'POST') {
+    // Login → exchange email+password for JWT
+    try {
+      const body = await readBody(req);
+      const sbRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: body.email, password: body.password })
+      });
+      const data = await sbRes.json();
+      return sendJson(res, sbRes.status, data);
+    } catch (e) {
+      return sendJson(res, 502, { error: 'Supabase login proxy error', detail: e.message });
+    }
+  }
+
+  if (reqPath === '/api/sb/auth/signup' && req.method === 'POST') {
+    // Register → create Supabase auth user
+    try {
+      const body = await readBody(req);
+      const sbRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: body.email, password: body.password, data: body.data || {} })
+      });
+      const data = await sbRes.json();
+      return sendJson(res, sbRes.status, data);
+    } catch (e) {
+      return sendJson(res, 502, { error: 'Supabase signup proxy error', detail: e.message });
+    }
+  }
+
+  if (reqPath === '/api/sb/wishlist_items') {
+    // GET → SELECT wishlist_items
+    // POST → UPSERT wishlist_items
+    // DELETE → DELETE wishlist_items
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const sbHeaders = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      };
+
+      if (req.method === 'GET') {
+        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items${qs}`, { headers: sbHeaders });
+        const data = await sbRes.json();
+        return sendJson(res, sbRes.status, data);
+      }
+
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items`, {
+          method: 'POST',
+          headers: sbHeaders,
+          body: JSON.stringify(body)
+        });
+        const text = await sbRes.text();
+        const data = text ? JSON.parse(text) : {};
+        return sendJson(res, sbRes.status, data);
+      }
+
+      if (req.method === 'DELETE') {
+        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items${qs}`, {
+          method: 'DELETE',
+          headers: sbHeaders
+        });
+        return sendJson(res, sbRes.status, { success: sbRes.ok });
+      }
+
+      return sendJson(res, 405, { error: 'Method not allowed' });
+    } catch (e) {
+      return sendJson(res, 502, { error: 'Supabase wishlist proxy error', detail: e.message });
+    }
+  }
+
   // Static File Server
   if (reqPath === '/') reqPath = '/index.html';
 

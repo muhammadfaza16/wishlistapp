@@ -858,6 +858,9 @@ const loadScopedData = () => {
 // Supabase Cloud Configuration
 const SUPABASE_URL = 'https://rdsueqccskkhjnbbmpjm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_z1xg-Bwxosn3rdzcFqwASw_S9Hr3Vuk';
+// Route all Supabase calls through the local server proxy to avoid
+// browser extension fetch interception (ERR_HTTP2_PROTOCOL_ERROR etc.)
+const SUPABASE_PROXY = '/api/sb';
 
 let supabaseClient = null;
 const getSupabase = () => {
@@ -1065,7 +1068,7 @@ const syncDataToBackend = async () => {
         }));
 
         if (tableRows.length > 0) {
-          const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items`, {
+          const upsertRes = await fetch(`${SUPABASE_PROXY}/wishlist_items`, {
             method: 'POST',
             headers: sbHeaders,
             body: JSON.stringify(tableRows)
@@ -1082,7 +1085,7 @@ const syncDataToBackend = async () => {
 
         // Delete removed items
         if (deletedArr.length > 0) {
-          await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?id=in.(${deletedArr.map(id => `"${id}"`).join(',')})&user_id=eq.${userId}`, {
+          await fetch(`${SUPABASE_PROXY}/wishlist_items?id=in.(${deletedArr.map(id => `"${id}"`).join(',')})&user_id=eq.${userId}`, {
             method: 'DELETE',
             headers: sbHeaders
           });
@@ -1168,9 +1171,9 @@ const syncDataFromBackend = async (showFeedback = false) => {
         'Content-Type': 'application/json'
       };
 
-      // 1a. Direct Table Select from public.wishlist_items
+      // 1a. Direct Table Select from public.wishlist_items (via proxy)
       const selectRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/wishlist_items?select=*&user_id=eq.${userId}&order=created_at.asc`,
+        `${SUPABASE_PROXY}/wishlist_items?select=*&user_id=eq.${userId}&order=created_at.asc`,
         { headers: sbHeaders }
       );
 
@@ -1346,72 +1349,78 @@ const registerUser = async (name, emailOrUsername, password) => {
   let sessionUser = null;
   let sessionToken = null;
 
-  // 1. Supabase Cloud Signup (Primary Cloud DB)
-  const sb = getSupabase();
-  if (sb) {
-    try {
-      const { data, error } = await sb.auth.signUp({
+  // 1. Supabase Cloud Signup via proxy (Primary Cloud DB)
+  try {
+    const signupRes = await fetch(`${SUPABASE_PROXY}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         email: cleanEmail,
         password: password,
-        options: {
-          data: {
-            name: cleanName,
-            username: cleanEmail.split('@')[0],
-            wishlist_items: initialItems,
-            raw_notepad: initialNotepad
-          }
-        }
-      });
+        data: { name: cleanName, username: cleanEmail.split('@')[0] }
+      })
+    });
+    const signupData = await signupRes.json();
 
-      if (data && data.session && data.user) {
-        sessionToken = data.session.access_token;
+    if (signupData && signupData.access_token && signupData.user) {
+      // Signed up and auto-confirmed
+      sessionToken = signupData.access_token;
+      sessionUser = {
+        id: signupData.user.id,
+        name: cleanName,
+        email: signupData.user.email,
+        username: cleanEmail.split('@')[0],
+        isGuest: false,
+        loggedInAt: new Date().toISOString()
+      };
+    } else if (signupData && signupData.user && !signupData.access_token) {
+      // User created but needs email confirmation — try signing in immediately
+      const loginRes = await fetch(`${SUPABASE_PROXY}/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password })
+      });
+      const loginData = await loginRes.json();
+      if (loginData && loginData.access_token && loginData.user) {
+        sessionToken = loginData.access_token;
         sessionUser = {
-          id: data.user.id,
+          id: loginData.user.id,
           name: cleanName,
-          email: data.user.email,
+          email: loginData.user.email,
           username: cleanEmail.split('@')[0],
           isGuest: false,
           loggedInAt: new Date().toISOString()
         };
-      } else if (data && data.user) {
-        const { data: signInData } = await sb.auth.signInWithPassword({ email: cleanEmail, password });
-        if (signInData && signInData.session && signInData.user) {
-          sessionToken = signInData.session.access_token;
-          sessionUser = {
-            id: signInData.user.id,
-            name: cleanName,
-            email: signInData.user.email,
-            username: cleanEmail.split('@')[0],
-            isGuest: false,
-            loggedInAt: new Date().toISOString()
-          };
-        }
-      } else if (error) {
-        if (error.message.toLowerCase().includes('already registered')) {
-          const { data: logData, error: logErr } = await sb.auth.signInWithPassword({ email: cleanEmail, password });
-          if (!logErr && logData && logData.session && logData.user) {
-            sessionToken = logData.session.access_token;
-            sessionUser = {
-              id: logData.user.id,
-              name: logData.user.user_metadata?.name || cleanName,
-              email: logData.user.email,
-              username: cleanEmail.split('@')[0],
-              isGuest: false,
-              loggedInAt: new Date().toISOString()
-            };
-          } else {
-            throw new Error(error.message);
-          }
-        } else {
-          throw new Error(error.message);
-        }
       }
-    } catch (sbErr) {
-      if (sbErr.message && (sbErr.message.includes('already') || sbErr.message.includes('Password') || sbErr.message.includes('valid'))) {
-        throw sbErr;
+    } else if (signupData && signupData.error_description && signupData.error_description.includes('already registered')) {
+      // Already registered — try login instead
+      const loginRes = await fetch(`${SUPABASE_PROXY}/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password })
+      });
+      const loginData = await loginRes.json();
+      if (loginData && loginData.access_token && loginData.user) {
+        sessionToken = loginData.access_token;
+        sessionUser = {
+          id: loginData.user.id,
+          name: loginData.user.user_metadata?.name || cleanName,
+          email: loginData.user.email,
+          username: cleanEmail.split('@')[0],
+          isGuest: false,
+          loggedInAt: new Date().toISOString()
+        };
+      } else {
+        throw new Error('An account with this email already exists. Try signing in.');
       }
-      console.warn('Supabase signup notice:', sbErr.message);
+    } else if (signupData && signupData.msg) {
+      throw new Error(signupData.msg);
     }
+  } catch (sbErr) {
+    if (sbErr.message && (sbErr.message.includes('already') || sbErr.message.includes('Password') || sbErr.message.includes('valid'))) {
+      throw sbErr;
+    }
+    console.warn('Supabase signup notice:', sbErr.message);
   }
 
   // 2. Also register with local SQLite server in parallel
@@ -1476,39 +1485,34 @@ const loginUser = async (emailOrUsername, password) => {
   let sessionUser = null;
   let sessionToken = null;
 
-  // 1. Supabase Cloud Login (Primary Cloud DB)
-  const sb = getSupabase();
-  if (sb) {
-    try {
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: cleanEmail,
-        password: password
-      });
+  // 1. Supabase Cloud Login via proxy (Primary Cloud DB)
+  try {
+    const loginRes = await fetch(`${SUPABASE_PROXY}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, password })
+    });
+    const data = await loginRes.json();
 
-      if (error) {
-        if (error.message.toLowerCase().includes('invalid login credentials')) {
-          // Check local server below
-        } else {
-          console.warn('Supabase signIn error:', error.message);
-        }
-      }
-
-      if (data && data.user && data.session) {
-        const u = data.user;
-        const meta = u.user_metadata || {};
-        sessionToken = data.session.access_token;
-        sessionUser = {
-          id: u.id,
-          name: meta.name || u.email.split('@')[0],
-          email: u.email,
-          username: meta.username || u.email.split('@')[0],
-          isGuest: false,
-          loggedInAt: new Date().toISOString()
-        };
-      }
-    } catch (sbLoginErr) {
-      console.warn('Supabase login exception:', sbLoginErr.message);
+    if (data && data.access_token && data.user) {
+      const u = data.user;
+      const meta = u.user_metadata || {};
+      sessionToken = data.access_token;
+      sessionUser = {
+        id: u.id,
+        name: meta.name || u.email.split('@')[0],
+        email: u.email,
+        username: meta.username || u.email.split('@')[0],
+        isGuest: false,
+        loggedInAt: new Date().toISOString()
+      };
+    } else if (data && (data.error === 'invalid_grant' || data.error_description)) {
+      // Wrong credentials — fall through to local SQLite server check below
+    } else {
+      console.warn('Supabase login response:', JSON.stringify(data).substring(0, 100));
     }
+  } catch (sbLoginErr) {
+    console.warn('Supabase login exception:', sbLoginErr.message);
   }
 
   // 2. Also log in with Central SQLite Server in parallel
@@ -4808,8 +4812,8 @@ const init = async () => {
     if (storedToken && storedToken.length > 10 && storedSession && storedSession.id && !storedSession.isGuest) {
       // Verify the token is still valid by hitting Supabase /auth/v1/user
       try {
-        const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${storedToken}` }
+        const verifyRes = await fetch(`${SUPABASE_PROXY}/auth/user`, {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
         });
         if (verifyRes.ok) {
           const userData = await verifyRes.json();
