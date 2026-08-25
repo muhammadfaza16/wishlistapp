@@ -336,14 +336,14 @@ const scrapeProduct = async (rawUrl) => {
   };
 };
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer({ maxHeaderSize: 65536 }, async (req, res) => {
   let reqPath = req.url.split('?')[0];
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id, x-user-email, x-user-name',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
     });
     res.end();

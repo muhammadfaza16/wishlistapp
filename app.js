@@ -617,22 +617,26 @@ const optimizeLocalStorage = () => {
       }
     });
 
-    // 2. Prune oversized Supabase SDK session data if bloated with old base64 images
+    // 2. Prune oversized Supabase SDK session data and auth token if bloated
+    const token = localStorage.getItem('wishlist_auth_token');
+    if (token && token.length > 4000) {
+      localStorage.removeItem('wishlist_auth_token');
+    }
+
     const keysNow = Object.keys(localStorage);
     keysNow.forEach(k => {
       if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
         const raw = localStorage.getItem(k);
-        if (raw && raw.length > 50000 && raw.includes('data:image')) {
+        if (raw && raw.length > 8000) {
           try {
             const parsed = JSON.parse(raw);
             if (parsed && parsed.user && parsed.user.user_metadata) {
               const meta = parsed.user.user_metadata;
-              if (Array.isArray(meta.wishlist_items)) {
-                meta.wishlist_items = meta.wishlist_items.map(i => ({ ...i, imageData: null }));
-              }
-              if (Array.isArray(meta.catalog_items)) {
-                meta.catalog_items = meta.catalog_items.map(i => ({ ...i, imageData: null }));
-              }
+              delete meta.wishlist_items;
+              delete meta.catalog_items;
+              delete meta.raw_notepad;
+              delete meta.preferences;
+              delete meta.deleted_item_ids;
               localStorage.setItem(k, JSON.stringify(parsed));
             }
           } catch (e) {}
@@ -1183,23 +1187,6 @@ const syncDataToBackend = async () => {
         if (deletedArr.length > 0) {
           await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', userId);
         }
-
-        // Also update Supabase Auth user_metadata
-        const { error: metaErr } = await sb.auth.updateUser({
-          data: {
-            wishlist_items: cleanItems,
-            catalog_items: cleanCatalogItems,
-            deleted_item_ids: deletedArr,
-            raw_notepad: state.rawNotepadText || "",
-            preferences: {
-              currency: state.currency,
-              notesSortBy: state.notesSortBy,
-              notesMode: state.notesMode,
-              view: state.view
-            }
-          }
-        });
-        if (!metaErr) pushSuccess = true;
       } catch (sbErr) {
         console.warn('Supabase sync error:', sbErr.message);
       }
@@ -4955,6 +4942,20 @@ const init = async () => {
           sessionRestored = true;
           const u = sbSession.user;
           const meta = u.user_metadata || {};
+
+          // Automatically purge legacy bloated metadata from Supabase JWT if present
+          if (meta.wishlist_items || meta.catalog_items || meta.raw_notepad || meta.preferences) {
+            sb.auth.updateUser({
+              data: {
+                wishlist_items: null,
+                catalog_items: null,
+                deleted_item_ids: null,
+                raw_notepad: null,
+                preferences: null
+              }
+            }).catch(() => {});
+          }
+
           const session = {
             id: u.id,
             name: meta.name || u.email.split('@')[0],
