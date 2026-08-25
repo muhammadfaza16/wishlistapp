@@ -1676,7 +1676,7 @@ const loginUser = async (emailOrUsername, password) => {
   setAuthToken(sessionToken);
 
   // Load existing local cache first if any
-  loadUserData(sessionUser.id);
+  loadScopedData();
 
   // Immediately pull fresh central data from Supabase & SQLite!
   await syncDataFromBackend(true);
