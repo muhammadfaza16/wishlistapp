@@ -2655,7 +2655,7 @@ input, button, select, textarea {
   font-weight: 500;
   border: 1px solid #E2E8F0;
   border-radius: 8px;
-  padding: 0 30px 0 11px;
+  padding: 0 32px 0 12px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: calc(100% - 10px) center;
@@ -2670,19 +2670,14 @@ input, button, select, textarea {
   box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
   outline: none;
 }
-  justify-content: center;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
 
-.modal-cancel-btn:hover {
-  background: #E2E8F0;
+.modal-select option {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 450;
   color: #0F172A;
-}
-
-.modal-cancel-btn svg {
-  width: 11px;
-  height: 11px;
+  padding: 8px 12px;
+  background: #FFFFFF;
 }
 
 /* 2-Column Grid that stays clean 2-column */
