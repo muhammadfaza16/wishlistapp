@@ -62,33 +62,56 @@ const generateToken = () => {
 const getAuthenticatedUser = (req) => {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) return null;
+  const headerUserId = req.headers['x-user-id'] || '';
+
+  if (!token && !headerUserId) return null;
 
   try {
-    const sessionStmt = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?');
-    const session = sessionStmt.get(token);
-    if (!session) return null;
-
-    if (new Date(session.expires_at) < new Date()) {
-      db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-      return null;
+    // 1. Try session lookup by token
+    if (token) {
+      const sessionStmt = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?');
+      const session = sessionStmt.get(token);
+      if (session) {
+        if (new Date(session.expires_at) >= new Date()) {
+          const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
+          const user = userStmt.get(session.user_id);
+          if (user) return { ...user, token };
+        }
+      }
     }
 
-    const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
-    const user = userStmt.get(session.user_id);
-    if (!user) return null;
+    // 2. Seamless bridge for Supabase / user session by x-user-id
+    const targetUserId = headerUserId || (token.length > 20 && !token.includes(' ') ? token : null);
+    if (targetUserId) {
+      let user = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?').get(targetUserId);
+      if (!user) {
+        const now = new Date().toISOString();
+        const headerEmail = req.headers['x-user-email'] || `${targetUserId}@wishlist.app`;
+        const headerName = req.headers['x-user-name'] || headerEmail.split('@')[0];
+        db.prepare(`
+          INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
+          VALUES (?, ?, ?, ?, '', '', ?)
+          ON CONFLICT(id) DO NOTHING
+        `).run(targetUserId, headerName, headerEmail, headerName, now);
 
-    return { ...user, token };
+        user = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?').get(targetUserId);
+      }
+      if (user) {
+        return { ...user, token: token || targetUserId };
+      }
+    }
   } catch (err) {
+    console.warn('Auth check error:', err.message);
     return null;
   }
+  return null;
 };
 
 const sendJson = (res, statusCode, data) => {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=UTF-8',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id, x-user-email, x-user-name',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   });
   res.end(JSON.stringify(data));

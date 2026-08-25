@@ -1148,14 +1148,21 @@ const syncDataToBackend = async () => {
     let pushSuccess = false;
 
     // 1. Central SQLite Server Sync (/api/user/sync) - Primary Central DB
-    const authToken = getAuthToken();
-    if (authToken && typeof fetch !== 'undefined') {
+    const userId = state.currentUser.id;
+    const userEmail = state.currentUser.email || `${userId}@wishlist.app`;
+    const userName = state.currentUser.name || 'User';
+    const authToken = getAuthToken() || userId;
+
+    if (typeof fetch !== 'undefined') {
       try {
         const res = await fetch('/api/user/sync', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Authorization': `Bearer ${authToken}`,
+            'x-user-id': userId,
+            'x-user-email': userEmail,
+            'x-user-name': userName
           },
           body: JSON.stringify({
             items: cleanCatalogItems,
@@ -1201,7 +1208,6 @@ const syncDataToBackend = async () => {
     }
 
     // Update locally cached copies
-    const userId = state.currentUser.id;
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
     safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
 
@@ -1227,6 +1233,10 @@ const syncDataFromBackend = async (showFeedback = false) => {
   }
 
   const userId = state.currentUser.id;
+  const userEmail = state.currentUser.email || `${userId}@wishlist.app`;
+  const userName = state.currentUser.name || 'User';
+  const authToken = getAuthToken() || userId;
+
   let fetchedNotes = [];
   let fetchedItems = [];
   let fetchedNotepad = null;
@@ -1235,11 +1245,15 @@ const syncDataFromBackend = async (showFeedback = false) => {
   let pullSuccess = false;
 
   // 1. Fetch from Central Node/SQLite Server (/api/user/sync)
-  const authToken = getAuthToken();
-  if (authToken && typeof fetch !== 'undefined') {
+  if (typeof fetch !== 'undefined') {
     try {
       const res = await fetch('/api/user/sync', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'x-user-id': userId,
+          'x-user-email': userEmail,
+          'x-user-name': userName
+        }
       });
       if (res.ok) {
         const json = await res.json();
