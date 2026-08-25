@@ -861,17 +861,39 @@ const SUPABASE_ANON_KEY = 'sb_publishable_z1xg-Bwxosn3rdzcFqwASw_S9Hr3Vuk';
 
 let supabaseClient = null;
 const getSupabase = () => {
-  if (!supabaseClient && typeof window !== 'undefined' && window.supabase && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    });
+  if (!supabaseClient) {
+    // window.supabase is loaded synchronously before app.js (no defer on CDN script)
+    const factory = (typeof window !== 'undefined' && window.supabase)
+      ? window.supabase
+      : (typeof supabase !== 'undefined' ? supabase : null);
+    if (factory && factory.createClient) {
+      supabaseClient = factory.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          // We manage the session token ourselves via setAuthToken/getAuthToken.
+          // Disable SDK's own localStorage persistence to avoid header-bloat and stale-token bugs.
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
+    }
   }
   return supabaseClient;
 };
+
+// Inject a JWT access token into the Supabase client so all subsequent API calls
+// carry the correct Authorization header without relying on SDK session storage.
+const setSupabaseSession = async (accessToken, refreshToken) => {
+  const sb = getSupabase();
+  if (!sb || !accessToken) return;
+  try {
+    await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || accessToken });
+  } catch (e) {
+    // Fallback: manually set Authorization via the global headers option
+    // (already set via Bearer token in each REST call anyway)
+  }
+};
+
 
 let syncDebounceTimer = null;
 
@@ -1015,9 +1037,17 @@ const syncDataToBackend = async () => {
     const deletedArr = Array.from(state.deletedNoteIds || []);
     let pushSuccess = false;
 
-    // 1. Direct Supabase PostgreSQL Table Upsert & Metadata Push
-    const sb = getSupabase();
-    if (sb) {
+    // 1. Direct Supabase REST API — raw fetch with our own JWT token
+    // (Using raw fetch instead of SDK .from() because persistSession=false means
+    //  the SDK doesn't automatically attach the Authorization header)
+    if (authToken && authToken.length > 10) {
+      const sbHeaders = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      };
+
       try {
         const tableRows = cleanItems.map(item => ({
           id: String(item.id),
@@ -1031,25 +1061,39 @@ const syncDataToBackend = async () => {
           link: item.link || null,
           image_data: (item.imageData && item.imageData.length < 25000) ? item.imageData : null,
           created_at: item.createdAt || new Date().toISOString(),
-          updated_at: item.updatedAt || new Date().toISOString()
+          updated_at: new Date().toISOString()
         }));
 
         if (tableRows.length > 0) {
-          const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows, { onConflict: 'id' });
-          if (upsertErr) {
-            console.warn('Supabase table upsert note:', upsertErr.message);
-          } else {
+          const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items`, {
+            method: 'POST',
+            headers: sbHeaders,
+            body: JSON.stringify(tableRows)
+          });
+          if (upsertRes.ok || upsertRes.status === 201) {
             pushSuccess = true;
+          } else {
+            const errBody = await upsertRes.text();
+            console.warn('Supabase upsert failed:', upsertRes.status, errBody.substring(0, 200));
           }
+        } else {
+          pushSuccess = true; // nothing to upsert is still success
         }
 
+        // Delete removed items
         if (deletedArr.length > 0) {
-          await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', userId);
+          await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?id=in.(${deletedArr.map(id => `"${id}"`).join(',')})&user_id=eq.${userId}`, {
+            method: 'DELETE',
+            headers: sbHeaders
+          });
         }
       } catch (sbErr) {
-        console.warn('Supabase sync error:', sbErr.message);
+        console.warn('Supabase REST sync error:', sbErr.message);
       }
+    } else {
+      console.warn('syncDataToBackend: no valid auth token, skipping Supabase upsert');
     }
+
 
     // 2. Central SQLite Server Sync (/api/user/sync)
     if (typeof fetch !== 'undefined') {
@@ -1115,54 +1159,49 @@ const syncDataFromBackend = async (showFeedback = false) => {
   let fetchedDeleted = [];
   let pullSuccess = false;
 
-  // 1. Fetch from Supabase PostgreSQL Table & Metadata
-  const sb = getSupabase();
-  if (sb) {
+  // 1. Fetch from Supabase REST API with our own JWT token
+  if (authToken && authToken.length > 10) {
     try {
+      const sbHeaders = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+
       // 1a. Direct Table Select from public.wishlist_items
-      const { data: tableData, error: tableErr } = await sb
-        .from('wishlist_items')
-        .select('*')
-        .eq('user_id', userId);
+      const selectRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/wishlist_items?select=*&user_id=eq.${userId}&order=created_at.asc`,
+        { headers: sbHeaders }
+      );
 
-      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
-        const tableNotes = tableData.map(row => ({
-          id: String(row.id),
-          title: String(row.title || 'Untitled'),
-          price: Number(row.price) || 0,
-          currency: row.currency || state.currency || 'IDR',
-          group: row.group || null,
-          priority: Number(row.priority) || 2,
-          checked: !!row.checked,
-          link: row.link || null,
-          imageData: row.image_data || null,
-          createdAt: row.created_at || row.createdAt,
-          updatedAt: row.updated_at || row.updatedAt
-        }));
-        fetchedNotes = mergeWishlistItems(fetchedNotes, tableNotes, new Set(fetchedDeleted));
-        pullSuccess = true;
-      }
-
-      // 1b. Fetch metadata for catalog items and preferences
-      const { data: userData } = await sb.auth.getUser();
-      if (userData && userData.user && userData.user.user_metadata) {
-        const meta = userData.user.user_metadata;
-        if (Array.isArray(meta.wishlist_items) && meta.wishlist_items.length > 0) {
-          fetchedNotes = mergeWishlistItems(fetchedNotes, meta.wishlist_items, new Set(fetchedDeleted));
+      if (selectRes.ok) {
+        const tableData = await selectRes.json();
+        if (Array.isArray(tableData) && tableData.length > 0) {
+          const tableNotes = tableData.map(row => ({
+            id: String(row.id),
+            title: String(row.title || 'Untitled'),
+            price: Number(row.price) || 0,
+            currency: row.currency || state.currency || 'IDR',
+            group: row.group || null,
+            priority: Number(row.priority) || 2,
+            checked: !!row.checked,
+            link: row.link || null,
+            imageData: row.image_data || null,
+            createdAt: row.created_at || row.createdAt,
+            updatedAt: row.updated_at || row.updatedAt
+          }));
+          fetchedNotes = mergeWishlistItems(fetchedNotes, tableNotes, new Set(fetchedDeleted));
+          pullSuccess = true;
+        } else if (Array.isArray(tableData)) {
+          // Table returned empty array — that's a valid response (user has no items yet)
+          pullSuccess = true;
         }
-        if (Array.isArray(meta.catalog_items) && meta.catalog_items.length > 0) {
-          fetchedItems = mergeWishlistItems(fetchedItems, meta.catalog_items, new Set(fetchedDeleted));
-        }
-        if (Array.isArray(meta.deleted_item_ids)) {
-          meta.deleted_item_ids.forEach(id => fetchedDeleted.push(id));
-        }
-        if (fetchedNotepad === null && typeof meta.raw_notepad === 'string') {
-          fetchedNotepad = meta.raw_notepad;
-        }
-        pullSuccess = true;
+      } else {
+        const errText = await selectRes.text();
+        console.warn('Supabase SELECT failed:', selectRes.status, errText.substring(0, 200));
       }
     } catch (sbErr) {
-      console.warn('Supabase pull notice:', sbErr.message);
+      console.warn('Supabase fetch pull notice:', sbErr.message);
     }
   }
 
@@ -4760,74 +4799,44 @@ const init = async () => {
       }
     }
 
-    const sb = getSupabase();
+    // Restore session from our own token storage
+    // (We use persistSession:false so we must restore manually)
     let sessionRestored = false;
+    const storedToken = getAuthToken();
+    const storedSession = getActiveSession();
 
-    if (sb) {
+    if (storedToken && storedToken.length > 10 && storedSession && storedSession.id && !storedSession.isGuest) {
+      // Verify the token is still valid by hitting Supabase /auth/v1/user
       try {
-        const { data: { session: sbSession } } = await sb.auth.getSession();
-        if (sbSession && sbSession.user) {
-          sessionRestored = true;
-          const u = sbSession.user;
-          const meta = u.user_metadata || {};
-
-          // Automatically purge legacy bloated metadata from Supabase JWT if present
-          if (meta.wishlist_items || meta.catalog_items || meta.raw_notepad || meta.preferences) {
-            sb.auth.updateUser({
-              data: {
-                wishlist_items: null,
-                catalog_items: null,
-                deleted_item_ids: null,
-                raw_notepad: null,
-                preferences: null
-              }
-            }).catch(() => {});
+        const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${storedToken}` }
+        });
+        if (verifyRes.ok) {
+          const userData = await verifyRes.json();
+          if (userData && userData.id) {
+            sessionRestored = true;
+            const meta = userData.user_metadata || {};
+            const session = {
+              id: userData.id,
+              name: meta.name || userData.email.split('@')[0],
+              email: userData.email,
+              username: meta.username || userData.email.split('@')[0],
+              isGuest: false,
+              loggedInAt: storedSession.loggedInAt || new Date().toISOString()
+            };
+            setActiveSession(session);
+            state.currentUser = session;
+            // Keep using same token (it's still valid)
           }
-
-          const session = {
-            id: u.id,
-            name: meta.name || u.email.split('@')[0],
-            email: u.email,
-            username: meta.username || u.email.split('@')[0],
-            isGuest: false,
-            loggedInAt: new Date().toISOString()
-          };
-          setActiveSession(session);
-          state.currentUser = session;
-          setAuthToken(sbSession.access_token);
-        }
-      } catch (e) {
-        console.warn('Supabase getSession error:', e);
-      }
-
-      // Realtime auth state listener
-      sb.auth.onAuthStateChange(async (event, sbSession) => {
-        if (event === 'SIGNED_IN' && sbSession && sbSession.user) {
-          const u = sbSession.user;
-          const meta = u.user_metadata || {};
-          const session = {
-            id: u.id,
-            name: meta.name || u.email.split('@')[0],
-            email: u.email,
-            username: meta.username || u.email.split('@')[0],
-            isGuest: false,
-            loggedInAt: new Date().toISOString()
-          };
-          setActiveSession(session);
-          state.currentUser = session;
-          setAuthToken(sbSession.access_token);
-          loadScopedData();
-          updateUserProfileUI();
-          syncDataFromBackend();
-        } else if (event === 'SIGNED_OUT') {
+        } else {
+          // Token expired — clear it
+          console.warn('Stored token expired, clearing session');
           setAuthToken(null);
           setActiveSession(null);
-          state.currentUser = null;
-          loadScopedData();
-          updateUserProfileUI();
-          render();
         }
-      });
+      } catch (e) {
+        console.warn('Session verify error (will proceed as guest):', e.message);
+      }
     }
 
     // Check Central SQLite server session (/api/auth/me)
