@@ -4299,6 +4299,11 @@ const initEventHandlers = () => {
     });
   }
 
+  const closeConfirmDialog = () => {
+    const el = document.getElementById('confirm-dialog') || document.getElementById('delete-modal');
+    if (el) el.classList.add('hidden');
+  };
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeQuickNoteModal();
