@@ -1350,9 +1350,9 @@ input, button, select, textarea {
 .clean-notes-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 16px -2px rgba(15, 23, 42, 0.02);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .notes-card-header {
@@ -1360,9 +1360,9 @@ input, button, select, textarea {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 11px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid #F4F4F6;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
   flex-wrap: wrap;
 }
 
@@ -1374,17 +1374,17 @@ input, button, select, textarea {
 
 .notes-card-title {
   font-family: var(--font-sans);
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #1C1C1E;
-  letter-spacing: -0.01em;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
 }
 
 .notes-header-left {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 29px;
+  min-height: 28px;
 }
 
 #notes-view {
@@ -1408,15 +1408,15 @@ input, button, select, textarea {
 }
 
 .notes-sort-trigger {
-  height: 29px;
+  height: 28px;
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 500;
-  color: #18181B;
+  color: var(--text-secondary);
   background: #FFFFFF;
-  border: 1px solid #E4E4E7;
-  border-radius: 7px;
-  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0 8.5px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1424,34 +1424,34 @@ input, button, select, textarea {
   white-space: nowrap;
   flex-shrink: 0;
   transition: all 140ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   user-select: none;
 }
 
 .notes-sort-trigger:hover {
-  background: #F4F4F6;
-  border-color: #D4D4D8;
-  color: #09090B;
+  background: var(--bg-hover);
+  border-color: #CBD5E1;
+  color: var(--text-primary);
 }
 
 .notes-sort-trigger:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .notes-sort-dropdown.open .notes-sort-trigger {
-  border-color: #18181B;
-  background: #FAFAFA;
+  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 
 .notes-sort-trigger .sort-direction-icon {
   width: 12px;
   height: 12px;
-  color: #71717A;
+  color: var(--text-tertiary);
   transition: transform 150ms ease, color 140ms ease;
 }
 
 .notes-sort-trigger:hover .sort-direction-icon {
-  color: #18181B;
+  color: var(--text-primary);
 }
 
 .notes-sort-dropdown .sort-dropdown-menu {
@@ -1461,9 +1461,9 @@ input, button, select, textarea {
   left: auto;
   min-width: 124px;
   background: #FFFFFF;
-  border: 1px solid #E4E4E7;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
   padding: 4px;
   z-index: 600;
   animation: modalSlideIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1479,7 +1479,7 @@ input, button, select, textarea {
   font-size: 11.5px;
   font-weight: 500;
   font-family: var(--font-sans);
-  color: #3F3F46;
+  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1489,46 +1489,46 @@ input, button, select, textarea {
 }
 
 .notes-sort-dropdown .sort-menu-item:hover {
-  background: #F4F4F6;
-  color: #18181B;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .notes-sort-dropdown .sort-menu-item.active {
-  background: #F4F4F5;
-  color: #18181B;
+  background: var(--bg-hover);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .notes-sort-dropdown .sort-menu-item .sort-menu-item-icon {
   width: 12px;
   height: 12px;
-  color: #18181B;
+  color: var(--text-primary);
   flex-shrink: 0;
   transition: opacity 120ms ease;
 }
 
 .btn-clean-action {
-  height: 29px;
+  height: 28px;
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 500;
-  color: #18181B;
+  color: var(--text-secondary);
   background: #FFFFFF;
-  border: 1px solid #E4E4E7;
-  border-radius: 7px;
-  padding: 0 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0 8.5px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 150ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 140ms ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .btn-clean-action.btn-icon-only {
-  width: 29px;
+  width: 28px;
   padding: 0;
   justify-content: center;
 }
@@ -1536,44 +1536,44 @@ input, button, select, textarea {
 .btn-clean-action svg {
   width: 12px;
   height: 12px;
-  color: #71717A;
+  color: var(--text-tertiary);
 }
 
 .btn-clean-action.btn-icon-only svg {
-  width: 13.5px;
-  height: 13.5px;
+  width: 13px;
+  height: 13px;
 }
 
 .btn-clean-action:hover {
-  background: #F4F4F6;
-  border-color: #D4D4D8;
-  color: #09090B;
+  background: var(--bg-hover);
+  border-color: #CBD5E1;
+  color: var(--text-primary);
 }
 
 .btn-clean-action:hover svg {
-  color: #09090B;
+  color: var(--text-primary);
 }
 
 .btn-clean-action.active {
-  background: #09090B;
-  color: #FFFFFF;
-  border-color: #09090B;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
 
 .btn-clean-action.active svg {
-  color: #FFFFFF;
+  color: var(--text-inverse);
 }
 
 .btn-clean-action-primary {
-  height: 29px;
+  height: 28px;
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 600;
-  color: #FFFFFF;
-  background: #09090B;
-  border: 1px solid #09090B;
-  border-radius: 7px;
+  color: var(--text-inverse);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
   padding: 0 10px;
   cursor: pointer;
   display: inline-flex;
@@ -1581,8 +1581,8 @@ input, button, select, textarea {
   gap: 3.5px;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 150ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: all 140ms ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
 }
 
 .btn-clean-action-primary svg {
@@ -1591,8 +1591,8 @@ input, button, select, textarea {
 }
 
 .btn-clean-action-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-0.5px);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* Multi-select Action Bar */
@@ -1601,10 +1601,10 @@ input, button, select, textarea {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: #F4F4F6;
-  border: 1px solid #E5E5EA;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  margin-bottom: 10px;
   gap: 6px;
   flex-wrap: nowrap;
 }
@@ -1613,7 +1613,7 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 600;
-  color: #18181B;
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -1626,45 +1626,45 @@ input, button, select, textarea {
 }
 
 .btn-selection-action {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border-radius: 6px;
-  border: 1px solid #E5E5EA;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
   background: #FFFFFF;
-  color: #18181B;
+  color: var(--text-secondary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 150ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 140ms ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .btn-selection-action svg {
-  width: 13px;
-  height: 13px;
-  color: #52525B;
+  width: 12.5px;
+  height: 12.5px;
+  color: var(--text-secondary);
 }
 
 .btn-selection-action:hover:not(:disabled) {
-  background: #F4F4F6;
-  border-color: #D4D4D8;
-  color: #09090B;
+  background: var(--bg-hover);
+  border-color: #CBD5E1;
+  color: var(--text-primary);
 }
 
 .btn-selection-action:hover:not(:disabled) svg {
-  color: #09090B;
+  color: var(--text-primary);
 }
 
 .btn-selection-action.active {
-  background: #09090B;
-  color: #FFFFFF;
-  border-color: #09090B;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
 }
 
 .btn-selection-action.active svg {
-  color: #FFFFFF;
+  color: var(--text-inverse);
 }
 
 .btn-selection-action:disabled {
@@ -1673,20 +1673,20 @@ input, button, select, textarea {
 }
 
 .btn-selection-action.btn-group-action:not(:disabled) {
-  background: #09090B;
-  color: #FFFFFF;
-  border-color: #09090B;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
 }
 
 .btn-selection-action.btn-group-action:not(:disabled) svg {
-  color: #FFFFFF;
+  color: var(--text-inverse);
 }
 
 .btn-selection-action.btn-delete-action:not(:disabled) {
   color: #FFFFFF;
-  border-color: #DC2626;
-  background: #DC2626;
-  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.28);
+  border-color: #E11D48;
+  background: #E11D48;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.25);
 }
 
 .btn-selection-action.btn-delete-action:not(:disabled) svg {
