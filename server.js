@@ -69,6 +69,14 @@ db.exec(`
   VALUES ('guest', 'Guest User', 'guest@local', 'guest', '', '', '2026-01-01T00:00:00.000Z');
 `);
 
+// Helper to format string or UUID safely for PostgreSQL UUID columns
+const toUUID = (str) => {
+  if (!str || str === 'guest') return '00000000-0000-0000-0000-000000000000';
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) return str;
+  const hash = crypto.createHash('md5').update(String(str)).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+};
+
 // Background Sync Helper to Supabase (Server-to-Server, never blocks client response)
 const syncItemToSupabase = async (item, action = 'upsert') => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !item) return;
@@ -80,10 +88,13 @@ const syncItemToSupabase = async (item, action = 'upsert') => {
       'Prefer': 'resolution=merge-duplicates,return=minimal'
     };
 
+    const targetUserId = toUUID(item.user_id);
+    const targetItemId = toUUID(item.id);
+
     if (action === 'upsert') {
       const row = {
-        id: String(item.id),
-        user_id: String(item.user_id),
+        id: targetItemId,
+        user_id: targetUserId,
         title: String(item.title || 'Untitled'),
         price: Number(item.price) || 0,
         currency: item.currency || 'IDR',
@@ -99,12 +110,12 @@ const syncItemToSupabase = async (item, action = 'upsert') => {
         method: 'POST',
         headers,
         body: JSON.stringify([row])
-      }).catch(() => {});
+      }).catch((e) => console.warn('Supabase sync upsert error:', e.message));
     } else if (action === 'delete') {
-      await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?id=eq.${encodeURIComponent(item.id)}&user_id=eq.${encodeURIComponent(item.user_id)}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?id=eq.${encodeURIComponent(targetItemId)}&user_id=eq.${encodeURIComponent(targetUserId)}`, {
         method: 'DELETE',
         headers
-      }).catch(() => {});
+      }).catch((e) => console.warn('Supabase sync delete error:', e.message));
     }
   } catch (err) {
     // Non-blocking log
