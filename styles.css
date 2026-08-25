@@ -782,14 +782,10 @@ input, button, select, textarea {
 
 /* Notes View Layout */
 .notes-summary-bar {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 4px;
-}
-
-.notes-progress-container {
-  margin-bottom: 24px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  width: 100%;
 }
 
 /* Clean Sub-Tabs Navigation */
