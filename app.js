@@ -225,7 +225,6 @@ const sortItems = (items) => {
 const renderGroupedItemRow = (item) => {
   const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
-  const priority = Number(item.priority) || 2;
   const isEditMode = state.viewMode === 'edit';
 
   return `
@@ -233,11 +232,11 @@ const renderGroupedItemRow = (item) => {
       <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
-        ` : ''}
-        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
+        ` : `
+          <span class="reader-grouped-bullet">•</span>
+        `}
 
         <span class="reader-grouped-title">${escapeHtml(item.title || 'Untitled')}</span>
-        ${priority === 1 ? `<span class="note-priority-pill p-1">P1</span>` : ''}
       </div>
 
       <div class="quick-note-right">
@@ -260,7 +259,6 @@ const renderGroupedItemRow = (item) => {
 const renderStandaloneItemRow = (item) => {
   const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
-  const priority = Number(item.priority) || 2;
   const isEditMode = state.viewMode === 'edit';
 
   return `
@@ -268,11 +266,11 @@ const renderStandaloneItemRow = (item) => {
       <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
-        ` : ''}
-        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
+        ` : `
+          <span class="reader-grouped-bullet">•</span>
+        `}
 
         <span class="quick-note-title">${escapeHtml(item.title || 'Untitled')}</span>
-        ${priority === 1 ? `<span class="note-priority-pill p-1">P1</span>` : ''}
       </div>
 
       <div class="quick-note-right">
@@ -336,6 +334,7 @@ const renderItemsList = () => {
     const isCollapsed = state.collapsedGroups.has(groupName);
     const totalGroupPrice = groupItems.reduce((acc, i) => acc + (Number(i.price) || 0), 0);
     const checkedCount = groupItems.filter(i => i.checked).length;
+    const isEditMode = state.viewMode === 'edit';
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}" data-group="${escapeHtml(groupName)}">
@@ -348,11 +347,13 @@ const renderItemsList = () => {
           </div>
           <div class="group-header-right">
             <span class="group-header-total">${formatPrice(totalGroupPrice, state.currency)}</span>
-            <div class="group-header-actions">
-              <button type="button" class="group-action-btn" data-action="rename-group" data-group="${escapeHtml(groupName)}" title="Rename Group" onclick="event.stopPropagation()">
-                <i data-lucide="edit-3"></i>
-              </button>
-            </div>
+            ${isEditMode ? `
+              <div class="group-header-actions">
+                <button type="button" class="group-action-btn" data-action="rename-group" data-group="${escapeHtml(groupName)}" title="Rename Group" onclick="event.stopPropagation()">
+                  <i data-lucide="edit-3"></i>
+                </button>
+              </div>
+            ` : ''}
           </div>
         </div>
         <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
@@ -726,6 +727,21 @@ const openPreviewModal = (itemId) => {
     if (imgBox) imgBox.classList.remove('hidden');
   } else {
     if (imgBox) imgBox.classList.add('hidden');
+  }
+
+  // Update Status Toggle Button
+  const toggleBtn = document.getElementById('quick-note-preview-toggle-check-btn');
+  const toggleText = document.getElementById('preview-toggle-check-text');
+  if (toggleBtn && toggleText) {
+    if (item.checked) {
+      toggleText.textContent = 'Mark as Wishlist';
+      toggleBtn.className = 'btn-preview-secondary';
+      toggleBtn.innerHTML = '<i data-lucide="rotate-ccw"></i> <span id="preview-toggle-check-text">Mark as Wishlist</span>';
+    } else {
+      toggleText.textContent = 'Mark as Acquired';
+      toggleBtn.className = 'btn-preview-primary';
+      toggleBtn.innerHTML = '<i data-lucide="check-circle"></i> <span id="preview-toggle-check-text">Mark as Acquired</span>';
+    }
   }
 
   modal.classList.remove('hidden');
@@ -1155,6 +1171,15 @@ const initEventHandlers = () => {
       const preset = chip.getAttribute('data-preset');
       const input = document.getElementById('group-name-input');
       if (input) input.value = preset;
+    }
+  });
+
+  // Preview Toggle Acquired Button
+  document.getElementById('quick-note-preview-toggle-check-btn')?.addEventListener('click', async () => {
+    const id = state.activePreviewItemId;
+    if (id) {
+      await toggleItemCheck(id);
+      openPreviewModal(id); // Refresh preview modal state
     }
   });
 

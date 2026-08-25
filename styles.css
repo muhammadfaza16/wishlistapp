@@ -1917,10 +1917,12 @@ input, button, select, textarea {
 }
 
 .reader-grouped-bullet {
-  font-size: 13px;
+  font-size: 14px;
   color: #A1A1AA;
   line-height: 1;
   flex-shrink: 0;
+  margin-right: 4px;
+  user-select: none;
 }
 
 .reader-grouped-title {
