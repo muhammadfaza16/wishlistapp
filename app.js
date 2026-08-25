@@ -304,9 +304,24 @@ const sortItems = (items) => {
   return list;
 };
 
+const getSortIcon = (sortBy, sortOrder) => {
+  const isAsc = sortOrder === 'asc';
+  switch (sortBy) {
+    case 'title':
+      return isAsc ? 'arrow-down-a-z' : 'arrow-down-z-a';
+    case 'price':
+      return isAsc ? 'arrow-down-0-1' : 'arrow-down-1-0';
+    case 'priority':
+      return isAsc ? 'arrow-down-narrow-wide' : 'arrow-down-wide-narrow';
+    case 'date':
+      return isAsc ? 'calendar-arrow-up' : 'calendar-arrow-down';
+    default:
+      return isAsc ? 'arrow-up' : 'arrow-down';
+  }
+};
+
 const updateSortUI = () => {
   const sort = state.sortBy;
-  const isAsc = state.sortOrder === 'asc';
 
   document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
     const itemSort = el.getAttribute('data-sort');
@@ -320,7 +335,8 @@ const updateSortUI = () => {
     sortLabel.textContent = nameMap[sort] || 'Sort';
   }
   if (sortIcon) {
-    sortIcon.setAttribute('data-lucide', isAsc ? 'arrow-up' : 'arrow-down');
+    const iconName = getSortIcon(state.sortBy, state.sortOrder);
+    sortIcon.setAttribute('data-lucide', iconName);
   }
   safeCreateLucideIcons();
 };
