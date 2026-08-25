@@ -1031,6 +1031,7 @@ const openQuickNoteModal = (itemId = null) => {
     const item = state.items.find(i => i.id === itemId);
     if (!item) return;
     if (titleEl) titleEl.textContent = 'Edit Item';
+    if (deleteBtn) deleteBtn.classList.remove('hidden');
     if (titleInput) titleInput.value = item.title || '';
     if (priceInput) priceInput.value = (item.price !== undefined && item.price !== null && item.price !== 0) ? item.price : (item.price === 0 ? '0' : '');
     const currentGroup = item.group || '';
@@ -1061,6 +1062,7 @@ const openQuickNoteModal = (itemId = null) => {
     }
   } else {
     if (titleEl) titleEl.textContent = 'Add Item';
+    if (deleteBtn) deleteBtn.classList.add('hidden');
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
@@ -1081,6 +1083,8 @@ const openQuickNoteModal = (itemId = null) => {
 const closeQuickNoteModal = () => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
+  const deleteBtn = document.getElementById('quick-note-delete-btn');
+  if (deleteBtn) deleteBtn.classList.add('hidden');
   state.activeModalItemId = null;
   currentUploadedImage = null;
 };
@@ -1538,6 +1542,19 @@ const initEventHandlers = () => {
       priority,
       checked,
       imageData: currentUploadedImage
+    });
+  });
+
+  // Quick Note Modal Delete Button (in Edit Item mode)
+  document.getElementById('quick-note-delete-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const itemId = state.activeModalItemId;
+    if (!itemId) return;
+
+    openConfirmModal('Are you sure you want to delete this item?', async () => {
+      closeQuickNoteModal();
+      await deleteSingleItem(itemId);
     });
   });
 

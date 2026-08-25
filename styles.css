@@ -3069,13 +3069,57 @@ input, button, select, textarea {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
-/* Modal Submit Button */
+/* Modal Submit & Actions */
 .modal-submit-wrap {
   width: 100%;
-  margin-top: 4px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--danger-light, #FFF1F2);
+  color: var(--danger, #E11D48);
+  border: 1px solid #FFE4E6;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.modal-delete-btn:hover {
+  background: #FFE4E6;
+  color: var(--danger-hover, #BE123C);
+  border-color: #FECDD3;
+}
+
+.modal-delete-btn:active {
+  transform: translateY(0.5px);
+}
+
+.modal-delete-btn.hidden {
+  display: none !important;
+}
+
+.modal-delete-btn svg,
+.modal-delete-btn i {
+  width: 15px;
+  height: 15px;
 }
 
 .modal-save-btn {
+  flex: 1;
   width: 100%;
   height: 40px;
   background: #0F172A !important;
@@ -3101,6 +3145,10 @@ input, button, select, textarea {
 
 .modal-save-btn:active {
   transform: translateY(0.5px);
+}
+
+#confirm-modal {
+  z-index: 1200;
 }
 
 /* Pannable Image Containers */

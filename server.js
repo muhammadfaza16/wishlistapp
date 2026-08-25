@@ -26,6 +26,9 @@ if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
 }
 
 const db = new DatabaseSync(DB_PATH);
+try {
+  db.exec('PRAGMA foreign_keys = OFF;');
+} catch (e) {}
 
 // Initialize relational schema
 db.exec(`
@@ -43,8 +46,7 @@ db.exec(`
     token TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    expires_at TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS items (
@@ -59,8 +61,7 @@ db.exec(`
     link TEXT,
     image_data TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    updated_at TEXT NOT NULL
   );
 
   CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
@@ -68,6 +69,37 @@ db.exec(`
   INSERT OR IGNORE INTO users (id, name, email, username, password_hash, salt, created_at)
   VALUES ('guest', 'Guest User', 'guest@local', 'guest', '', '', '2026-01-01T00:00:00.000Z');
 `);
+
+// Ensure user row exists in SQLite to prevent any constraint failures
+const ensureUserRecord = (userId, user = null) => {
+  if (!userId) return;
+  try {
+    const existing = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!existing) {
+      const now = new Date().toISOString();
+      const name = (user && user.name) ? user.name : (userId === 'guest' ? 'Guest User' : 'User');
+      const email = (user && user.email) ? user.email : `${userId}@local`;
+      const username = (user && user.username) ? user.username : (userId === 'guest' ? 'guest' : `u_${String(userId).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 24)}`);
+
+      try {
+        db.prepare(`
+          INSERT OR IGNORE INTO users (id, name, email, username, password_hash, salt, created_at)
+          VALUES (?, ?, ?, ?, '', '', ?)
+        `).run(userId, name, email, username, now);
+      } catch (insertErr) {
+        const uniqueSuffix = crypto.randomBytes(4).toString('hex');
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO users (id, name, email, username, password_hash, salt, created_at)
+            VALUES (?, ?, ?, ?, '', '', ?)
+          `).run(userId, name, `u_${userId}_${uniqueSuffix}@local`, `u_${uniqueSuffix}`, now);
+        } catch (e2) {}
+      }
+    }
+  } catch (err) {
+    console.warn('ensureUserRecord warning:', err.message);
+  }
+};
 
 // Helper to format string or UUID safely for PostgreSQL UUID columns
 const toUUID = (str) => {
@@ -188,7 +220,7 @@ const getAuthenticatedUser = (req) => {
       // 1. Verify signed stateless session token (shared across all Vercel/lambda instances)
       const verified = verifySessionToken(token);
       if (verified && verified.id) {
-        return {
+        const u = {
           id: verified.id,
           name: verified.name,
           email: verified.email,
@@ -196,6 +228,8 @@ const getAuthenticatedUser = (req) => {
           createdAt: verified.createdAt || new Date().toISOString(),
           token
         };
+        ensureUserRecord(u.id, u);
+        return u;
       }
 
       // 2. Check local SQLite sessions
@@ -215,7 +249,7 @@ const getAuthenticatedUser = (req) => {
           const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8'));
           if (payload && payload.sub) {
             const meta = payload.user_metadata || {};
-            return {
+            const u = {
               id: payload.sub,
               name: meta.name || (payload.email ? payload.email.split('@')[0] : 'User'),
               email: payload.email || '',
@@ -223,6 +257,8 @@ const getAuthenticatedUser = (req) => {
               createdAt: new Date().toISOString(),
               token
             };
+            ensureUserRecord(u.id, u);
+            return u;
           }
         } catch (e) {}
       }
@@ -783,6 +819,7 @@ const handler = async (req, res) => {
   if (req.method === 'GET' && reqPath === '/api/items') {
     const user = getAuthenticatedUser(req);
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
+    ensureUserRecord(userId, user);
 
     try {
       // 1. If authenticated user, ALWAYS fetch latest real-time items from Supabase wishlist_items
@@ -913,6 +950,7 @@ const handler = async (req, res) => {
   if (req.method === 'POST' && reqPath === '/api/items') {
     const user = getAuthenticatedUser(req);
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
+    ensureUserRecord(userId, user);
 
     try {
       const body = await readBody(req);
@@ -957,6 +995,7 @@ const handler = async (req, res) => {
   if (req.method === 'PUT' && reqPath.startsWith('/api/items/')) {
     const user = getAuthenticatedUser(req);
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
+    ensureUserRecord(userId, user);
     const itemId = decodeURIComponent(reqPath.replace('/api/items/', ''));
 
     try {
@@ -1054,6 +1093,7 @@ const handler = async (req, res) => {
   if (req.method === 'DELETE' && reqPath.startsWith('/api/items/')) {
     const user = getAuthenticatedUser(req);
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
+    ensureUserRecord(userId, user);
     const itemId = decodeURIComponent(reqPath.replace('/api/items/', ''));
 
     try {
@@ -1071,6 +1111,7 @@ const handler = async (req, res) => {
   if (req.method === 'POST' && reqPath === '/api/items/bulk') {
     const user = getAuthenticatedUser(req);
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
+    ensureUserRecord(userId, user);
 
     try {
       const body = await readBody(req);
