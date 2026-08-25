@@ -2120,11 +2120,12 @@ input, button, select, textarea {
    ========================================================================== */
 
 .preview-modal-card {
-  padding: 20px 22px 22px 22px;
-  background: #FFFFFF;
+  padding: 22px 24px 24px;
+  background: var(--bg-card);
   border-radius: 16px;
-  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  max-width: 420px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  max-width: 400px;
 }
 
 .preview-modal-top {
@@ -2138,7 +2139,7 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 550;
-  color: #71717A;
+  color: var(--text-tertiary);
   letter-spacing: -0.01em;
 }
 
@@ -2148,30 +2149,31 @@ input, button, select, textarea {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
-  background: transparent;
-  color: #71717A;
-  border: none;
+  border-radius: 7px;
+  background: #F8FAFC;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all 140ms ease;
 }
 
 .quick-note-preview-close:hover {
-  background: #F4F4F6;
-  color: #18181B;
+  background: #0F172A !important;
+  border-color: #0F172A !important;
+  color: #FFFFFF !important;
 }
 
 .quick-note-preview-close svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .preview-hero-img-box {
   margin-bottom: 14px;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #EDEDF0;
-  background: #F4F4F6;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
 }
 
 .preview-header-meta {
@@ -2180,9 +2182,9 @@ input, button, select, textarea {
 
 .preview-title {
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 650;
-  color: #09090B;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
   line-height: 1.35;
   margin: 0 0 6px 0;
@@ -2199,7 +2201,7 @@ input, button, select, textarea {
   font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
-  color: #0F172A;
+  color: var(--text-primary);
   letter-spacing: -0.035em;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
@@ -2220,23 +2222,25 @@ input, button, select, textarea {
   border: 1px solid #A7F3D0;
 }
 
+/* Minimalist Unslop Preview Details List */
 .preview-details-list {
   display: flex;
   flex-direction: column;
-  background: #F9F9FB;
-  border: 1px solid #EDEDF0;
-  border-radius: 10px;
-  padding: 2px 12px;
-  margin-bottom: 16px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: 4px 0;
+  margin-bottom: 18px;
 }
 
 .preview-detail-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 7px 0;
   font-size: 12.5px;
-  border-bottom: 1px solid #F0F0F3;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .preview-detail-row:last-child {
@@ -2246,33 +2250,26 @@ input, button, select, textarea {
 .preview-detail-label {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: #71717A;
+  color: var(--text-tertiary);
   font-weight: 450;
 }
 
 .preview-detail-value {
   font-family: var(--font-sans);
   font-size: 12.5px;
-  color: #18181B;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
-.preview-detail-value.priority-p1 {
-  color: #DC2626;
-  font-weight: 600;
-}
-
-.preview-detail-value.priority-p2 {
-  color: #18181B;
-  font-weight: 500;
-}
-
+.preview-detail-value.priority-p1,
+.preview-detail-value.priority-p2,
 .preview-detail-value.priority-p3 {
-  color: #71717A;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .preview-text-link {
-  color: #09090B;
+  color: var(--text-primary);
   text-decoration: none;
   font-weight: 500;
   font-size: 12.5px;
@@ -2289,7 +2286,7 @@ input, button, select, textarea {
 
 .preview-text-link .ext-arrow {
   font-size: 12px;
-  color: #71717A;
+  color: var(--text-tertiary);
   line-height: 1;
 }
 
@@ -2305,14 +2302,14 @@ input, button, select, textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #18181B;
-  color: #FFFFFF;
-  border: 1px solid #18181B;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
   border-radius: 8px;
   height: 38px;
   padding: 0 16px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: all 120ms ease;
@@ -2323,8 +2320,8 @@ input, button, select, textarea {
 }
 
 .btn-preview-primary:hover {
-  background: #27272A;
-  border-color: #27272A;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn-preview-primary:active {
@@ -2336,9 +2333,9 @@ input, button, select, textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #F4F4F6;
-  color: #18181B;
-  border: 1px solid #E4E4E7;
+  background: #FFFFFF;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   height: 38px;
   padding: 0 16px;
@@ -2355,8 +2352,9 @@ input, button, select, textarea {
 }
 
 .btn-preview-secondary:hover {
-  background: #EAEAEF;
-  border-color: #D4D4D8;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: #CBD5E1;
 }
 
 .btn-preview-secondary:active {
@@ -3471,8 +3469,8 @@ textarea#raw-notepad-input:focus {
 }
 
 .stat-card {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 14px 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -3480,20 +3478,6 @@ textarea#raw-notepad-input:focus {
   min-width: 0;
   overflow: hidden;
   position: relative;
-}
-
-.stat-card:first-child {
-  background: #0F172A;
-  border-color: #0F172A;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
-}
-
-.stat-card:first-child .stat-label {
-  color: #94A3B8;
-}
-
-.stat-card:first-child .stat-value {
-  color: #FFFFFF;
 }
 
 .stat-card:hover {
@@ -3505,7 +3489,7 @@ textarea#raw-notepad-input:focus {
 .stat-card .stat-label {
   font-family: var(--font-sans);
   font-size: 11px;
-  color: #64748B;
+  color: var(--text-tertiary);
   font-weight: 550;
   letter-spacing: -0.01em;
   display: block;
@@ -3519,7 +3503,7 @@ textarea#raw-notepad-input:focus {
   font-family: var(--font-mono);
   font-size: clamp(14.5px, 1.85vw, 18.5px);
   font-weight: 650;
-  color: #0F172A;
+  color: var(--text-primary);
   display: block;
   line-height: 1.2;
   white-space: nowrap;

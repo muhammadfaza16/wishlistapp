@@ -1168,14 +1168,14 @@ const openPreviewModal = (itemId) => {
   if (priorityEl) {
     const p = Number(item.priority) || 2;
     if (p === 1) {
-      priorityEl.textContent = 'High (P1)';
-      priorityEl.className = 'preview-detail-value priority-p1';
+      priorityEl.textContent = 'High';
+      priorityEl.className = 'preview-detail-value';
     } else if (p === 3) {
-      priorityEl.textContent = 'Low (P3)';
-      priorityEl.className = 'preview-detail-value priority-p3';
+      priorityEl.textContent = 'Low';
+      priorityEl.className = 'preview-detail-value';
     } else {
-      priorityEl.textContent = 'Medium (P2)';
-      priorityEl.className = 'preview-detail-value priority-p2';
+      priorityEl.textContent = 'Medium';
+      priorityEl.className = 'preview-detail-value';
     }
   }
 
