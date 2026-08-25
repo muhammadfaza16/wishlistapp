@@ -310,19 +310,7 @@ const updateSortUI = () => {
 
   document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
     const itemSort = el.getAttribute('data-sort');
-    const isActive = itemSort === sort;
-    el.classList.toggle('active', isActive);
-
-    const iconEl = el.querySelector('.sort-dir-icon');
-    if (iconEl) {
-      if (isActive) {
-        iconEl.setAttribute('data-lucide', isAsc ? 'arrow-up' : 'arrow-down');
-        iconEl.style.opacity = '1';
-      } else {
-        iconEl.setAttribute('data-lucide', (itemSort === 'title' || itemSort === 'priority') ? 'arrow-up' : 'arrow-down');
-        iconEl.style.opacity = '0.25';
-      }
-    }
+    el.classList.toggle('active', itemSort === sort);
   });
 
   const sortLabel = document.getElementById('notes-sort-label');
