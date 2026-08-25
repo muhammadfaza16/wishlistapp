@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=334">
+  <link rel="stylesheet" href="styles.css?v=335">
 </head>
 <body>
   <div id="app">
@@ -268,9 +268,19 @@
 
       <div class="preview-modal-body">
         <div id="quick-note-preview-image-container" class="preview-hero-img-box hidden" style="margin-bottom: 14px;">
-          <div class="pannable-image-wrapper" id="quick-note-preview-pan-wrapper">
+          <div class="pannable-image-wrapper can-pan" id="quick-note-preview-pan-wrapper">
             <img id="quick-note-preview-modal-img" alt="Item Photo" class="pannable-img" draggable="false">
-            <div class="img-drag-indicator hidden" id="quick-note-preview-drag-hint">
+            <div class="img-controls-bar">
+              <button type="button" id="preview-img-fullscreen-btn" class="img-action-pill" title="View Full Original Resolution">
+                <i data-lucide="maximize-2"></i>
+                <span>Full View</span>
+              </button>
+              <button type="button" id="preview-img-fit-btn" class="img-action-pill" title="Toggle Fit">
+                <i data-lucide="crop"></i>
+                <span id="preview-img-fit-text">Cover</span>
+              </button>
+            </div>
+            <div class="img-drag-indicator" id="quick-note-preview-drag-hint">
               <i data-lucide="move"></i>
               <span>Drag to pan</span>
             </div>
@@ -357,16 +367,22 @@
             <input type="file" id="quick-note-image-upload" accept="image/*" style="display: none;">
           </div>
           <div id="quick-note-image-preview" class="quick-note-img-preview-card hidden">
-            <div class="pannable-image-wrapper" id="quick-note-edit-pan-wrapper">
+            <div class="pannable-image-wrapper can-pan" id="quick-note-edit-pan-wrapper">
               <img id="quick-note-preview-img" alt="Preview" class="pannable-img" draggable="false">
-              <div class="img-drag-indicator hidden" id="quick-note-edit-drag-hint">
+              <div class="img-controls-bar">
+                <button type="button" id="quick-note-img-fit-btn" class="img-action-pill" title="Toggle Fit Mode (Cover / Contain)">
+                  <i data-lucide="crop"></i>
+                  <span id="quick-note-img-fit-text">Cover</span>
+                </button>
+                <button type="button" id="quick-note-remove-image-btn" class="img-action-pill img-remove-pill" title="Remove photo">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+              <div class="img-drag-indicator" id="quick-note-edit-drag-hint">
                 <i data-lucide="move"></i>
-                <span>Drag to pan</span>
+                <span>Drag to reposition</span>
               </div>
             </div>
-            <button type="button" id="quick-note-remove-image-btn" class="quick-note-remove-img-btn" title="Remove photo">
-              <i data-lucide="x"></i>
-            </button>
           </div>
         </div>
         <div class="form-group" style="margin-bottom: 16px;">
@@ -472,10 +488,20 @@
     </div>
   </div>
 
+  <!-- Full-Resolution Image Lightbox Modal -->
+  <div id="image-lightbox-modal" class="modal-overlay hidden" style="z-index: 1000; background: rgba(0, 0, 0, 0.92); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(12px);">
+    <button type="button" id="lightbox-close-btn" class="modal-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.15); color: #FFF; border-radius: 9999px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 150ms ease;" title="Close">
+      <i data-lucide="x"></i>
+    </button>
+    <div style="max-width: 94vw; max-height: 94vh; display: flex; align-items: center; justify-content: center; position: relative;">
+      <img id="lightbox-full-img" src="" alt="Full Resolution" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); user-select: none;">
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=334" defer></script>
+  <script src="app.js?v=335" defer></script>
 </body>
 </html>

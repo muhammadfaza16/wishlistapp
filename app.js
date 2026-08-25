@@ -689,6 +689,7 @@ const renameGroup = async (oldGroup, newGroup) => {
 const saveItemFromModal = async (formData) => {
   const isEditing = !!state.activeModalItemId;
   const now = new Date().toISOString();
+  const serializedImageData = currentUploadedImage ? serializeImageData(currentUploadedImage, currentImagePan, currentImageFit) : null;
 
   if (isEditing) {
     const item = state.items.find(i => i.id === state.activeModalItemId);
@@ -702,14 +703,19 @@ const saveItemFromModal = async (formData) => {
       link: formData.link,
       priority: formData.priority,
       checked: !!formData.checked,
-      imageData: formData.imageData !== undefined ? formData.imageData : item.imageData,
+      imageData: serializedImageData,
+      imagePan: currentImagePan,
+      imageFit: currentImageFit,
       updatedAt: now
     });
     render();
     closeQuickNoteModal();
 
     try {
-      await api.updateItem(item.id, formData);
+      await api.updateItem(item.id, {
+        ...formData,
+        imageData: serializedImageData
+      });
       showToast('Item updated');
     } catch (err) {
       Object.assign(item, previous);
@@ -727,7 +733,9 @@ const saveItemFromModal = async (formData) => {
       priority: formData.priority,
       checked: !!formData.checked,
       link: formData.link,
-      imageData: formData.imageData || null,
+      imageData: serializedImageData,
+      imagePan: currentImagePan,
+      imageFit: currentImageFit,
       createdAt: now,
       updatedAt: now
     };
@@ -754,6 +762,143 @@ const saveItemFromModal = async (formData) => {
 // 6. MODALS & DIALOGS
 // ==========================================
 let currentUploadedImage = null;
+let currentImagePan = { x: 50, y: 50 };
+let currentImageFit = 'cover';
+
+const getImageSrc = (item) => {
+  if (!item) return '';
+  const raw = item.imageData || item.imageUrl;
+  if (!raw) return '';
+  if (typeof raw === 'string') {
+    if (raw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed.src || parsed.url || '';
+      } catch (e) {}
+    }
+    return raw;
+  }
+  if (typeof raw === 'object') {
+    return raw.src || raw.url || '';
+  }
+  return '';
+};
+
+const getImagePan = (item) => {
+  if (!item) return { x: 50, y: 50 };
+  if (item.imagePan && typeof item.imagePan === 'object') return item.imagePan;
+  const raw = item.imageData || item.imageUrl;
+  if (typeof raw === 'string' && raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.pan) return parsed.pan;
+    } catch (e) {}
+  }
+  if (typeof raw === 'object' && raw.pan) return raw.pan;
+  return { x: 50, y: 50 };
+};
+
+const getImageFit = (item) => {
+  if (!item) return 'cover';
+  if (item.imageFit) return item.imageFit;
+  const raw = item.imageData || item.imageUrl;
+  if (typeof raw === 'string' && raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.fit) return parsed.fit;
+    } catch (e) {}
+  }
+  if (typeof raw === 'object' && raw.fit) return raw.fit;
+  return 'cover';
+};
+
+const serializeImageData = (src, pan = { x: 50, y: 50 }, fit = 'cover') => {
+  if (!src) return null;
+  return JSON.stringify({ src, pan, fit });
+};
+
+// Full-Resolution Lightbox Modal
+const openLightboxModal = (imgSrc) => {
+  if (!imgSrc) return;
+  const modal = document.getElementById('image-lightbox-modal');
+  const fullImg = document.getElementById('lightbox-full-img');
+  if (fullImg) fullImg.src = imgSrc;
+  if (modal) modal.classList.remove('hidden');
+  safeCreateLucideIcons();
+};
+
+const closeLightboxModal = () => {
+  const modal = document.getElementById('image-lightbox-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
+// Reusable Image Pan / Drag Reposition Controller
+const makePannable = (wrapperId, imgId, getPan, onPanChange) => {
+  const wrapper = document.getElementById(wrapperId);
+  const img = document.getElementById(imgId);
+  if (!wrapper || !img) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialPanX = 50;
+  let initialPanY = 50;
+
+  const onPointerDown = (e) => {
+    // If clicked on action buttons, do not trigger pan
+    if (e.target.closest('.img-controls-bar') || e.target.closest('button')) return;
+    if (img.classList.contains('fit-contain')) return;
+
+    isDragging = true;
+    wrapper.classList.add('is-panning');
+    const pan = getPan ? getPan() : { x: 50, y: 50 };
+    initialPanX = pan.x !== undefined ? pan.x : 50;
+    initialPanY = pan.y !== undefined ? pan.y : 50;
+
+    startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    if (e.type === 'mousedown') e.preventDefault();
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDragging) return;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    const deltaX = clientX - startX;
+    const deltaY = clientY - startY;
+
+    const rect = wrapper.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const percentX = (deltaX / rect.width) * 100;
+    const percentY = (deltaY / rect.height) * 100;
+
+    const newPanX = Math.max(0, Math.min(100, initialPanX - percentX));
+    const newPanY = Math.max(0, Math.min(100, initialPanY - percentY));
+
+    img.style.objectPosition = `${newPanX}% ${newPanY}%`;
+
+    if (onPanChange) {
+      onPanChange({ x: newPanX, y: newPanY });
+    }
+  };
+
+  const onPointerUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      wrapper.classList.remove('is-panning');
+    }
+  };
+
+  wrapper.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  wrapper.addEventListener('touchstart', onPointerDown, { passive: true });
+  window.addEventListener('touchmove', onPointerMove, { passive: true });
+  window.addEventListener('touchend', onPointerUp);
+  window.addEventListener('touchcancel', onPointerUp);
+};
 
 const openQuickNoteModal = (itemId = null) => {
   const modal = document.getElementById('quick-note-modal');
@@ -772,6 +917,8 @@ const openQuickNoteModal = (itemId = null) => {
 
   state.activeModalItemId = itemId;
   currentUploadedImage = null;
+  currentImagePan = { x: 50, y: 50 };
+  currentImageFit = 'cover';
 
   // Populate Category Preset Datalist
   const datalist = document.getElementById('group-options-list');
@@ -800,9 +947,27 @@ const openQuickNoteModal = (itemId = null) => {
     const checkedInput = document.getElementById('quick-note-checked-input');
     if (checkedInput) checkedInput.checked = !!item.checked;
 
-    if (item.imageData || item.imageUrl) {
-      currentUploadedImage = item.imageData || item.imageUrl;
-      if (previewImg) previewImg.src = currentUploadedImage;
+    const src = getImageSrc(item);
+    if (src) {
+      currentUploadedImage = src;
+      currentImagePan = getImagePan(item);
+      currentImageFit = getImageFit(item);
+
+      if (previewImg) {
+        previewImg.src = currentUploadedImage;
+        previewImg.style.objectPosition = `${currentImagePan.x}% ${currentImagePan.y}%`;
+        const fitText = document.getElementById('quick-note-img-fit-text');
+        const dragHint = document.getElementById('quick-note-edit-drag-hint');
+        if (currentImageFit === 'contain') {
+          previewImg.classList.add('fit-contain');
+          if (fitText) fitText.textContent = 'Contain';
+          if (dragHint) dragHint.classList.add('hidden');
+        } else {
+          previewImg.classList.remove('fit-contain');
+          if (fitText) fitText.textContent = 'Cover';
+          if (dragHint) dragHint.classList.remove('hidden');
+        }
+      }
       if (previewBox) previewBox.classList.remove('hidden');
       if (uploadArea) uploadArea.classList.add('hidden');
     } else {
@@ -877,8 +1042,26 @@ const openPreviewModal = (itemId) => {
     if (linkRow) linkRow.classList.add('hidden');
   }
 
-  if (item.imageData || item.imageUrl) {
-    if (modalImg) modalImg.src = item.imageData || item.imageUrl;
+  const src = getImageSrc(item);
+  const pan = getImagePan(item);
+  const fit = getImageFit(item);
+
+  if (src) {
+    if (modalImg) {
+      modalImg.src = src;
+      modalImg.style.objectPosition = `${pan.x}% ${pan.y}%`;
+      const fitText = document.getElementById('preview-img-fit-text');
+      const dragHint = document.getElementById('quick-note-preview-drag-hint');
+      if (fit === 'contain') {
+        modalImg.classList.add('fit-contain');
+        if (fitText) fitText.textContent = 'Contain';
+        if (dragHint) dragHint.classList.add('hidden');
+      } else {
+        modalImg.classList.remove('fit-contain');
+        if (fitText) fitText.textContent = 'Cover';
+        if (dragHint) dragHint.classList.remove('hidden');
+      }
+    }
     if (imgBox) imgBox.classList.remove('hidden');
   } else {
     if (imgBox) imgBox.classList.add('hidden');
@@ -1277,9 +1460,97 @@ const initEventHandlers = () => {
   // Remove image button
   document.getElementById('quick-note-remove-image-btn')?.addEventListener('click', () => {
     currentUploadedImage = null;
+    currentImagePan = { x: 50, y: 50 };
+    currentImageFit = 'cover';
     document.getElementById('quick-note-image-preview')?.classList.add('hidden');
     document.getElementById('quick-note-upload-area')?.classList.remove('hidden');
     if (imageUploadInput) imageUploadInput.value = '';
+  });
+
+  // Toggle Image Fit Mode in Edit Modal (Cover vs Contain)
+  document.getElementById('quick-note-img-fit-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const previewImg = document.getElementById('quick-note-preview-img');
+    const fitText = document.getElementById('quick-note-img-fit-text');
+    const dragHint = document.getElementById('quick-note-edit-drag-hint');
+    if (!previewImg) return;
+
+    if (currentImageFit === 'cover') {
+      currentImageFit = 'contain';
+      previewImg.classList.add('fit-contain');
+      if (fitText) fitText.textContent = 'Contain';
+      if (dragHint) dragHint.classList.add('hidden');
+    } else {
+      currentImageFit = 'cover';
+      previewImg.classList.remove('fit-contain');
+      if (fitText) fitText.textContent = 'Cover';
+      if (dragHint) dragHint.classList.remove('hidden');
+    }
+  });
+
+  // Toggle Image Fit Mode in Preview Modal
+  document.getElementById('preview-img-fit-btn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const item = state.items.find(i => i.id === state.activePreviewItemId);
+    if (!item) return;
+
+    const modalImg = document.getElementById('quick-note-preview-modal-img');
+    const fitText = document.getElementById('preview-img-fit-text');
+    const dragHint = document.getElementById('quick-note-preview-drag-hint');
+    const currentFit = getImageFit(item);
+    const newFit = currentFit === 'cover' ? 'contain' : 'cover';
+
+    item.imageFit = newFit;
+    if (modalImg) {
+      if (newFit === 'contain') {
+        modalImg.classList.add('fit-contain');
+        if (fitText) fitText.textContent = 'Contain';
+        if (dragHint) dragHint.classList.add('hidden');
+      } else {
+        modalImg.classList.remove('fit-contain');
+        if (fitText) fitText.textContent = 'Cover';
+        if (dragHint) dragHint.classList.remove('hidden');
+      }
+    }
+
+    try {
+      const serialized = serializeImageData(getImageSrc(item), getImagePan(item), newFit);
+      await api.updateItem(item.id, { imageData: serialized });
+    } catch (err) {}
+  });
+
+  // Open Full-Resolution Lightbox from Preview Modal
+  document.getElementById('preview-img-fullscreen-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const item = state.items.find(i => i.id === state.activePreviewItemId);
+    if (item) {
+      openLightboxModal(getImageSrc(item));
+    }
+  });
+
+  // Lightbox Close Handlers
+  document.getElementById('lightbox-close-btn')?.addEventListener('click', closeLightboxModal);
+  document.getElementById('image-lightbox-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'image-lightbox-modal' || e.target.closest('#lightbox-close-btn')) {
+      closeLightboxModal();
+    }
+  });
+
+  // Initialize Pannable Image Reposition Controllers
+  makePannable('quick-note-edit-pan-wrapper', 'quick-note-preview-img', () => currentImagePan, (pan) => {
+    currentImagePan = pan;
+  });
+
+  makePannable('quick-note-preview-pan-wrapper', 'quick-note-preview-modal-img', () => {
+    const item = state.items.find(i => i.id === state.activePreviewItemId);
+    return getImagePan(item);
+  }, (pan) => {
+    const item = state.items.find(i => i.id === state.activePreviewItemId);
+    if (item) {
+      item.imagePan = pan;
+      const serialized = serializeImageData(getImageSrc(item), pan, getImageFit(item));
+      api.updateItem(item.id, { imageData: serialized }).catch(() => {});
+    }
   });
 
   // URL Auto-Scraping / Link Autofill Handler
@@ -1482,6 +1753,7 @@ const initEventHandlers = () => {
         closeGroupModal();
         closeConfirmModal();
         closeAuthModal();
+        closeLightboxModal();
       }
     });
   });
@@ -1499,6 +1771,7 @@ const initEventHandlers = () => {
       closeGroupModal();
       closeConfirmModal();
       closeAuthModal();
+      closeLightboxModal();
     }
   });
 

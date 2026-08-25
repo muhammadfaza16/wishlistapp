@@ -2465,6 +2465,7 @@ input, button, select, textarea {
   overflow: hidden;
   user-select: none;
   touch-action: none;
+  background: #09090B;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2480,13 +2481,65 @@ input, button, select, textarea {
 }
 
 .pannable-img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  will-change: transform;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
   pointer-events: none;
   user-select: none;
   display: block;
+  transition: object-fit 150ms ease;
+}
+
+.pannable-img.fit-contain {
+  object-fit: contain !important;
+  background: #09090B;
+}
+
+.img-controls-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+}
+
+.img-action-pill {
+  height: 25px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 0 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+.img-action-pill:hover {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.img-action-pill.img-remove-pill:hover {
+  background: rgba(220, 38, 38, 0.9);
+  border-color: rgba(220, 38, 38, 0.9);
+}
+
+.img-action-pill svg,
+.img-action-pill i {
+  width: 12px;
+  height: 12px;
 }
 
 .img-drag-indicator {
@@ -2496,9 +2549,9 @@ input, button, select, textarea {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
   color: #FFFFFF;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
@@ -2508,38 +2561,10 @@ input, button, select, textarea {
   z-index: 5;
 }
 
-.img-drag-indicator svg {
-  width: 12px;
-  height: 12px;
-}
-
-.quick-note-remove-img-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.65);
-  color: #FFFFFF;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: all 150ms ease;
-  z-index: 6;
-}
-
-.quick-note-remove-img-btn:hover {
-  background: rgba(220, 38, 38, 0.9);
-  transform: scale(1.08);
-}
-
-.quick-note-remove-img-btn svg {
-  width: 12px;
-  height: 12px;
+.img-drag-indicator svg,
+.img-drag-indicator i {
+  width: 11px;
+  height: 11px;
 }
 
 .option-card-icon {
