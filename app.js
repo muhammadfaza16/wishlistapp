@@ -209,9 +209,9 @@ const escapeHtml = (str) => {
 const formatPrice = (amount, currency = 'IDR') => {
   const num = Number(amount) || 0;
   if (currency === 'USD') {
-    return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return `<span class="currency-prefix">$</span>${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   }
-  return 'Rp.' + Math.round(num).toLocaleString('id-ID');
+  return `<span class="currency-prefix">Rp.</span>${Math.round(num).toLocaleString('id-ID')}`;
 };
 
 let _lucideRaf = false;
@@ -340,8 +340,8 @@ const renderSummaryBar = () => {
   const progressFill = document.getElementById('notes-progress-fill');
   const progressText = document.getElementById('notes-progress-text');
 
-  if (totalEl) totalEl.textContent = formatPrice(totalEst, state.currency);
-  if (remainingEl) remainingEl.textContent = formatPrice(remainingNeeded, state.currency);
+  if (totalEl) totalEl.innerHTML = formatPrice(totalEst, state.currency);
+  if (remainingEl) remainingEl.innerHTML = formatPrice(remainingNeeded, state.currency);
   if (countEl) countEl.textContent = items.length;
   if (dropdownCountEl) dropdownCountEl.textContent = items.length;
   if (progressFill) progressFill.style.width = `${percentage}%`;
@@ -1145,7 +1145,7 @@ const openPreviewModal = (itemId) => {
 
   // 2. Title & Price
   if (nameEl) nameEl.textContent = item.title || 'Untitled';
-  if (priceEl) priceEl.textContent = formatPrice(item.price, item.currency || state.currency);
+  if (priceEl) priceEl.innerHTML = formatPrice(item.price, item.currency || state.currency);
 
   // 3. Status Tag (only shown when Acquired)
   if (statusPill) {
