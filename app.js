@@ -299,7 +299,7 @@ const renderItemsList = () => {
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}" data-group="${escapeHtml(groupName)}">
-        <div class="reader-group-header" data-action="toggle-group" data-group="${escapeHtml(groupName)}">
+        <div class="reader-group-header" data-action="toggle-group" data-group="${escapeHtml(groupName)}" style="cursor: pointer;">
           <div class="group-header-left">
             <i data-lucide="chevron-down" class="group-chevron-icon"></i>
             <i data-lucide="folder" class="group-folder-icon"></i>
@@ -308,13 +308,6 @@ const renderItemsList = () => {
           </div>
           <div class="group-header-right">
             <span class="group-header-total">${formatPrice(totalGroupPrice, state.currency)}</span>
-            ${isEditMode ? `
-              <div class="group-header-actions">
-                <button type="button" class="group-action-btn" data-action="rename-group" data-group="${escapeHtml(groupName)}" title="Rename Group" onclick="event.stopPropagation()">
-                  <i data-lucide="edit-3"></i>
-                </button>
-              </div>
-            ` : ''}
           </div>
         </div>
         <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
