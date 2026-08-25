@@ -23,16 +23,22 @@ const state = {
   activePreviewItemId: null
 };
 
+const GROUP_EMOJIS = [
+  '👕', '💻', '🎮', '🎧', '📷', '🏠', '📚', '☕',
+  '✈️', '🏋️', '💼', '🎨', '🚗', '🎁', '📦', '✨'
+];
+
 const CATEGORY_PRESETS = [
-  'Workspace & Setup',
-  'Audio & Sound',
-  'Electronics & Gadgets',
-  'Outfit & Fashion',
-  'Gaming & Gear',
-  'Photography',
-  'Books & Learning',
-  'Home & Living',
-  'Fitness & Health'
+  '👕 Outfit & Fashion',
+  '💻 Electronics & Gadgets',
+  '🎮 Gaming & Gear',
+  '🎧 Audio & Sound',
+  '🏠 Home & Living',
+  '📚 Books & Study',
+  '✈️ Travel & Explore',
+  '🏋️ Fitness & Health',
+  '☕ Daily Lifestyle',
+  '💼 Workspace & Desk'
 ];
 
 // ==========================================
@@ -743,6 +749,7 @@ const closePreviewModal = () => {
 const openGroupModal = (presetGroup = '') => {
   const modal = document.getElementById('group-modal');
   const groupInput = document.getElementById('group-name-input');
+  const emojiPicker = document.getElementById('group-emoji-picker');
   const presetContainer = document.getElementById('group-modal-presets');
   const modalTitle = document.getElementById('group-modal-title');
 
@@ -753,6 +760,25 @@ const openGroupModal = (presetGroup = '') => {
   }
   if (groupInput) groupInput.value = presetGroup;
 
+  // Extract current emoji if present at beginning of presetGroup
+  let activeEmoji = '';
+  if (presetGroup) {
+    for (const em of GROUP_EMOJIS) {
+      if (presetGroup.startsWith(em)) {
+        activeEmoji = em;
+        break;
+      }
+    }
+  }
+
+  // Render Emoji Picker Grid
+  if (emojiPicker) {
+    emojiPicker.innerHTML = GROUP_EMOJIS.map(em => `
+      <button type="button" class="group-emoji-btn ${activeEmoji === em ? 'active' : ''}" data-emoji="${em}" title="${em}">${em}</button>
+    `).join('');
+  }
+
+  // Render Preset Chips
   if (presetContainer) {
     presetContainer.innerHTML = CATEGORY_PRESETS.map(cat => `
       <button type="button" class="category-chip ${presetGroup === cat ? 'active' : ''}" data-preset="${escapeHtml(cat)}">${escapeHtml(cat)}</button>
@@ -1190,6 +1216,38 @@ const initEventHandlers = () => {
     }
   });
 
+  // Group Emoji Picker
+  document.getElementById('group-emoji-picker')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-emoji]');
+    if (!btn) return;
+    const selectedEmoji = btn.getAttribute('data-emoji');
+    const input = document.getElementById('group-name-input');
+    if (!input) return;
+
+    let text = input.value.trim();
+    // Check if text already starts with one of our emojis
+    let matchedEmoji = null;
+    for (const em of GROUP_EMOJIS) {
+      if (text.startsWith(em)) {
+        matchedEmoji = em;
+        break;
+      }
+    }
+
+    if (matchedEmoji) {
+      text = text.slice(matchedEmoji.length).trim();
+      input.value = `${selectedEmoji} ${text}`.trim();
+    } else if (text) {
+      input.value = `${selectedEmoji} ${text}`;
+    } else {
+      input.value = `${selectedEmoji} `;
+    }
+
+    document.querySelectorAll('#group-emoji-picker .group-emoji-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    input.focus();
+  });
+
   // Group Preset Chips in Group Modal
   document.getElementById('group-modal-presets')?.addEventListener('click', (e) => {
     const chip = e.target.closest('[data-preset]');
@@ -1202,6 +1260,13 @@ const initEventHandlers = () => {
       }
       document.querySelectorAll('#group-modal-presets .category-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
+
+      // Also highlight matching emoji in picker
+      document.querySelectorAll('#group-emoji-picker .group-emoji-btn').forEach(b => {
+        const em = b.getAttribute('data-emoji');
+        if (preset.startsWith(em)) b.classList.add('active');
+        else b.classList.remove('active');
+      });
     }
   });
 
