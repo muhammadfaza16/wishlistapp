@@ -172,16 +172,22 @@ const renderSummaryBar = () => {
   const items = state.items;
   const totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
   const remainingNeeded = items.filter(i => !i.checked).reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+  const acquiredAmount = totalEst - remainingNeeded;
+  const percentage = totalEst > 0 ? Math.round((acquiredAmount / totalEst) * 100) : 0;
 
   const totalEl = document.getElementById('notes-total-value');
   const remainingEl = document.getElementById('notes-remaining-value');
   const countEl = document.getElementById('notes-items-count');
   const dropdownCountEl = document.getElementById('dropdown-notes-count');
+  const progressFill = document.getElementById('notes-progress-fill');
+  const progressText = document.getElementById('notes-progress-text');
 
   if (totalEl) totalEl.textContent = formatPrice(totalEst, state.currency);
   if (remainingEl) remainingEl.textContent = formatPrice(remainingNeeded, state.currency);
   if (countEl) countEl.textContent = items.length;
   if (dropdownCountEl) dropdownCountEl.textContent = items.length;
+  if (progressFill) progressFill.style.width = `${percentage}%`;
+  if (progressText) progressText.textContent = `${percentage}%`;
 };
 
 const sortItems = (items) => {

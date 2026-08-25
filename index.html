@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=318">
+  <link rel="stylesheet" href="styles.css?v=319">
 </head>
 <body>
   <div id="app">
@@ -98,6 +98,15 @@
           <span class="stat-label">REMAINING NEEDED</span>
           <span class="stat-value" id="notes-remaining-value">Rp 0</span>
         </div>
+      </div>
+
+      <div class="overall-progress notes-progress-container">
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="notes-progress-fill"></div>
+          </div>
+        </div>
+        <span class="progress-text mono-text" id="notes-progress-text">0%</span>
       </div>
 
       <div class="clean-notes-card">
@@ -457,6 +466,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=318" defer></script>
+  <script src="app.js?v=319" defer></script>
 </body>
 </html>
