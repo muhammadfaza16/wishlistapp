@@ -1246,6 +1246,7 @@ const openGroupModal = (presetGroup = '') => {
   const emojiPicker = document.getElementById('group-emoji-picker');
   const presetContainer = document.getElementById('group-modal-presets');
   const modalTitle = document.getElementById('group-modal-title');
+  const deleteBtn = document.getElementById('group-delete-btn');
 
   if (!modal) return;
   state.activeRenamingGroup = presetGroup || null;
@@ -1255,6 +1256,10 @@ const openGroupModal = (presetGroup = '') => {
     modalTitle.textContent = presetGroup ? 'Rename Group' : 'Group Items';
   }
   if (groupInput) groupInput.value = presetGroup;
+  if (deleteBtn) {
+    if (presetGroup) deleteBtn.classList.remove('hidden');
+    else deleteBtn.classList.add('hidden');
+  }
 
   // Render Monochrome Icon Picker Grid
   if (emojiPicker) {
@@ -1282,7 +1287,9 @@ const openGroupModal = (presetGroup = '') => {
 
 const closeGroupModal = () => {
   const modal = document.getElementById('group-modal');
+  const deleteBtn = document.getElementById('group-delete-btn');
   if (modal) modal.classList.add('hidden');
+  if (deleteBtn) deleteBtn.classList.add('hidden');
   state.activeRenamingGroup = null;
 };
 
@@ -1958,6 +1965,35 @@ const initEventHandlers = () => {
       const groupInput = document.getElementById('quick-note-group-input');
       if (groupInput) groupInput.value = groupName;
     }
+  });
+
+  // Group Delete (in Rename/Edit Group Modal)
+  document.getElementById('group-delete-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const groupToDelete = state.activeRenamingGroup;
+    if (!groupToDelete) return;
+
+    openConfirmModal(`Delete group "${groupToDelete}"? Items inside will become General items.`, async () => {
+      // Optimistic update
+      state.items.forEach(i => {
+        if (i.group === groupToDelete) i.group = null;
+      });
+      state.collapsedGroups.delete(groupToDelete);
+      render();
+      closeGroupModal();
+
+      try {
+        await api.bulkOperation({
+          action: 'rename_group',
+          oldGroup: groupToDelete,
+          newGroup: null
+        });
+        showToast(`Group "${groupToDelete}" deleted`);
+      } catch (err) {
+        showToast('Failed to delete group');
+      }
+    });
   });
 
   // Group Monochrome Icon Picker
