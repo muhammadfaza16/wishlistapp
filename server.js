@@ -201,6 +201,8 @@ const cleanProductTitle = (t) => {
   return decodeHtmlEntities(t)
     .replace(/^Jual\s+/i, '')
     .replace(/\s*\|\s*(Shopee|Tokopedia|Blibli|Lazada|TikTok|Bukalapak|Amazon).*$/i, '')
+    .replace(/\s*-\s*(Shopee|Tokopedia|Blibli|Lazada|TikTok|Bukalapak|Amazon).*$/i, '')
+    .replace(/i\.\d+\.\d+/ig, '')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -218,6 +220,22 @@ const guessGroupFromTitle = (title) => {
   if (/\b(gym|dumbbell|barbell|matras|yoga|sepeda|running|sports)\b/i.test(t)) return 'Fitness';
   if (/\b(cangkir|tumbler|mug|kasur|bantal|sprei|diffuser|lampu|meja|kursi|sofa)\b/i.test(t)) return 'Home & Living';
   return null;
+};
+
+const extractSlugTitle = (urlStr) => {
+  try {
+    const u = new URL(urlStr);
+    const parts = u.pathname.split('/').filter(p => p && p.length > 2 && !['p', 'product', 'item', 'dp', 'gp', 'products', 'shop'].includes(p.toLowerCase()));
+    if (parts.length > 0) {
+      const lastPart = decodeURIComponent(parts[parts.length - 1]);
+      // Remove query-like extensions or hash
+      const cleanSlug = lastPart.replace(/\.(html|htm|php|asp)$/i, '').replace(/[-_]+/g, ' ').trim();
+      if (cleanSlug.length >= 4 && !/^\d+$/.test(cleanSlug)) {
+        return cleanSlug.replace(/\b\w/g, l => l.toUpperCase());
+      }
+    }
+  } catch (e) {}
+  return '';
 };
 
 const scrapeProduct = async (rawUrl) => {
@@ -239,23 +257,42 @@ const scrapeProduct = async (rawUrl) => {
   try {
     const res = await fetch(finalUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(6000)
+      signal: AbortSignal.timeout(8000)
     });
 
     if (res.ok) {
       const html = await res.text();
 
-      // OpenGraph & Meta Tags
-      const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:title["']/i);
-      const ogImage = html.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:image["']/i);
-      const tagTitle = html.match(/<title>(.*?)<\/title>/i);
+      // 1. OpenGraph & Twitter Meta Tags
+      const ogTitle = html.match(/<meta\s+[^>]*property=["']og:title["'][^>]*content=["'](.*?)["']/i) ||
+                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["']og:title["']/i) ||
+                      html.match(/<meta\s+[^>]*name=["']twitter:title["'][^>]*content=["'](.*?)["']/i) ||
+                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']twitter:title["']/i);
+      
+      const ogImage = html.match(/<meta\s+[^>]*property=["']og:image(?::secure_url)?["'][^>]*content=["'](.*?)["']/i) ||
+                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["']og:image(?::secure_url)?["']/i) ||
+                      html.match(/<meta\s+[^>]*name=["']twitter:image(?::src)?["'][^>]*content=["'](.*?)["']/i) ||
+                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']twitter:image(?::src)?["']/i);
+
+      const ogPrice = html.match(/<meta\s+[^>]*property=["'](?:product|og):price:amount["'][^>]*content=["'](.*?)["']/i) ||
+                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["'](?:product|og):price:amount["']/i);
+
+      const tagTitle = html.match(/<title[^>]*>(.*?)<\/title>/i);
 
       if (ogTitle && ogTitle[1]) title = cleanProductTitle(ogTitle[1]);
       else if (tagTitle && tagTitle[1]) title = cleanProductTitle(tagTitle[1]);
@@ -264,31 +301,68 @@ const scrapeProduct = async (rawUrl) => {
         imageUrl = decodeHtmlEntities(ogImage[1]);
       }
 
-      // JSON-LD Structured Data
-      const jsonLdMatches = html.matchAll(/<script\s+type=["']application\/ld\+json["']>(.*?)<\/script>/gis);
+      if (ogPrice && ogPrice[1]) {
+        const parsedPrice = parseFloat(ogPrice[1].replace(/[^0-9.]/g, ''));
+        if (!isNaN(parsedPrice) && parsedPrice > 0) price = parsedPrice;
+      }
+
+      // 2. JSON-LD Structured Data
+      const jsonLdMatches = html.matchAll(/<script\s+type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gis);
       for (const m of jsonLdMatches) {
         try {
-          const ld = JSON.parse(m[1]);
-          if (ld['@type'] === 'Product' || ld.name) {
-            if (ld.name && !title) title = cleanProductTitle(ld.name);
-            if (ld.image && !imageUrl) {
-              imageUrl = Array.isArray(ld.image) ? ld.image[0] : (typeof ld.image === 'object' ? ld.image.url : ld.image);
-            }
-            if (ld.offers) {
-              const offer = Array.isArray(ld.offers) ? ld.offers[0] : ld.offers;
-              if (offer.price) price = Number(offer.price);
-              if (offer.priceCurrency) currency = offer.priceCurrency;
-            }
-            if (ld.brand) {
-              brand = typeof ld.brand === 'object' ? ld.brand.name : ld.brand;
+          const rawLd = JSON.parse(m[1]);
+          const ldItems = Array.isArray(rawLd) ? rawLd : (rawLd['@graph'] ? rawLd['@graph'] : [rawLd]);
+
+          for (const ld of ldItems) {
+            if (!ld || typeof ld !== 'object') continue;
+            const type = ld['@type'] || '';
+            const isProduct = type === 'Product' || type === 'IndividualProduct' || !!ld.offers;
+
+            if (isProduct || ld.name) {
+              if (ld.name && !title) title = cleanProductTitle(ld.name);
+              if (ld.image && !imageUrl) {
+                const img = Array.isArray(ld.image) ? ld.image[0] : ld.image;
+                imageUrl = typeof img === 'object' ? (img.url || img.contentUrl || '') : img;
+              }
+              if (ld.offers) {
+                const offersList = Array.isArray(ld.offers) ? ld.offers : [ld.offers];
+                for (const offer of offersList) {
+                  if (offer.price && (!price || price === 0)) {
+                    price = Number(offer.price);
+                  }
+                  if (offer.lowPrice && (!price || price === 0)) {
+                    price = Number(offer.lowPrice);
+                  }
+                  if (offer.priceCurrency) currency = offer.priceCurrency;
+                }
+              }
+              if (ld.brand && !brand) {
+                brand = typeof ld.brand === 'object' ? ld.brand.name : ld.brand;
+              }
             }
           }
         } catch (e) {}
       }
+
+      // 3. Fallback Price Extraction from common regex patterns
+      if (!price || price === 0) {
+        const rpMatch = html.match(/(?:Rp|IDR)\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]+)?)/i);
+        if (rpMatch && rpMatch[1]) {
+          const cleanNum = parseInt(rpMatch[1].replace(/\./g, ''), 10);
+          if (!isNaN(cleanNum) && cleanNum > 1000) {
+            price = cleanNum;
+          }
+        }
+      }
     }
   } catch (err) {}
 
-  if (title) title = cleanProductTitle(title);
+  // Fallback title from URL slug if still empty
+  if (!title) {
+    title = extractSlugTitle(finalUrl);
+  } else {
+    title = cleanProductTitle(title);
+  }
 
   return {
     success: !!(title || price || imageUrl),

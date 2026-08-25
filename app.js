@@ -1282,34 +1282,92 @@ const initEventHandlers = () => {
     if (imageUploadInput) imageUploadInput.value = '';
   });
 
-  // URL Auto-Scraping on Link Blur
-  document.getElementById('quick-note-link-input')?.addEventListener('blur', async (e) => {
-    const url = e.target.value.trim();
-    if (url && (url.includes('shopee.') || url.includes('tokopedia.'))) {
-      const titleInput = document.getElementById('quick-note-title-input');
-      const priceInput = document.getElementById('quick-note-price-input');
-      const groupInput = document.getElementById('quick-note-group-input');
+  // URL Auto-Scraping / Link Autofill Handler
+  let isFetchingLink = false;
+  const triggerLinkScrape = async (url, isManual = false) => {
+    if (!url || isFetchingLink) return;
+    const cleanUrl = url.trim();
+    if (!cleanUrl || cleanUrl.length < 5) return;
 
+    isFetchingLink = true;
+    const fetchBtn = document.getElementById('quick-note-fetch-link-btn');
+    const fetchText = document.getElementById('quick-note-fetch-text');
+    const titleInput = document.getElementById('quick-note-title-input');
+    const priceInput = document.getElementById('quick-note-price-input');
+    const groupInput = document.getElementById('quick-note-group-input');
+
+    if (fetchBtn) {
+      fetchBtn.style.opacity = '0.6';
+      fetchBtn.style.pointerEvents = 'none';
+    }
+    if (fetchText) fetchText.textContent = 'Fetching...';
+
+    showToast('Fetching product details...');
+
+    try {
+      const data = await api.scrapeProduct(cleanUrl);
+      if (data && data.success) {
+        if (data.title && (!titleInput?.value || isManual)) {
+          if (titleInput) titleInput.value = data.title;
+        }
+        if (data.price && (Number(data.price) > 0) && (!priceInput?.value || priceInput.value === '0' || isManual)) {
+          if (priceInput) priceInput.value = data.price;
+        }
+        if (data.suggestedGroup && (!groupInput?.value || isManual)) {
+          if (groupInput) groupInput.value = data.suggestedGroup;
+        }
+        if (data.imageUrl && (!currentUploadedImage || isManual)) {
+          currentUploadedImage = data.imageUrl;
+          const previewImg = document.getElementById('quick-note-preview-img');
+          const previewBox = document.getElementById('quick-note-image-preview');
+          const uploadArea = document.getElementById('quick-note-upload-area');
+          if (previewImg) previewImg.src = currentUploadedImage;
+          if (previewBox) previewBox.classList.remove('hidden');
+          if (uploadArea) uploadArea.classList.add('hidden');
+        }
+        showToast('Product details loaded!');
+      } else if (isManual) {
+        showToast('Could not auto-detect details. You can enter them manually.');
+      }
+    } catch (err) {
+      if (isManual) {
+        showToast('Failed to fetch link details');
+      }
+    } finally {
+      isFetchingLink = false;
+      if (fetchBtn) {
+        fetchBtn.style.opacity = '1';
+        fetchBtn.style.pointerEvents = 'auto';
+      }
+      if (fetchText) fetchText.textContent = 'Auto-fill Details';
+    }
+  };
+
+  // Trigger on manual button click
+  document.getElementById('quick-note-fetch-link-btn')?.addEventListener('click', () => {
+    const url = document.getElementById('quick-note-link-input')?.value.trim();
+    if (!url) {
+      showToast('Please enter a link / URL first');
+      return;
+    }
+    triggerLinkScrape(url, true);
+  });
+
+  // Trigger automatically on paste
+  document.getElementById('quick-note-link-input')?.addEventListener('paste', (e) => {
+    const pasted = (e.clipboardData || window.clipboardData)?.getData('text');
+    if (pasted && (pasted.startsWith('http://') || pasted.startsWith('https://') || pasted.includes('.com') || pasted.includes('.id') || pasted.includes('.link') || pasted.includes('.co'))) {
+      setTimeout(() => triggerLinkScrape(pasted, false), 60);
+    }
+  });
+
+  // Trigger automatically on blur
+  document.getElementById('quick-note-link-input')?.addEventListener('blur', (e) => {
+    const url = e.target.value.trim();
+    if (url && (url.startsWith('http://') || url.startsWith('https://') || url.includes('.com') || url.includes('.id') || url.includes('.link') || url.includes('.co'))) {
+      const titleInput = document.getElementById('quick-note-title-input');
       if (titleInput && !titleInput.value) {
-        showToast('Fetching product details...');
-        try {
-          const data = await api.scrapeProduct(url);
-          if (data && data.success) {
-            if (data.title && !titleInput.value) titleInput.value = data.title;
-            if (data.price && (!priceInput.value || priceInput.value === '0')) priceInput.value = data.price;
-            if (data.suggestedGroup && (!groupInput.value)) groupInput.value = data.suggestedGroup;
-            if (data.imageUrl && !currentUploadedImage) {
-              currentUploadedImage = data.imageUrl;
-              const previewImg = document.getElementById('quick-note-preview-img');
-              const previewBox = document.getElementById('quick-note-image-preview');
-              const uploadArea = document.getElementById('quick-note-upload-area');
-              if (previewImg) previewImg.src = currentUploadedImage;
-              if (previewBox) previewBox.classList.remove('hidden');
-              if (uploadArea) uploadArea.classList.add('hidden');
-            }
-            showToast('Product details loaded!');
-          }
-        } catch (err) {}
+        triggerLinkScrape(url, false);
       }
     }
   });

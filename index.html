@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=332">
+  <link rel="stylesheet" href="styles.css?v=333">
 </head>
 <body>
   <div id="app">
@@ -333,8 +333,14 @@
           </div>
         </div>
         <div class="form-group" style="margin-bottom: 16px;">
-          <label for="quick-note-link-input">Link / URL <span class="optional">(optional)</span></label>
-          <input type="text" id="quick-note-link-input" placeholder="e.g. shopee.co.id/... or https://..." autocomplete="off">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <label for="quick-note-link-input" style="margin-bottom: 0;">Link / URL <span class="optional">(optional)</span></label>
+            <button type="button" id="quick-note-fetch-link-btn" class="btn-text-subtle" style="font-size: 11.5px; color: #18181B; background: #F4F4F5; border: 1px solid #E4E4E7; border-radius: 6px; cursor: pointer; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; transition: all 120ms ease;" title="Auto-detect product title, price & photo">
+              <i data-lucide="link" style="width: 11px; height: 11px;"></i>
+              <span id="quick-note-fetch-text">Auto-fill Details</span>
+            </button>
+          </div>
+          <input type="text" id="quick-note-link-input" placeholder="e.g. Tokopedia, Shopee, Amazon, or website link..." autocomplete="off">
           <div id="quick-note-link-warning" class="input-warning-hint hidden"></div>
         </div>
         <div class="form-group" style="margin-bottom: 16px;">
@@ -470,6 +476,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=332" defer></script>
+  <script src="app.js?v=333" defer></script>
 </body>
 </html>
