@@ -1,6 +1,6 @@
 /**
  * WISHLIST — Aspirations & Notes Engine
- * Clean, Robust, Modular Architecture
+ * Clean, Robust, Modular Architecture (Pristine CSS Aligned)
  */
 
 // ==========================================
@@ -20,8 +20,7 @@ const state = {
   currency: 'IDR',
   exchangeRate: 16000,
   activeModalItemId: null,
-  activePreviewItemId: null,
-  activeDeleteTarget: null // { type: 'single'|'multiple', id, ids }
+  activePreviewItemId: null
 };
 
 const CATEGORY_PRESETS = [
@@ -167,7 +166,7 @@ const api = {
 };
 
 // ==========================================
-// 4. RENDERING ENGINE
+// 4. RENDERING ENGINE (ALIGNED WITH STYLES.CSS)
 // ==========================================
 const renderSummaryBar = () => {
   const items = state.items;
@@ -223,58 +222,89 @@ const sortItems = (items) => {
   return list;
 };
 
-const renderItemCard = (item) => {
+const renderGroupedItemRow = (item) => {
   const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
   const priority = Number(item.priority) || 2;
-  const priorityLabel = priority === 1 ? 'P1' : (priority === 3 ? 'P3' : 'P2');
-  const priorityClass = priority === 1 ? 'priority-high' : (priority === 3 ? 'priority-low' : 'priority-med');
-
   const hasImage = !!(item.imageData || item.imageUrl);
   const imgSrc = item.imageData || item.imageUrl || '';
 
   return `
-    <div class="quick-note-item-row ${isChecked ? 'is-checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
-      <div class="item-left-controls">
+    <div class="reader-row reader-grouped-row ${isChecked ? 'checked' : ''}" data-id="${escapeHtml(item.id)}">
+      <div class="reader-row-left">
         ${state.isSelectMode ? `
-          <div class="item-select-checkbox ${isSelected ? 'checked' : ''}" data-action="toggle-select" data-id="${escapeHtml(item.id)}">
-            <i data-lucide="${isSelected ? 'check-square' : 'square'}"></i>
-          </div>
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="margin-right: 6px;">
         ` : ''}
-        <div class="custom-checkbox ${isChecked ? 'checked' : ''}" data-action="toggle-check" data-id="${escapeHtml(item.id)}" title="${isChecked ? 'Mark as unacquired' : 'Mark as acquired'}">
-          <i data-lucide="${isChecked ? 'check' : ''}"></i>
-        </div>
+        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
+        
+        ${hasImage ? `
+          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(item.title)}" class="item-thumbnail-img" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; margin-left: 6px; cursor: pointer;" data-action="preview" data-id="${escapeHtml(item.id)}" loading="lazy">
+        ` : ''}
+
+        <span class="reader-grouped-title" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${escapeHtml(item.title || 'Untitled')}</span>
+        <span class="note-priority-pill p-${priority}">P${priority}</span>
+        
+        ${item.link ? `
+          <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="preview-link-btn" style="padding: 1px 5px; font-size: 11px; margin-left: 4px; height: 18px;" onclick="event.stopPropagation()" title="Open Link">
+            <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
+          </a>
+        ` : ''}
       </div>
 
-      ${hasImage ? `
-        <div class="item-thumbnail-wrapper" data-action="preview" data-id="${escapeHtml(item.id)}" title="View photo">
-          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(item.title)}" class="item-thumbnail-img" loading="lazy">
-        </div>
-      ` : ''}
-
-      <div class="item-content-body" data-action="preview" data-id="${escapeHtml(item.id)}">
-        <div class="item-title-row">
-          <span class="item-title-text ${isChecked ? 'strikethrough' : ''}">${escapeHtml(item.title || 'Untitled')}</span>
-          ${item.link ? `
-            <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="item-external-link" onclick="event.stopPropagation()" title="Open Product Link">
-              <i data-lucide="external-link"></i>
-            </a>
-          ` : ''}
-        </div>
-        <div class="item-meta-row">
-          <span class="item-price-text mono-text">${formatPrice(item.price, item.currency || state.currency)}</span>
-          <span class="priority-pill ${priorityClass}" title="Priority ${priority}">${priorityLabel}</span>
-          ${item.group ? `<span class="group-pill"><i data-lucide="folder" style="width: 10px; height: 10px;"></i> ${escapeHtml(item.group)}</span>` : ''}
+      <div class="quick-note-right">
+        <span class="reader-grouped-price">${formatPrice(item.price, item.currency || state.currency)}</span>
+        <div class="quick-note-actions">
+          <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
+            <i data-lucide="edit-2"></i>
+          </button>
+          <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
+            <i data-lucide="trash-2"></i>
+          </button>
         </div>
       </div>
+    </div>
+  `;
+};
 
-      <div class="item-actions-wrapper">
-        <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
-          <i data-lucide="edit-2"></i>
-        </button>
-        <button type="button" class="btn-icon-subtle btn-delete" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
-          <i data-lucide="trash-2"></i>
-        </button>
+const renderStandaloneItemRow = (item) => {
+  const isChecked = !!item.checked;
+  const isSelected = state.selectedIds.has(item.id);
+  const priority = Number(item.priority) || 2;
+  const hasImage = !!(item.imageData || item.imageUrl);
+  const imgSrc = item.imageData || item.imageUrl || '';
+
+  return `
+    <div class="quick-note-row reader-standalone-row ${isChecked ? 'checked' : ''}" data-id="${escapeHtml(item.id)}">
+      <div class="reader-row-left">
+        ${state.isSelectMode ? `
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="margin-right: 6px;">
+        ` : ''}
+        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} style="margin-right: 8px;" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
+        
+        ${hasImage ? `
+          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(item.title)}" class="item-thumbnail-img" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; margin-right: 6px; cursor: pointer;" data-action="preview" data-id="${escapeHtml(item.id)}" loading="lazy">
+        ` : ''}
+
+        <span class="quick-note-title" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${escapeHtml(item.title || 'Untitled')}</span>
+        <span class="note-priority-pill p-${priority}">P${priority}</span>
+        
+        ${item.link ? `
+          <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="preview-link-btn" style="padding: 1px 5px; font-size: 11px; margin-left: 4px; height: 18px;" onclick="event.stopPropagation()" title="Open Link">
+            <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
+          </a>
+        ` : ''}
+      </div>
+
+      <div class="quick-note-right">
+        <span class="quick-note-price">${formatPrice(item.price, item.currency || state.currency)}</span>
+        <div class="quick-note-actions">
+          <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
+            <i data-lucide="edit-2"></i>
+          </button>
+          <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -286,13 +316,13 @@ const renderItemsList = () => {
 
   if (state.items.length === 0) {
     container.innerHTML = `
-      <div class="empty-state-card">
-        <div class="empty-state-icon">
+      <div id="empty-state">
+        <div class="empty-icon-badge">
           <i data-lucide="sparkles"></i>
         </div>
-        <h3>No wishlist items yet</h3>
+        <h2>No wishlist items yet</h2>
         <p>Start tracking your aspirations, gear, and wishlist items by clicking Add below.</p>
-        <button type="button" class="btn-primary" onclick="openQuickNoteModal()" style="margin-top: 14px;">
+        <button type="button" class="btn-empty-add" onclick="openQuickNoteModal()">
           <i data-lucide="plus"></i>
           <span>Add First Item</span>
         </button>
@@ -316,9 +346,9 @@ const renderItemsList = () => {
     }
   });
 
-  let html = '';
+  let html = '<div class="quick-notes-list">';
 
-  // Render Groups
+  // Render Groups (Reader Group Blocks)
   groupsMap.forEach((groupItems, groupName) => {
     const sortedGroupItems = sortItems(groupItems);
     const isCollapsed = state.collapsedGroups.has(groupName);
@@ -326,40 +356,48 @@ const renderItemsList = () => {
     const checkedCount = groupItems.filter(i => i.checked).length;
 
     html += `
-      <div class="group-section-card ${isCollapsed ? 'is-collapsed' : ''}" data-group="${escapeHtml(groupName)}">
-        <div class="group-card-header" data-action="toggle-group" data-group="${escapeHtml(groupName)}">
+      <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}" data-group="${escapeHtml(groupName)}">
+        <div class="reader-group-header" data-action="toggle-group" data-group="${escapeHtml(groupName)}">
           <div class="group-header-left">
-            <i data-lucide="chevron-down" class="group-chevron"></i>
-            <span class="group-title">${escapeHtml(groupName)}</span>
-            <span class="group-count-badge">${checkedCount}/${groupItems.length}</span>
+            <i data-lucide="chevron-down" class="group-chevron-icon"></i>
+            <i data-lucide="folder" class="group-folder-icon"></i>
+            <span class="group-header-title">${escapeHtml(groupName)}</span>
+            <span class="group-badge-pill">${checkedCount}/${groupItems.length}</span>
           </div>
           <div class="group-header-right">
-            <span class="group-total-price mono-text">${formatPrice(totalGroupPrice, state.currency)}</span>
-            <button type="button" class="btn-icon-subtle" data-action="rename-group" data-group="${escapeHtml(groupName)}" title="Rename Group" onclick="event.stopPropagation()">
-              <i data-lucide="edit-3"></i>
-            </button>
+            <span class="group-header-total">${formatPrice(totalGroupPrice, state.currency)}</span>
+            <div class="group-header-actions">
+              <button type="button" class="group-action-btn" data-action="rename-group" data-group="${escapeHtml(groupName)}" title="Rename Group" onclick="event.stopPropagation()">
+                <i data-lucide="edit-3"></i>
+              </button>
+            </div>
           </div>
         </div>
-        <div class="group-items-container ${isCollapsed ? 'hidden' : ''}">
-          ${sortedGroupItems.map(renderItemCard).join('')}
+        <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
+          ${sortedGroupItems.map(renderGroupedItemRow).join('')}
         </div>
       </div>
     `;
   });
 
-  // Render Ungrouped Items
+  // Render Ungrouped / Standalone Items
   if (ungrouped.length > 0) {
     const sortedUngrouped = sortItems(ungrouped);
     if (groupsMap.size > 0) {
-      html += `<div class="ungrouped-section-label">General Items</div>`;
+      html += `
+        <div class="reader-standalone-header">
+          <span class="standalone-header-title">General Items</span>
+        </div>
+      `;
     }
     html += `
-      <div class="ungrouped-items-container">
-        ${sortedUngrouped.map(renderItemCard).join('')}
+      <div class="standalone-items-container">
+        ${sortedUngrouped.map(renderStandaloneItemRow).join('')}
       </div>
     `;
   }
 
+  html += '</div>';
   container.innerHTML = html;
   safeCreateLucideIcons();
 };
@@ -688,7 +726,7 @@ const openPreviewModal = (itemId) => {
 
   if (nameEl) nameEl.textContent = item.title || 'Untitled';
   if (priceEl) priceEl.textContent = formatPrice(item.price, item.currency || state.currency);
-  if (groupEl) groupEl.textContent = item.group || 'None (General)';
+  if (groupEl) groupEl.textContent = item.group || 'General (None)';
   if (priorityEl) {
     const p = Number(item.priority) || 2;
     priorityEl.textContent = p === 1 ? 'P1 — High Priority' : (p === 3 ? 'P3 — Low Priority' : 'P2 — Medium Priority');
