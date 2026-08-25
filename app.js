@@ -9,6 +9,11 @@
 const AUTH_TOKEN_KEY = 'wishlist_auth_token';
 const AUTH_USER_KEY = 'wishlist_auth_user';
 
+let savedGroupIcons = {};
+try {
+  savedGroupIcons = JSON.parse(localStorage.getItem('wishlist_group_icons') || '{}');
+} catch (e) {}
+
 const state = {
   items: [],
   currentUser: null, // { id, name, email, username }
@@ -20,26 +25,97 @@ const state = {
   currency: 'IDR',
   exchangeRate: 16000,
   activeModalItemId: null,
-  activePreviewItemId: null
+  activePreviewItemId: null,
+  activeRenamingGroup: null,
+  activeGroupIcon: null,
+  groupIcons: savedGroupIcons
 };
 
-const GROUP_EMOJIS = [
-  '👕', '💻', '🎮', '🎧', '📷', '🏠', '📚', '☕',
-  '✈️', '🏋️', '💼', '🎨', '🚗', '🎁', '📦', '✨'
+const GROUP_MONO_ICONS = [
+  { id: 'shirt', label: 'Outfit' },
+  { id: 'laptop', label: 'Gadgets' },
+  { id: 'gamepad-2', label: 'Gaming' },
+  { id: 'headphones', label: 'Audio' },
+  { id: 'camera', label: 'Camera' },
+  { id: 'home', label: 'Home' },
+  { id: 'book-open', label: 'Books' },
+  { id: 'coffee', label: 'Cafe' },
+  { id: 'plane', label: 'Travel' },
+  { id: 'dumbbell', label: 'Fitness' },
+  { id: 'briefcase', label: 'Work' },
+  { id: 'palette', label: 'Art' },
+  { id: 'car', label: 'Auto' },
+  { id: 'gift', label: 'Gifts' },
+  { id: 'package', label: 'General' },
+  { id: 'folder', label: 'Folder' }
 ];
 
+const GROUP_ICON_MAP = {
+  'outfit': 'shirt',
+  'fashion': 'shirt',
+  'apparel': 'shirt',
+  'cloth': 'shirt',
+  'gadget': 'laptop',
+  'electronic': 'laptop',
+  'tech': 'laptop',
+  'pc': 'laptop',
+  'computer': 'laptop',
+  'setup': 'briefcase',
+  'workspace': 'briefcase',
+  'desk': 'briefcase',
+  'gaming': 'gamepad-2',
+  'game': 'gamepad-2',
+  'audio': 'headphones',
+  'sound': 'headphones',
+  'music': 'headphones',
+  'photo': 'camera',
+  'camera': 'camera',
+  'home': 'home',
+  'living': 'home',
+  'room': 'home',
+  'book': 'book-open',
+  'study': 'book-open',
+  'learn': 'book-open',
+  'coffee': 'coffee',
+  'lifestyle': 'coffee',
+  'travel': 'plane',
+  'trip': 'plane',
+  'fitness': 'dumbbell',
+  'gym': 'dumbbell',
+  'health': 'dumbbell',
+  'art': 'palette',
+  'design': 'palette',
+  'car': 'car',
+  'auto': 'car',
+  'vehicle': 'car',
+  'gift': 'gift',
+  'gear': 'package'
+};
+
 const CATEGORY_PRESETS = [
-  '👕 Outfit & Fashion',
-  '💻 Electronics & Gadgets',
-  '🎮 Gaming & Gear',
-  '🎧 Audio & Sound',
-  '🏠 Home & Living',
-  '📚 Books & Study',
-  '✈️ Travel & Explore',
-  '🏋️ Fitness & Health',
-  '☕ Daily Lifestyle',
-  '💼 Workspace & Desk'
+  { name: 'Outfit & Fashion', icon: 'shirt' },
+  { name: 'Electronics & Gadgets', icon: 'laptop' },
+  { name: 'Gaming & Gear', icon: 'gamepad-2' },
+  { name: 'Audio & Sound', icon: 'headphones' },
+  { name: 'Home & Living', icon: 'home' },
+  { name: 'Books & Study', icon: 'book-open' },
+  { name: 'Travel & Explore', icon: 'plane' },
+  { name: 'Fitness & Health', icon: 'dumbbell' },
+  { name: 'Daily Lifestyle', icon: 'coffee' },
+  { name: 'Workspace & Desk', icon: 'briefcase' }
 ];
+
+const getGroupIcon = (groupName) => {
+  if (!groupName) return 'folder';
+  if (state.groupIcons && state.groupIcons[groupName]) {
+    return state.groupIcons[groupName];
+  }
+  const lower = groupName.toLowerCase();
+  for (const [key, icon] of Object.entries(GROUP_ICON_MAP)) {
+    if (lower.includes(key)) return icon;
+  }
+  return 'folder';
+};
 
 // ==========================================
 // 2. HELPER UTILITIES
@@ -320,7 +396,7 @@ const renderItemsList = () => {
             <span class="group-chevron-btn" data-action="toggle-group" data-group="${escapeHtml(groupName)}" title="Expand/Collapse">
               <i data-lucide="chevron-down" class="group-chevron-icon"></i>
             </span>
-            <i data-lucide="folder" class="group-folder-icon"></i>
+            <i data-lucide="${escapeHtml(getGroupIcon(groupName))}" class="group-folder-icon"></i>
             <span class="group-header-title">${escapeHtml(groupName)}</span>
             <span class="group-badge-pill">${groupItems.length}</span>
           </div>
@@ -755,33 +831,29 @@ const openGroupModal = (presetGroup = '') => {
 
   if (!modal) return;
   state.activeRenamingGroup = presetGroup || null;
+  state.activeGroupIcon = getGroupIcon(presetGroup);
+
   if (modalTitle) {
     modalTitle.textContent = presetGroup ? 'Rename Group' : 'Group Items';
   }
   if (groupInput) groupInput.value = presetGroup;
 
-  // Extract current emoji if present at beginning of presetGroup
-  let activeEmoji = '';
-  if (presetGroup) {
-    for (const em of GROUP_EMOJIS) {
-      if (presetGroup.startsWith(em)) {
-        activeEmoji = em;
-        break;
-      }
-    }
-  }
-
-  // Render Emoji Picker Grid
+  // Render Monochrome Icon Picker Grid
   if (emojiPicker) {
-    emojiPicker.innerHTML = GROUP_EMOJIS.map(em => `
-      <button type="button" class="group-emoji-btn ${activeEmoji === em ? 'active' : ''}" data-emoji="${em}" title="${em}">${em}</button>
+    emojiPicker.innerHTML = GROUP_MONO_ICONS.map(ic => `
+      <button type="button" class="group-emoji-btn ${state.activeGroupIcon === ic.id ? 'active' : ''}" data-icon="${ic.id}" title="${ic.label}">
+        <i data-lucide="${ic.id}"></i>
+      </button>
     `).join('');
   }
 
   // Render Preset Chips
   if (presetContainer) {
     presetContainer.innerHTML = CATEGORY_PRESETS.map(cat => `
-      <button type="button" class="category-chip ${presetGroup === cat ? 'active' : ''}" data-preset="${escapeHtml(cat)}">${escapeHtml(cat)}</button>
+      <button type="button" class="category-chip ${presetGroup === cat.name ? 'active' : ''}" data-preset="${escapeHtml(cat.name)}" data-icon="${cat.icon}">
+        <i data-lucide="${cat.icon}" style="width: 12px; height: 12px;"></i>
+        <span>${escapeHtml(cat.name)}</span>
+      </button>
     `).join('');
   }
 
@@ -1177,8 +1249,23 @@ const initEventHandlers = () => {
     const groupName = document.getElementById('group-name-input')?.value.trim();
     if (!groupName) return;
 
+    if (groupName && state.activeGroupIcon) {
+      state.groupIcons[groupName] = state.activeGroupIcon;
+      try {
+        localStorage.setItem('wishlist_group_icons', JSON.stringify(state.groupIcons));
+      } catch (err) {}
+    }
+
     if (state.activeRenamingGroup) {
       const oldGroup = state.activeRenamingGroup;
+      if (state.groupIcons[oldGroup] && oldGroup !== groupName) {
+        state.groupIcons[groupName] = state.groupIcons[oldGroup];
+        delete state.groupIcons[oldGroup];
+        try {
+          localStorage.setItem('wishlist_group_icons', JSON.stringify(state.groupIcons));
+        } catch (err) {}
+      }
+
       state.items.forEach(i => {
         if (i.group === oldGroup) i.group = groupName;
       });
@@ -1216,36 +1303,15 @@ const initEventHandlers = () => {
     }
   });
 
-  // Group Emoji Picker
+  // Group Monochrome Icon Picker
   document.getElementById('group-emoji-picker')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-emoji]');
+    const btn = e.target.closest('[data-icon]');
     if (!btn) return;
-    const selectedEmoji = btn.getAttribute('data-emoji');
-    const input = document.getElementById('group-name-input');
-    if (!input) return;
-
-    let text = input.value.trim();
-    // Check if text already starts with one of our emojis
-    let matchedEmoji = null;
-    for (const em of GROUP_EMOJIS) {
-      if (text.startsWith(em)) {
-        matchedEmoji = em;
-        break;
-      }
-    }
-
-    if (matchedEmoji) {
-      text = text.slice(matchedEmoji.length).trim();
-      input.value = `${selectedEmoji} ${text}`.trim();
-    } else if (text) {
-      input.value = `${selectedEmoji} ${text}`;
-    } else {
-      input.value = `${selectedEmoji} `;
-    }
+    const selectedIcon = btn.getAttribute('data-icon');
+    state.activeGroupIcon = selectedIcon;
 
     document.querySelectorAll('#group-emoji-picker .group-emoji-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    input.focus();
   });
 
   // Group Preset Chips in Group Modal
@@ -1253,20 +1319,21 @@ const initEventHandlers = () => {
     const chip = e.target.closest('[data-preset]');
     if (chip) {
       const preset = chip.getAttribute('data-preset');
+      const icon = chip.getAttribute('data-icon');
       const input = document.getElementById('group-name-input');
       if (input) {
         input.value = preset;
         input.focus();
       }
+      if (icon) {
+        state.activeGroupIcon = icon;
+        document.querySelectorAll('#group-emoji-picker .group-emoji-btn').forEach(b => {
+          if (b.getAttribute('data-icon') === icon) b.classList.add('active');
+          else b.classList.remove('active');
+        });
+      }
       document.querySelectorAll('#group-modal-presets .category-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-
-      // Also highlight matching emoji in picker
-      document.querySelectorAll('#group-emoji-picker .group-emoji-btn').forEach(b => {
-        const em = b.getAttribute('data-emoji');
-        if (preset.startsWith(em)) b.classList.add('active');
-        else b.classList.remove('active');
-      });
     }
   });
 

@@ -4324,12 +4324,12 @@ input#search-input:focus {
 .group-emoji-picker-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 5px;
+  gap: 6px;
 }
 
 @media (max-width: 480px) {
   .group-emoji-picker-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -4337,15 +4337,23 @@ input#search-input:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
+  height: 36px;
   background: #F4F4F6;
   border: 1px solid #E4E4E7;
   border-radius: 8px;
-  font-size: 15px;
   cursor: pointer;
   transition: all 150ms ease;
   user-select: none;
   touch-action: manipulation;
+}
+
+.group-emoji-btn svg,
+.group-emoji-btn i {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+  color: #27272A;
+  transition: color 150ms ease;
 }
 
 .group-emoji-btn:hover {
@@ -4354,11 +4362,21 @@ input#search-input:focus {
   transform: translateY(-1px);
 }
 
+.group-emoji-btn:hover svg,
+.group-emoji-btn:hover i {
+  color: #09090B;
+}
+
 .group-emoji-btn.active {
   background: #18181B;
   border-color: #18181B;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   transform: scale(1.04);
+}
+
+.group-emoji-btn.active svg,
+.group-emoji-btn.active i {
+  color: #FFFFFF;
 }
 
 .category-preset-chips {
