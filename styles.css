@@ -1600,28 +1600,33 @@ input, button, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  background: var(--bg-hover);
-  border: 1px solid var(--border-subtle);
-  border-radius: 7px;
-  margin-bottom: 10px;
-  gap: 6px;
-  flex-wrap: nowrap;
+  padding: 6px 12px;
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  gap: 8px;
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.12);
+  animation: modalSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .notes-selected-count {
-  font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #F8FAFC;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .notes-selection-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
@@ -1630,77 +1635,82 @@ input, button, select, textarea {
   height: 26px;
   padding: 0;
   border-radius: 5px;
-  border: 1px solid var(--border-subtle);
-  background: #FFFFFF;
-  color: var(--text-secondary);
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94A3B8;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 140ms ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .btn-selection-action svg {
-  width: 12.5px;
-  height: 12.5px;
-  color: var(--text-secondary);
+  width: 13px;
+  height: 13px;
+  color: #94A3B8;
+  transition: color 140ms ease;
 }
 
 .btn-selection-action:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: #CBD5E1;
-  color: var(--text-primary);
+  background: #1E293B;
+  border-color: #334155;
+  color: #FFFFFF;
 }
 
 .btn-selection-action:hover:not(:disabled) svg {
-  color: var(--text-primary);
+  color: #FFFFFF;
 }
 
 .btn-selection-action.active {
-  background: var(--accent);
-  color: var(--text-inverse);
-  border-color: var(--accent);
+  background: #1E293B;
+  color: #FFFFFF;
+  border-color: #475569;
 }
 
 .btn-selection-action.active svg {
-  color: var(--text-inverse);
+  color: #FFFFFF;
 }
 
 .btn-selection-action:disabled {
-  opacity: 0.35;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
 .btn-selection-action.btn-group-action:not(:disabled) {
-  background: var(--accent);
-  color: var(--text-inverse);
-  border-color: var(--accent);
+  background: transparent;
+  color: #94A3B8;
+  border-color: transparent;
 }
 
-.btn-selection-action.btn-group-action:not(:disabled) svg {
-  color: var(--text-inverse);
+.btn-selection-action.btn-group-action:hover:not(:disabled) {
+  background: #1E293B;
+  border-color: #334155;
+  color: #FFFFFF;
+}
+
+.btn-selection-action.btn-group-action:hover:not(:disabled) svg {
+  color: #FFFFFF;
 }
 
 .btn-selection-action.btn-delete-action:not(:disabled) {
-  color: #FFFFFF;
-  border-color: #E11D48;
-  background: #E11D48;
-  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.25);
+  color: #FDA4AF;
+  border-color: transparent;
+  background: transparent;
 }
 
 .btn-selection-action.btn-delete-action:not(:disabled) svg {
-  color: #FFFFFF;
+  color: #FDA4AF;
 }
 
-.btn-selection-action.btn-delete-action:not(:disabled):hover {
-  background: #B91C1C;
-  border-color: #B91C1C;
-  color: #FFFFFF;
+.btn-selection-action.btn-delete-action:hover:not(:disabled) {
+  background: #3B0712;
+  border-color: #E11D48;
+  color: #FECDD3;
 }
 
-.btn-selection-action.btn-delete-action:not(:disabled):hover svg {
-  color: #FFFFFF;
+.btn-selection-action.btn-delete-action:hover:not(:disabled) svg {
+  color: #FECDD3;
 }
 
 /* Edit Mode Group Headers & Containers */
