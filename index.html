@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=345">
+  <link rel="stylesheet" href="styles.css?v=346">
 </head>
 <body>
   <div id="app">
@@ -346,9 +346,28 @@
             <label for="quick-note-price-input">Price</label>
             <input type="number" id="quick-note-price-input" class="modal-input mono-input" placeholder="0" min="0" step="any" autocomplete="off">
           </div>
-          <div class="form-group">
-            <label for="quick-note-group-input">Group</label>
-            <input type="text" id="quick-note-group-input" class="modal-input" placeholder="e.g. Workspace" autocomplete="off" list="group-options-list">
+          <div class="form-group" id="quick-note-group-container">
+            <div class="label-with-action">
+              <label for="quick-note-group-select">Group</label>
+              <button type="button" id="quick-note-new-group-toggle" class="modal-link-toggle" title="Type a new group name">
+                <i data-lucide="plus"></i>
+                <span>New</span>
+              </button>
+            </div>
+            <div id="quick-note-group-select-wrap">
+              <select id="quick-note-group-select" class="modal-input modal-select">
+                <option value="">(No Group)</option>
+                <option value="__NEW__">+ New Group...</option>
+              </select>
+            </div>
+            <div id="quick-note-group-custom-wrap" class="hidden">
+              <div class="input-with-cancel">
+                <input type="text" id="quick-note-group-input" class="modal-input" placeholder="New group name..." autocomplete="off">
+                <button type="button" id="quick-note-cancel-custom-group" class="modal-cancel-btn" title="Back to existing groups">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -384,13 +403,22 @@
             </div>
           </div>
 
-          <!-- Priority 3-Segment Switch -->
+          <!-- Refined Priority Segmented Switch -->
           <div class="form-group">
             <label>Priority</label>
-            <div class="modal-priority-switch" id="quick-note-priority-options">
-              <button type="button" class="priority-pill" data-priority="1">P1 High</button>
-              <button type="button" class="priority-pill active" data-priority="2">P2 Med</button>
-              <button type="button" class="priority-pill" data-priority="3">P3 Low</button>
+            <div class="modal-priority-segmented" id="quick-note-priority-options">
+              <button type="button" class="priority-item p1" data-priority="1">
+                <span class="p-dot"></span>
+                <span class="p-text">P1 High</span>
+              </button>
+              <button type="button" class="priority-item p2 active" data-priority="2">
+                <span class="p-dot"></span>
+                <span class="p-text">P2 Med</span>
+              </button>
+              <button type="button" class="priority-item p3" data-priority="3">
+                <span class="p-dot"></span>
+                <span class="p-text">P3 Low</span>
+              </button>
             </div>
           </div>
         </div>
@@ -491,6 +519,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=345" defer></script>
+  <script src="app.js?v=346" defer></script>
 </body>
 </html>

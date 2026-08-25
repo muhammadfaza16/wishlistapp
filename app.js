@@ -995,12 +995,26 @@ const openQuickNoteModal = (itemId = null) => {
   currentImagePan = { x: 50, y: 50 };
   currentImageFit = 'cover';
 
-  // Populate Category Preset Datalist
-  const datalist = document.getElementById('group-options-list');
-  if (datalist) {
-    const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
-    const allGroups = Array.from(new Set([...CATEGORY_PRESETS, ...existingGroups]));
-    datalist.innerHTML = allGroups.map(g => `<option value="${escapeHtml(g)}">`).join('');
+  // Populate Group Select Dropdown
+  const groupSelect = document.getElementById('quick-note-group-select');
+  const groupSelectWrap = document.getElementById('quick-note-group-select-wrap');
+  const groupCustomWrap = document.getElementById('quick-note-group-custom-wrap');
+
+  if (groupSelectWrap) groupSelectWrap.classList.remove('hidden');
+  if (groupCustomWrap) groupCustomWrap.classList.add('hidden');
+
+  const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
+  if (groupSelect) {
+    let selectHtml = '<option value="">(No Group)</option>';
+    if (existingGroups.length > 0) {
+      selectHtml += `<optgroup label="Your Groups">` + existingGroups.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('') + `</optgroup>`;
+    }
+    const otherPresets = CATEGORY_PRESETS.filter(p => !existingGroups.includes(p));
+    if (otherPresets.length > 0) {
+      selectHtml += `<optgroup label="Suggested">` + otherPresets.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('') + `</optgroup>`;
+    }
+    selectHtml += '<option value="__NEW__">+ Create New Group...</option>';
+    groupSelect.innerHTML = selectHtml;
   }
 
   if (itemId) {
@@ -1009,12 +1023,22 @@ const openQuickNoteModal = (itemId = null) => {
     if (titleEl) titleEl.textContent = 'Edit Item';
     if (titleInput) titleInput.value = item.title || '';
     if (priceInput) priceInput.value = item.price || '';
-    if (groupInput) groupInput.value = item.group || '';
     if (linkInput) linkInput.value = item.link || '';
-    if (deleteBtn) deleteBtn.classList.remove('hidden');
-    if (ungroupBtn) {
-      if (item.group) ungroupBtn.classList.remove('hidden');
-      else ungroupBtn.classList.add('hidden');
+
+    // Handle group selection in edit mode
+    if (item.group) {
+      const matchingOpt = Array.from(groupSelect?.options || []).find(o => o.value === item.group);
+      if (matchingOpt && groupSelect) {
+        groupSelect.value = item.group;
+        if (groupInput) groupInput.value = '';
+      } else {
+        if (groupSelectWrap) groupSelectWrap.classList.add('hidden');
+        if (groupCustomWrap) groupCustomWrap.classList.remove('hidden');
+        if (groupInput) groupInput.value = item.group;
+      }
+    } else {
+      if (groupSelect) groupSelect.value = '';
+      if (groupInput) groupInput.value = '';
     }
 
     setModalPriority(item.priority || 2);
@@ -1053,6 +1077,7 @@ const openQuickNoteModal = (itemId = null) => {
     if (titleEl) titleEl.textContent = 'Add Item';
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
+    if (groupSelect) groupSelect.value = '';
     if (groupInput) groupInput.value = '';
     if (linkInput) linkInput.value = '';
     const checkedInput = document.getElementById('quick-note-checked-input');
@@ -1492,7 +1517,16 @@ const initEventHandlers = () => {
     e.preventDefault();
     const title = cleanProductTitle(document.getElementById('quick-note-title-input')?.value || '');
     const price = parseFloat(document.getElementById('quick-note-price-input')?.value) || 0;
-    const group = document.getElementById('quick-note-group-input')?.value.trim() || null;
+    
+    let group = null;
+    const customWrap = document.getElementById('quick-note-group-custom-wrap');
+    if (customWrap && !customWrap.classList.contains('hidden')) {
+      group = document.getElementById('quick-note-group-input')?.value.trim() || null;
+    } else {
+      const val = document.getElementById('quick-note-group-select')?.value;
+      group = (val && val !== '__NEW__') ? val.trim() : null;
+    }
+
     const link = document.getElementById('quick-note-link-input')?.value.trim() || null;
     const activePriorityBtn = document.querySelector('#quick-note-priority-options button.active');
     const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
@@ -1518,20 +1552,34 @@ const initEventHandlers = () => {
     });
   });
 
-  // Ungroup button in Quick Note Modal
-  document.getElementById('quick-note-ungroup-btn')?.addEventListener('click', () => {
-    const groupInput = document.getElementById('quick-note-group-input');
-    if (groupInput) groupInput.value = '';
-    document.getElementById('quick-note-ungroup-btn')?.classList.add('hidden');
+  // Group Select & Custom Toggle in Modal
+  document.getElementById('quick-note-group-select')?.addEventListener('change', (e) => {
+    if (e.target.value === '__NEW__') {
+      document.getElementById('quick-note-group-select-wrap')?.classList.add('hidden');
+      document.getElementById('quick-note-group-custom-wrap')?.classList.remove('hidden');
+      const customInput = document.getElementById('quick-note-group-input');
+      if (customInput) {
+        customInput.value = '';
+        customInput.focus();
+      }
+    }
   });
 
-  // Delete button in Quick Note Modal
-  document.getElementById('quick-note-delete-btn')?.addEventListener('click', () => {
-    if (state.activeModalItemId) {
-      const id = state.activeModalItemId;
-      closeQuickNoteModal();
-      openConfirmModal('Are you sure you want to delete this item?', () => deleteSingleItem(id));
+  document.getElementById('quick-note-new-group-toggle')?.addEventListener('click', () => {
+    document.getElementById('quick-note-group-select-wrap')?.classList.add('hidden');
+    document.getElementById('quick-note-group-custom-wrap')?.classList.remove('hidden');
+    const customInput = document.getElementById('quick-note-group-input');
+    if (customInput) {
+      customInput.value = '';
+      customInput.focus();
     }
+  });
+
+  document.getElementById('quick-note-cancel-custom-group')?.addEventListener('click', () => {
+    document.getElementById('quick-note-group-custom-wrap')?.classList.add('hidden');
+    document.getElementById('quick-note-group-select-wrap')?.classList.remove('hidden');
+    const groupSelect = document.getElementById('quick-note-group-select');
+    if (groupSelect) groupSelect.value = '';
   });
 
   // Image Upload in Modal
