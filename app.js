@@ -433,13 +433,13 @@ const updateSortUI = () => {
 const renderGroupedItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
-  const rowAction = isEditMode ? 'edit' : 'preview';
+  const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
 
   return `
-    <div class="reader-row reader-grouped-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="reader-row reader-grouped-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
       <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
-          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="pointer-events: none;">
         ` : `
           <span class="reader-grouped-bullet">•</span>
         `}
@@ -457,13 +457,13 @@ const renderGroupedItemRow = (item) => {
 const renderStandaloneItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
-  const rowAction = isEditMode ? 'edit' : 'preview';
+  const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
 
   return `
-    <div class="quick-note-row reader-standalone-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="quick-note-row reader-standalone-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
       <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
-          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="pointer-events: none;">
         ` : `
           <span class="reader-grouped-bullet">•</span>
         `}
@@ -1354,6 +1354,22 @@ const setAuthMode = (mode) => {
 const initEventHandlers = () => {
   // Global Click Delegate
   document.addEventListener('click', (e) => {
+    // 0. Select Mode Override: Any click on an item row toggles selection
+    if (state.isSelectMode) {
+      const itemRow = e.target.closest('.reader-row, .quick-note-row, [data-action="toggle-select"]');
+      if (itemRow) {
+        e.stopPropagation();
+        e.preventDefault();
+        const id = itemRow.getAttribute('data-id');
+        if (id) {
+          if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+          else state.selectedIds.add(id);
+          render();
+          return;
+        }
+      }
+    }
+
     // 1. Checkbox Toggle
     const checkBtn = e.target.closest('[data-action="toggle-check"]');
     if (checkBtn) {
@@ -1376,6 +1392,15 @@ const initEventHandlers = () => {
     // 3. Edit Item
     const editBtn = e.target.closest('[data-action="edit"]');
     if (editBtn) {
+      if (state.isSelectMode) {
+        const id = editBtn.getAttribute('data-id');
+        if (id) {
+          if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+          else state.selectedIds.add(id);
+          render();
+        }
+        return;
+      }
       e.stopPropagation();
       openQuickNoteModal(editBtn.getAttribute('data-id'));
       return;
@@ -1392,7 +1417,16 @@ const initEventHandlers = () => {
 
     // 5. Preview Item
     const previewTarget = e.target.closest('[data-action="preview"]');
-    if (previewTarget && !state.isSelectMode) {
+    if (previewTarget) {
+      if (state.isSelectMode) {
+        const id = previewTarget.getAttribute('data-id');
+        if (id) {
+          if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+          else state.selectedIds.add(id);
+          render();
+        }
+        return;
+      }
       openPreviewModal(previewTarget.getAttribute('data-id'));
       return;
     }

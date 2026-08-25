@@ -2122,6 +2122,17 @@ input, button, select, textarea {
   flex-shrink: 0;
 }
 
+.reader-row.is-selected,
+.reader-standalone-row.is-selected {
+  background: #F1F5F9 !important;
+}
+
+.reader-row.is-selected .reader-grouped-title,
+.reader-standalone-row.is-selected .quick-note-title {
+  color: #0F172A;
+  font-weight: 550;
+}
+
 /* Note Priority Badges */
 .note-priority-pill {
   font-family: var(--font-mono);
