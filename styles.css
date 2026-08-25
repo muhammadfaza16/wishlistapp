@@ -5,11 +5,11 @@
    ========================================================================== */
 
 :root {
-  /* Color Palette: Refined Modern Obsidian & Pristine Slate */
-  --bg: #F8F9FA;
+  /* Color Palette: Refined Modern Obsidian Slate */
+  --bg: #F8FAFC;
   --bg-card: #FFFFFF;
-  --bg-hover: #F1F3F5;
-  --bg-subtle: #F8F9FA;
+  --bg-hover: #F1F5F9;
+  --bg-subtle: #F8FAFC;
   --bg-input: #FFFFFF;
   
   --text-primary: #0F172A;
@@ -22,9 +22,12 @@
   --border-subtle: #E2E8F0;
   --border-light: #F1F5F9;
   
+  /* Unified Consistent Accent */
   --accent: #0F172A;
   --accent-hover: #1E293B;
-  --accent-subtle: rgba(15, 23, 42, 0.04);
+  --accent-active: #020617;
+  --accent-subtle: #F1F5F9;
+  --accent-focus-ring: 0 0 0 3px rgba(15, 23, 42, 0.08);
   
   --success: #059669;
   --success-light: #ECFDF5;
@@ -138,62 +141,62 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 500;
-  color: #3F3F46;
+  color: var(--text-secondary);
   background: transparent;
   border: none;
   border-radius: 9999px;
   padding: 4px 10px;
   cursor: pointer;
   line-height: 1;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 150ms ease;
   outline: none;
 }
 
 .currency-btn:hover {
-  color: #09090B;
+  color: var(--text-primary);
 }
 
 .currency-btn.active {
   background: #FFFFFF;
-  color: #09090B;
+  color: var(--text-primary);
   font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 /* Top Right Item Count Stat Pill */
 .header-count-pill {
   font-family: var(--font-sans);
-  background: #F4F4F6;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: #F1F5F9;
+  border: 1px solid var(--border-subtle);
   border-radius: 9999px;
   padding: 6px 14px;
   font-size: 12.5px;
   font-weight: 500;
-  color: #3F3F46;
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   line-height: 1;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 150ms ease;
   user-select: none;
 }
 
 .header-count-pill:hover {
-  background: #EAEAEA;
-  color: #09090B;
+  background: #E2E8F0;
+  color: var(--text-primary);
 }
 
 .header-count-pill svg {
   width: 14px;
   height: 14px;
-  color: #3F3F46;
+  color: var(--text-secondary);
   stroke-width: 1.75;
-  transition: color 200ms ease;
+  transition: color 150ms ease;
   flex-shrink: 0;
 }
 
 .header-count-pill:hover svg {
-  color: #09090B;
+  color: var(--text-primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -301,16 +304,16 @@ input, button, select, textarea {
 }
 
 .user-profile-btn:hover {
-  background: #F4F4F6;
-  border-color: #D4D4D8;
+  background: var(--bg-hover);
+  border-color: var(--accent-border, #CBD5E1);
 }
 
 .user-avatar-badge {
   width: 22px;
   height: 22px;
   border-radius: 9999px;
-  background: #18181B;
-  color: #FFFFFF;
+  background: var(--accent);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,8 +508,8 @@ input, button, select, textarea {
   padding: 28px 24px 24px !important;
   border-radius: 20px !important;
   background: #FFFFFF !important;
-  border: 1px solid #E4E4E7 !important;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.04) !important;
 }
 
 .auth-modal-header {
@@ -526,13 +529,13 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 17px;
   font-weight: 700;
-  color: #18181B;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
 }
 
 .auth-tabs {
   display: flex;
-  background: #F4F4F6;
+  background: var(--bg-hover);
   border-radius: 11px;
   padding: 4px;
   margin-bottom: 22px;
@@ -544,7 +547,7 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
-  color: #71717A;
+  color: var(--text-tertiary);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -556,12 +559,12 @@ input, button, select, textarea {
 }
 
 .auth-tab-btn:hover {
-  color: #18181B;
+  color: var(--text-primary);
 }
 
 .auth-tab-btn.active {
   background: #FFFFFF;
-  color: #18181B;
+  color: var(--text-primary);
   font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
@@ -574,7 +577,7 @@ input, button, select, textarea {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
-  color: #27272A;
+  color: var(--text-secondary);
   margin-bottom: 6px;
   display: block;
   letter-spacing: -0.01em;
@@ -585,13 +588,13 @@ input, button, select, textarea {
 .auth-form input[type="password"] {
   width: 100%;
   height: 42px;
-  background: #FAFAF9;
-  border: 1px solid #E4E4E7;
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 0 14px;
   font-family: var(--font-sans);
   font-size: 13.5px;
-  color: #18181B;
+  color: var(--text-primary);
   outline: none;
   transition: all 150ms ease;
   box-sizing: border-box;
@@ -600,15 +603,15 @@ input, button, select, textarea {
 .auth-form input[type="text"]::placeholder,
 .auth-form input[type="email"]::placeholder,
 .auth-form input[type="password"]::placeholder {
-  color: #A1A1AA;
+  color: var(--text-muted);
 }
 
 .auth-form input[type="text"]:focus,
 .auth-form input[type="email"]:focus,
 .auth-form input[type="password"]:focus {
   background: #FFFFFF;
-  border-color: #18181B;
-  box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.08);
+  border-color: var(--accent);
+  box-shadow: var(--accent-focus-ring);
 }
 
 .password-input-wrapper {
@@ -629,7 +632,7 @@ input, button, select, textarea {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #A1A1AA;
+  color: var(--text-tertiary);
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
@@ -640,14 +643,14 @@ input, button, select, textarea {
 }
 
 .btn-toggle-pwd:hover {
-  color: #18181B;
-  background: #F4F4F6;
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .auth-error-alert {
-  background: #FEF2F2;
+  background: var(--danger-light);
   border: 1px solid #FECACA;
-  color: #DC2626;
+  color: var(--danger);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
@@ -668,9 +671,9 @@ input, button, select, textarea {
   font-size: 13.5px;
   font-weight: 600;
   border-radius: 10px;
-  background: #18181B;
-  color: #FFFFFF;
-  border: none;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
   cursor: pointer;
   margin-top: 4px;
   transition: all 150ms ease;
@@ -681,7 +684,8 @@ input, button, select, textarea {
 }
 
 .auth-submit-btn:hover {
-  background: #27272A;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
@@ -5071,9 +5075,9 @@ input#search-input:focus {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
-  color: #3F3F46;
-  background: #F4F4F6;
-  border: 1px solid #E4E4E7;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 6px 11px;
   cursor: pointer;
@@ -5086,17 +5090,17 @@ input#search-input:focus {
 }
 
 .category-chip:hover {
-  background: #E4E4E7;
-  color: #18181B;
-  border-color: #D4D4D8;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
 .category-chip.active {
-  background: #18181B;
-  color: #FFFFFF;
-  border-color: #18181B;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
 }
 
 #group-modal #group-save-btn {
