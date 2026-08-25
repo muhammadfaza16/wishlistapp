@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=354">
+  <link rel="stylesheet" href="styles.css?v=355">
 </head>
 <body>
   <div id="app">
@@ -349,8 +349,8 @@
           <div class="form-group" id="quick-note-group-container">
             <label for="quick-note-group-input">Group</label>
             <input type="text" id="quick-note-group-input" class="modal-input" placeholder="e.g. Workspace" autocomplete="off">
-            <!-- Minimalist Existing Group Pills Tray -->
-            <div id="quick-note-group-pills-list" class="modal-group-pills-tray"></div>
+            <!-- Floating Existing Group Pills Dropdown -->
+            <div id="quick-note-group-pills-list" class="modal-group-floating-tray hidden"></div>
           </div>
         </div>
 
@@ -493,6 +493,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=354" defer></script>
+  <script src="app.js?v=355" defer></script>
 </body>
 </html>

@@ -2572,29 +2572,54 @@ input, button, select, textarea {
   font-variant-numeric: tabular-nums;
 }
 
-/* Modal Group Pills Tray */
-.modal-group-pills-tray {
+/* Modal Group Floating Dropdown (Never pushes layout below) */
+.modal-add-form .form-grid-2:first-of-type {
+  position: relative;
+  z-index: 50;
+}
+
+#quick-note-group-container {
+  position: relative;
+}
+
+.modal-group-floating-tray {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 200px;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  z-index: 99999 !important;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: 6px;
-  max-height: 62px;
+  max-height: 140px;
   overflow-y: auto;
+  animation: popoverFadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modal-group-pills-tray:empty {
-  display: none;
+.modal-group-floating-tray.hidden {
+  display: none !important;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .group-pill-opt {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8.5px;
+  padding: 3.5px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
-  color: #475569;
-  background: #F8FAFC;
+  color: #334155;
+  background: #F1F5F9;
   border: 1px solid #E2E8F0;
   border-radius: 5px;
   cursor: pointer;

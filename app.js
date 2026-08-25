@@ -975,7 +975,7 @@ const makePannable = (wrapperId, imgId, getPan, onPanChange) => {
   window.addEventListener('touchcancel', onPointerUp);
 };
 
-const populateModalGroupPills = (selectedGroup = '') => {
+const populateModalGroupPills = (selectedGroup = '', show = null) => {
   const container = document.getElementById('quick-note-group-pills-list');
   if (!container) return;
 
@@ -986,6 +986,7 @@ const populateModalGroupPills = (selectedGroup = '') => {
 
   if (allGroups.length === 0) {
     container.innerHTML = '';
+    container.classList.add('hidden');
     return;
   }
 
@@ -995,6 +996,12 @@ const populateModalGroupPills = (selectedGroup = '') => {
     const isActive = str.toLowerCase() === currentVal;
     return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(str)}">${escapeHtml(str)}</button>`;
   }).join('');
+
+  if (show === true) {
+    container.classList.remove('hidden');
+  } else if (show === false) {
+    container.classList.add('hidden');
+  }
 };
 
 const openQuickNoteModal = (itemId = null) => {
@@ -1523,27 +1530,45 @@ const initEventHandlers = () => {
     });
   });
 
-  // Group Input & Pills Tray Interaction
+  // Group Input & Floating Pills Tray Interaction
   const groupInput = document.getElementById('quick-note-group-input');
-  groupInput?.addEventListener('input', (e) => {
-    populateModalGroupPills(e.target.value);
+  const groupTray = document.getElementById('quick-note-group-pills-list');
+
+  groupInput?.addEventListener('focus', () => {
+    populateModalGroupPills(groupInput.value, true);
   });
 
-  // Select pill in modal tray
-  document.getElementById('quick-note-group-pills-list')?.addEventListener('click', (e) => {
+  groupInput?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    populateModalGroupPills(groupInput.value, true);
+  });
+
+  groupInput?.addEventListener('input', (e) => {
+    populateModalGroupPills(e.target.value, true);
+  });
+
+  // Select pill in floating tray
+  groupTray?.addEventListener('click', (e) => {
     const pill = e.target.closest('.group-pill-opt');
     if (!pill) return;
     e.preventDefault();
+    e.stopPropagation();
     const g = pill.getAttribute('data-group');
-    const input = document.getElementById('quick-note-group-input');
-    if (input && g) {
-      if (input.value.trim().toLowerCase() === g.toLowerCase()) {
-        input.value = '';
-        populateModalGroupPills('');
+    if (groupInput && g) {
+      if (groupInput.value.trim().toLowerCase() === g.toLowerCase()) {
+        groupInput.value = '';
+        populateModalGroupPills('', false);
       } else {
-        input.value = g;
-        populateModalGroupPills(g);
+        groupInput.value = g;
+        populateModalGroupPills(g, false);
       }
+    }
+  });
+
+  // Close floating dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#quick-note-group-container')) {
+      groupTray?.classList.add('hidden');
     }
   });
 
