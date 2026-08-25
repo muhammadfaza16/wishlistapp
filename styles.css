@@ -2108,43 +2108,30 @@ input, button, select, textarea {
 
 /* Minimalist Quick Note Preview Modal */
 /* ==========================================================================
-   ENHANCED DETAIL ITEM PREVIEW MODAL
+   MINIMALIST PRODUCT DETAIL PREVIEW MODAL (UNSLOPPED)
    ========================================================================== */
 
 .preview-modal-card {
-  padding: 22px 24px 24px 24px;
+  padding: 20px 22px 22px 22px;
   background: #FFFFFF;
-  border-radius: 18px;
-  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  max-width: 440px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  max-width: 420px;
 }
 
 .preview-modal-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.preview-type-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.preview-group-indicator {
   font-family: var(--font-sans);
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 550;
   color: #71717A;
-  background: #F4F4F6;
-  padding: 3px 9px;
-  border-radius: 20px;
-  border: 1px solid #E5E5EA;
-  letter-spacing: 0.02em;
-}
-
-.preview-type-tag svg {
-  width: 12px;
-  height: 12px;
-  color: #71717A;
+  letter-spacing: -0.01em;
 }
 
 .quick-note-preview-close {
@@ -2153,12 +2140,12 @@ input, button, select, textarea {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: 6px;
   background: transparent;
   color: #71717A;
   border: none;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 120ms ease;
 }
 
 .quick-note-preview-close:hover {
@@ -2167,95 +2154,78 @@ input, button, select, textarea {
 }
 
 .quick-note-preview-close svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .preview-hero-img-box {
-  margin-bottom: 16px;
-  border-radius: 14px;
+  margin-bottom: 14px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid #EDEDF0;
   background: #F4F4F6;
 }
 
 .preview-header-meta {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .preview-title {
   font-family: var(--font-sans);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 650;
   color: #09090B;
   letter-spacing: -0.02em;
   line-height: 1.35;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   word-break: break-word;
 }
 
-.preview-price-status-wrap {
+.preview-price-wrap {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .preview-price {
   font-family: var(--font-mono);
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 700;
   color: #09090B;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
-  margin: 0;
 }
 
-.status-pill-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.preview-status-tag {
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  letter-spacing: -0.01em;
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
-.status-pill-badge.is-acquired {
+.preview-status-tag.is-acquired {
   background: #ECFDF5;
-  color: #047857;
+  color: #059669;
   border: 1px solid #A7F3D0;
-}
-
-.status-pill-badge.is-target {
-  background: #F4F4F6;
-  color: #52525B;
-  border: 1px solid #E4E4E7;
-}
-
-.status-pill-badge svg {
-  width: 12px;
-  height: 12px;
 }
 
 .preview-details-list {
   display: flex;
   flex-direction: column;
-  background: #FAFAFB;
-  border: 1px solid #EAEAEF;
-  border-radius: 12px;
-  padding: 4px 12px;
-  margin-bottom: 18px;
+  background: #F9F9FB;
+  border: 1px solid #EDEDF0;
+  border-radius: 10px;
+  padding: 2px 12px;
+  margin-bottom: 16px;
 }
 
 .preview-detail-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 0;
-  font-size: 13px;
+  padding: 8px 0;
+  font-size: 12.5px;
   border-bottom: 1px solid #F0F0F3;
 }
 
@@ -2265,124 +2235,58 @@ input, button, select, textarea {
 
 .preview-detail-label {
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size: 12px;
   color: #71717A;
   font-weight: 450;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.preview-detail-label svg {
-  width: 13px;
-  height: 13px;
-  color: #A1A1AA;
 }
 
 .preview-detail-value {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 12.5px;
   color: #18181B;
   font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.preview-tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #FFFFFF;
-  border: 1px solid #E2E2E8;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 12px;
-  font-weight: 550;
-  color: #18181B;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.preview-tag-pill svg {
-  width: 12px;
-  height: 12px;
-  color: #52525B;
-}
-
-.preview-priority-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 550;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: #FFFFFF;
-  border: 1px solid #E2E2E8;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.preview-priority-tag.p1 {
+.preview-detail-value.priority-p1 {
   color: #DC2626;
+  font-weight: 600;
 }
 
-.preview-priority-tag.p2 {
-  color: #2563EB;
+.preview-detail-value.priority-p2 {
+  color: #18181B;
+  font-weight: 500;
 }
 
-.preview-priority-tag.p3 {
-  color: #64748B;
+.preview-detail-value.priority-p3 {
+  color: #71717A;
 }
 
-.priority-dot-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.priority-dot-indicator.dot-p1 {
-  background: #EF4444;
-}
-
-.priority-dot-indicator.dot-p2 {
-  background: #3B82F6;
-}
-
-.priority-dot-indicator.dot-p3 {
-  background: #94A3B8;
-}
-
-.preview-link-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.preview-text-link {
   color: #09090B;
   text-decoration: none;
-  font-weight: 550;
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: opacity 120ms ease;
+}
+
+.preview-text-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.preview-text-link .ext-arrow {
   font-size: 12px;
-  padding: 3px 8px;
-  background: #FFFFFF;
-  border: 1px solid #D4D4D8;
-  border-radius: 6px;
-  transition: all 150ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.preview-link-pill:hover {
-  background: #F4F4F6;
-  border-color: #A1A1AA;
-}
-
-.preview-link-pill svg {
-  width: 11px;
-  height: 11px;
   color: #71717A;
+  line-height: 1;
 }
 
 .preview-modal-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 4px;
 }
 
@@ -2390,21 +2294,20 @@ input, button, select, textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   background: #18181B;
   color: #FFFFFF;
   border: 1px solid #18181B;
-  border-radius: 10px;
-  height: 40px;
-  padding: 0 18px;
-  font-size: 13.5px;
-  font-weight: 550;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 120ms ease;
   flex: 1;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   user-select: none;
   touch-action: manipulation;
 }
@@ -2416,26 +2319,25 @@ input, button, select, textarea {
 
 .btn-preview-primary:active {
   transform: scale(0.98);
-  background: #09090B;
 }
 
 .btn-preview-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   background: #F4F4F6;
-  color: #27272A;
+  color: #18181B;
   border: 1px solid #E4E4E7;
-  border-radius: 10px;
-  height: 40px;
-  padding: 0 18px;
-  font-size: 13.5px;
-  font-weight: 550;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
   text-decoration: none;
-  transition: all 150ms ease;
+  transition: all 120ms ease;
   flex: 1;
   white-space: nowrap;
   user-select: none;
@@ -2443,20 +2345,18 @@ input, button, select, textarea {
 }
 
 .btn-preview-secondary:hover {
-  background: #ECECEF;
+  background: #EAEAEF;
   border-color: #D4D4D8;
-  color: #09090B;
 }
 
 .btn-preview-secondary:active {
   transform: scale(0.98);
-  background: #E4E4E7;
 }
 
 .btn-preview-primary svg,
 .btn-preview-secondary svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
