@@ -1100,8 +1100,30 @@ window.openQuickNoteModal = openQuickNoteModal;
 window.closeQuickNoteModal = closeQuickNoteModal;
 
 const setModalPriority = (priority) => {
-  const select = document.getElementById('quick-note-priority-select');
-  if (select) select.value = String(priority || 2);
+  const p = Number(priority) || 2;
+  const input = document.getElementById('quick-note-priority-input');
+  if (input) input.value = String(p);
+
+  const badge = document.getElementById('quick-note-priority-badge');
+  if (badge) {
+    badge.className = `prio-badge prio-badge-${p}`;
+    badge.textContent = p === 1 ? 'High' : (p === 3 ? 'Low' : 'Medium');
+  }
+
+  const items = document.querySelectorAll('#quick-note-priority-menu .custom-dropdown-item');
+  items.forEach(item => {
+    const itemP = Number(item.getAttribute('data-priority'));
+    if (itemP === p) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  const menu = document.getElementById('quick-note-priority-menu');
+  const trigger = document.getElementById('quick-note-priority-trigger');
+  if (menu) menu.classList.add('hidden');
+  if (trigger) trigger.classList.remove('active');
 };
 
 const openPreviewModal = (itemId) => {
@@ -1513,8 +1535,8 @@ const initEventHandlers = () => {
     const price = parseFloat(document.getElementById('quick-note-price-input')?.value) || 0;
     const group = document.getElementById('quick-note-group-input')?.value.trim() || null;
     const link = document.getElementById('quick-note-link-input')?.value.trim() || null;
-    const prioritySelect = document.getElementById('quick-note-priority-select');
-    const priority = prioritySelect ? (Number(prioritySelect.value) || 2) : 2;
+    const priorityInput = document.getElementById('quick-note-priority-input');
+    const priority = priorityInput ? (Number(priorityInput.value) || 2) : 2;
     const checked = !!document.getElementById('quick-note-checked-input')?.checked;
 
     if (!title) return;
@@ -1527,6 +1549,30 @@ const initEventHandlers = () => {
       priority,
       checked,
       imageData: currentUploadedImage
+    });
+  });
+
+  // Custom Priority Dropdown Interactions
+  const prioTrigger = document.getElementById('quick-note-priority-trigger');
+  const prioMenu = document.getElementById('quick-note-priority-menu');
+
+  prioTrigger?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = prioMenu?.classList.contains('hidden');
+    if (isHidden) {
+      prioMenu?.classList.remove('hidden');
+      prioTrigger?.classList.add('active');
+    } else {
+      prioMenu?.classList.add('hidden');
+      prioTrigger?.classList.remove('active');
+    }
+  });
+
+  document.querySelectorAll('#quick-note-priority-menu .custom-dropdown-item')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const p = Number(btn.getAttribute('data-priority')) || 2;
+      setModalPriority(p);
     });
   });
 
@@ -1565,10 +1611,14 @@ const initEventHandlers = () => {
     }
   });
 
-  // Close floating dropdown when clicking outside
+  // Close floating dropdowns when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#quick-note-group-container')) {
       groupTray?.classList.add('hidden');
+    }
+    if (!e.target.closest('#quick-note-priority-container')) {
+      prioMenu?.classList.add('hidden');
+      prioTrigger?.classList.remove('active');
     }
   });
 
