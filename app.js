@@ -1111,6 +1111,11 @@ const syncDataToBackend = async () => {
   setSyncStatusUI('syncing');
 
   try {
+    const userId = state.currentUser.id;
+    const userEmail = state.currentUser.email || `${userId}@wishlist.app`;
+    const userName = state.currentUser.name || 'User';
+    const authToken = getAuthToken() || userId;
+
     const cleanItems = (state.notesItems || []).map(item => ({
       id: String(item.id),
       title: String(item.title || 'Untitled'),
@@ -1147,12 +1152,60 @@ const syncDataToBackend = async () => {
     const deletedArr = Array.from(state.deletedNoteIds || []);
     let pushSuccess = false;
 
-    // 1. Central SQLite Server Sync (/api/user/sync) - Primary Central DB
-    const userId = state.currentUser.id;
-    const userEmail = state.currentUser.email || `${userId}@wishlist.app`;
-    const userName = state.currentUser.name || 'User';
-    const authToken = getAuthToken() || userId;
+    // 1. Direct Supabase PostgreSQL Table Upsert & Metadata Push
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const tableRows = cleanItems.map(item => ({
+          id: String(item.id),
+          user_id: userId,
+          title: String(item.title || 'Untitled'),
+          price: Number(item.price) || 0,
+          currency: item.currency || state.currency || 'IDR',
+          group: item.group || null,
+          priority: Number(item.priority) || 2,
+          checked: !!item.checked,
+          link: item.link || null,
+          image_data: (item.imageData && item.imageData.length < 25000) ? item.imageData : null,
+          created_at: item.createdAt || new Date().toISOString(),
+          updated_at: item.updatedAt || new Date().toISOString()
+        }));
 
+        if (tableRows.length > 0) {
+          const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows, { onConflict: 'id' });
+          if (upsertErr) {
+            console.warn('Supabase table upsert note:', upsertErr.message);
+          } else {
+            pushSuccess = true;
+          }
+        }
+
+        if (deletedArr.length > 0) {
+          await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', userId);
+        }
+
+        // Also update Supabase Auth user_metadata
+        const { error: metaErr } = await sb.auth.updateUser({
+          data: {
+            wishlist_items: cleanItems,
+            catalog_items: cleanCatalogItems,
+            deleted_item_ids: deletedArr,
+            raw_notepad: state.rawNotepadText || "",
+            preferences: {
+              currency: state.currency,
+              notesSortBy: state.notesSortBy,
+              notesMode: state.notesMode,
+              view: state.view
+            }
+          }
+        });
+        if (!metaErr) pushSuccess = true;
+      } catch (sbErr) {
+        console.warn('Supabase sync error:', sbErr.message);
+      }
+    }
+
+    // 2. Central SQLite Server Sync (/api/user/sync)
     if (typeof fetch !== 'undefined') {
       try {
         const res = await fetch('/api/user/sync', {
@@ -1180,31 +1233,7 @@ const syncDataToBackend = async () => {
         if (res.ok) {
           pushSuccess = true;
         }
-      } catch (localApiErr) {
-        console.warn('Central SQLite server sync note:', localApiErr.message);
-      }
-    }
-
-    // 2. Supabase Cloud Sync (Secondary Cloud Backup)
-    const sb = getSupabase();
-    if (sb) {
-      try {
-        const { error: metaErr } = await sb.auth.updateUser({
-          data: {
-            wishlist_items: cleanItems,
-            catalog_items: cleanCatalogItems,
-            deleted_item_ids: deletedArr,
-            raw_notepad: state.rawNotepadText || "",
-            preferences: {
-              currency: state.currency,
-              notesSortBy: state.notesSortBy,
-              notesMode: state.notesMode,
-              view: state.view
-            }
-          }
-        });
-        if (!metaErr) pushSuccess = true;
-      } catch (sbErr) {}
+      } catch (localApiErr) {}
     }
 
     // Update locally cached copies
@@ -1244,47 +1273,35 @@ const syncDataFromBackend = async (showFeedback = false) => {
   let fetchedDeleted = [];
   let pullSuccess = false;
 
-  // 1. Fetch from Central Node/SQLite Server (/api/user/sync)
-  if (typeof fetch !== 'undefined') {
-    try {
-      const res = await fetch('/api/user/sync', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'x-user-id': userId,
-          'x-user-email': userEmail,
-          'x-user-name': userName
-        }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.data) {
-          if (Array.isArray(json.data.notes) && json.data.notes.length > 0) {
-            fetchedNotes = json.data.notes;
-          }
-          if (Array.isArray(json.data.items) && json.data.items.length > 0) {
-            fetchedItems = json.data.items;
-          }
-          if (typeof json.data.notepadText === 'string') {
-            fetchedNotepad = json.data.notepadText;
-          }
-          if (json.data.preferences && typeof json.data.preferences === 'object') {
-            fetchedPreferences = json.data.preferences;
-            if (Array.isArray(json.data.preferences.deletedIds)) {
-              fetchedDeleted = json.data.preferences.deletedIds;
-            }
-          }
-          pullSuccess = true;
-        }
-      }
-    } catch (serverErr) {
-      console.warn('Central server pull notice:', serverErr.message);
-    }
-  }
-
-  // 2. Fetch from Supabase Cloud
+  // 1. Fetch from Supabase PostgreSQL Table & Metadata
   const sb = getSupabase();
   if (sb) {
     try {
+      // 1a. Direct Table Select from public.wishlist_items
+      const { data: tableData, error: tableErr } = await sb
+        .from('wishlist_items')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
+        const tableNotes = tableData.map(row => ({
+          id: String(row.id),
+          title: String(row.title || 'Untitled'),
+          price: Number(row.price) || 0,
+          currency: row.currency || state.currency || 'IDR',
+          group: row.group || null,
+          priority: Number(row.priority) || 2,
+          checked: !!row.checked,
+          link: row.link || null,
+          imageData: row.image_data || null,
+          createdAt: row.created_at || row.createdAt,
+          updatedAt: row.updated_at || row.updatedAt
+        }));
+        fetchedNotes = mergeWishlistItems(fetchedNotes, tableNotes, new Set(fetchedDeleted));
+        pullSuccess = true;
+      }
+
+      // 1b. Fetch metadata for catalog items and preferences
       const { data: userData } = await sb.auth.getUser();
       if (userData && userData.user && userData.user.user_metadata) {
         const meta = userData.user.user_metadata;
@@ -1302,7 +1319,44 @@ const syncDataFromBackend = async (showFeedback = false) => {
         }
         pullSuccess = true;
       }
-    } catch (sbErr) {}
+    } catch (sbErr) {
+      console.warn('Supabase pull notice:', sbErr.message);
+    }
+  }
+
+  // 2. Fetch from Central Node/SQLite Server (/api/user/sync)
+  if (typeof fetch !== 'undefined') {
+    try {
+      const res = await fetch('/api/user/sync', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'x-user-id': userId,
+          'x-user-email': userEmail,
+          'x-user-name': userName
+        }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.data) {
+          if (Array.isArray(json.data.notes) && json.data.notes.length > 0) {
+            fetchedNotes = mergeWishlistItems(fetchedNotes, json.data.notes, new Set(fetchedDeleted));
+          }
+          if (Array.isArray(json.data.items) && json.data.items.length > 0) {
+            fetchedItems = mergeWishlistItems(fetchedItems, json.data.items, new Set(fetchedDeleted));
+          }
+          if (typeof json.data.notepadText === 'string' && !fetchedNotepad) {
+            fetchedNotepad = json.data.notepadText;
+          }
+          if (json.data.preferences && typeof json.data.preferences === 'object') {
+            fetchedPreferences = json.data.preferences;
+            if (Array.isArray(json.data.preferences.deletedIds)) {
+              fetchedDeleted = json.data.preferences.deletedIds;
+            }
+          }
+          pullSuccess = true;
+        }
+      }
+    } catch (serverErr) {}
   }
 
   // 3. Process Deleted IDs
@@ -1317,7 +1371,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
     state.notesItems = mergeWishlistItems(localRealNotes, fetchedNotes, state.deletedNoteIds);
   } else if (localRealNotes.length > 0) {
     state.notesItems = localRealNotes;
-    // Push local items to central server if central database was empty
+    // Push local items to central database if central was empty
     await syncDataToBackend();
   }
 
@@ -1351,7 +1405,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
   if (showFeedback) {
     const wishCount = (state.notesItems || []).length;
     const catalogCount = (state.items || []).length;
-    showToast(`Synced with central database: ${wishCount} items loaded!`);
+    showToast(`Synced from database: ${wishCount} wishlist + ${catalogCount} catalog items!`);
   }
 
   return pullSuccess;
@@ -1433,41 +1487,14 @@ const registerUser = async (name, emailOrUsername, password) => {
   const initialItems = (Array.isArray(state.notesItems) && state.notesItems.length > 0) ? state.notesItems : [];
   const initialNotepad = state.rawNotepadText || "";
 
-  let registeredSession = null;
+  let sessionUser = null;
+  let sessionToken = null;
 
-  // 1. Register with Central SQLite Server (/api/auth/register)
-  try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: cleanName, emailOrUsername: cleanEmail, password })
-    });
-    const json = await res.json();
-    if (res.ok && json.success) {
-      registeredSession = {
-        token: json.token,
-        user: {
-          id: json.user.id,
-          name: json.user.name,
-          email: json.user.email,
-          username: json.user.username,
-          isGuest: false,
-          loggedInAt: new Date().toISOString()
-        }
-      };
-    } else if (!res.ok && json.error && json.error.toLowerCase().includes('already exists')) {
-      throw new Error(json.error);
-    }
-  } catch (err) {
-    if (err.message && err.message.toLowerCase().includes('already exists')) throw err;
-    console.warn('Central server register notice:', err.message);
-  }
-
-  // 2. Also register with Supabase Cloud in parallel if available
+  // 1. Supabase Cloud Signup (Primary Cloud DB)
   const sb = getSupabase();
   if (sb) {
     try {
-      const { data } = await sb.auth.signUp({
+      const { data, error } = await sb.auth.signUp({
         email: cleanEmail,
         password: password,
         options: {
@@ -1479,54 +1506,108 @@ const registerUser = async (name, emailOrUsername, password) => {
           }
         }
       });
-      if (data && data.session && !registeredSession) {
-        registeredSession = {
-          token: data.session.access_token,
-          user: {
-            id: data.user.id,
+
+      if (data && data.session && data.user) {
+        sessionToken = data.session.access_token;
+        sessionUser = {
+          id: data.user.id,
+          name: cleanName,
+          email: data.user.email,
+          username: cleanEmail.split('@')[0],
+          isGuest: false,
+          loggedInAt: new Date().toISOString()
+        };
+      } else if (data && data.user) {
+        const { data: signInData } = await sb.auth.signInWithPassword({ email: cleanEmail, password });
+        if (signInData && signInData.session && signInData.user) {
+          sessionToken = signInData.session.access_token;
+          sessionUser = {
+            id: signInData.user.id,
             name: cleanName,
-            email: data.user.email,
+            email: signInData.user.email,
             username: cleanEmail.split('@')[0],
             isGuest: false,
             loggedInAt: new Date().toISOString()
+          };
+        }
+      } else if (error) {
+        if (error.message.toLowerCase().includes('already registered')) {
+          const { data: logData, error: logErr } = await sb.auth.signInWithPassword({ email: cleanEmail, password });
+          if (!logErr && logData && logData.session && logData.user) {
+            sessionToken = logData.session.access_token;
+            sessionUser = {
+              id: logData.user.id,
+              name: logData.user.user_metadata?.name || cleanName,
+              email: logData.user.email,
+              username: cleanEmail.split('@')[0],
+              isGuest: false,
+              loggedInAt: new Date().toISOString()
+            };
+          } else {
+            throw new Error(error.message);
           }
-        };
+        } else {
+          throw new Error(error.message);
+        }
       }
-    } catch (sbErr) {}
+    } catch (sbErr) {
+      if (sbErr.message && (sbErr.message.includes('already') || sbErr.message.includes('Password') || sbErr.message.includes('valid'))) {
+        throw sbErr;
+      }
+      console.warn('Supabase signup notice:', sbErr.message);
+    }
   }
 
-  // 3. Fallback if offline
-  if (!registeredSession) {
-    const userId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-    registeredSession = {
-      token: 'local_' + Date.now().toString(36),
-      user: {
-        id: userId,
-        name: cleanName,
-        email: cleanEmail,
-        username: cleanEmail.split('@')[0],
+  // 2. Also register with local SQLite server in parallel
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: cleanName, emailOrUsername: cleanEmail, password })
+    });
+    const json = await res.json();
+    if (res.ok && json.success && !sessionUser) {
+      sessionToken = json.token;
+      sessionUser = {
+        id: json.user.id,
+        name: json.user.name,
+        email: json.user.email,
+        username: json.user.username,
         isGuest: false,
         loggedInAt: new Date().toISOString()
-      }
+      };
+    }
+  } catch (localErr) {}
+
+  if (!sessionUser) {
+    const fallbackId = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    sessionUser = {
+      id: fallbackId,
+      name: cleanName,
+      email: cleanEmail,
+      username: cleanEmail.split('@')[0],
+      isGuest: false,
+      loggedInAt: new Date().toISOString()
     };
+    sessionToken = 'local_' + fallbackId;
   }
 
-  setActiveSession(registeredSession.user);
-  state.currentUser = registeredSession.user;
-  setAuthToken(registeredSession.token);
+  setActiveSession(sessionUser);
+  state.currentUser = sessionUser;
+  setAuthToken(sessionToken);
 
   state.notesItems = initialItems;
   state.rawNotepadText = initialNotepad;
-  safeSetLocalStorage(`wishlist_u_${registeredSession.user.id}_notes`, initialItems);
-  safeSetLocalStorage(`wishlist_u_${registeredSession.user.id}_notepad`, initialNotepad);
+  safeSetLocalStorage(`wishlist_u_${sessionUser.id}_notes`, initialItems);
+  safeSetLocalStorage(`wishlist_u_${sessionUser.id}_notepad`, initialNotepad);
 
-  // Push initial items up to central database
+  // Push initial items up to Supabase and SQLite
   await syncDataToBackend();
 
   updateUserProfileUI();
   render();
   renderNotesView();
-  showToast(`Account created! Welcome, ${registeredSession.user.name}!`);
+  showToast(`Account created! Welcome, ${sessionUser.name}!`);
   closeAuthModal();
 };
 
@@ -1538,9 +1619,45 @@ const loginUser = async (emailOrUsername, password) => {
     cleanEmail = `${cleanEmail.replace(/[^a-z0-9._-]/g, '')}@wishlist.app`;
   }
 
-  let loggedInSession = null;
+  let sessionUser = null;
+  let sessionToken = null;
 
-  // 1. Try Central SQLite Server (/api/auth/login) - Primary Central DB
+  // 1. Supabase Cloud Login (Primary Cloud DB)
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: cleanEmail,
+        password: password
+      });
+
+      if (error) {
+        if (error.message.toLowerCase().includes('invalid login credentials')) {
+          // Check local server below
+        } else {
+          console.warn('Supabase signIn error:', error.message);
+        }
+      }
+
+      if (data && data.user && data.session) {
+        const u = data.user;
+        const meta = u.user_metadata || {};
+        sessionToken = data.session.access_token;
+        sessionUser = {
+          id: u.id,
+          name: meta.name || u.email.split('@')[0],
+          email: u.email,
+          username: meta.username || u.email.split('@')[0],
+          isGuest: false,
+          loggedInAt: new Date().toISOString()
+        };
+      }
+    } catch (sbLoginErr) {
+      console.warn('Supabase login exception:', sbLoginErr.message);
+    }
+  }
+
+  // 2. Also log in with Central SQLite Server in parallel
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -1549,66 +1666,38 @@ const loginUser = async (emailOrUsername, password) => {
     });
     const json = await res.json();
     if (res.ok && json.success) {
-      loggedInSession = {
-        token: json.token,
-        user: {
+      if (!sessionUser) {
+        sessionToken = json.token;
+        sessionUser = {
           id: json.user.id,
           name: json.user.name,
           email: json.user.email,
           username: json.user.username,
           isGuest: false,
           loggedInAt: new Date().toISOString()
-        }
-      };
-    }
-  } catch (serverLoginErr) {
-    console.warn('Central server login notice:', serverLoginErr.message);
-  }
-
-  // 2. Try Supabase cloud login if server login didn't connect
-  const sb = getSupabase();
-  if (sb) {
-    try {
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: cleanEmail,
-        password: password
-      });
-      if (data && data.user && !loggedInSession) {
-        const u = data.user;
-        const meta = u.user_metadata || {};
-        loggedInSession = {
-          token: data.session ? data.session.access_token : 'sb_' + u.id,
-          user: {
-            id: u.id,
-            name: meta.name || u.email.split('@')[0],
-            email: u.email,
-            username: meta.username || u.email.split('@')[0],
-            isGuest: false,
-            loggedInAt: new Date().toISOString()
-          }
         };
       }
-    } catch (sbLoginErr) {}
-  }
+    }
+  } catch (serverLoginErr) {}
 
-  if (!loggedInSession) {
+  if (!sessionUser) {
     throw new Error('Invalid email or password');
   }
 
-  setActiveSession(loggedInSession.user);
-  state.currentUser = loggedInSession.user;
-  setAuthToken(loggedInSession.token);
+  setActiveSession(sessionUser);
+  state.currentUser = sessionUser;
+  setAuthToken(sessionToken);
 
   // Load existing local cache first if any
-  loadUserData(loggedInSession.user.id);
+  loadUserData(sessionUser.id);
 
-  // Immediately pull fresh central data from Central Database / Cloud!
+  // Immediately pull fresh central data from Supabase & SQLite!
   await syncDataFromBackend(true);
 
   updateUserProfileUI();
   render();
   renderNotesView();
-  showToast(`Welcome back, ${loggedInSession.user.name}!`);
+  showToast(`Welcome back, ${sessionUser.name}!`);
   closeAuthModal();
 };
 
