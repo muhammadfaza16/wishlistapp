@@ -150,6 +150,27 @@ const getAuthenticatedUser = (req) => {
         const user = userStmt.get(session.user_id);
         if (user) return { ...user, token };
       }
+
+      // If token is a JWT token (from Supabase Auth)
+      if (token.includes('.')) {
+        try {
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8'));
+          if (payload && payload.sub) {
+            const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
+            const user = userStmt.get(payload.sub);
+            if (user) return { ...user, token };
+            const meta = payload.user_metadata || {};
+            return {
+              id: payload.sub,
+              name: meta.name || (payload.email ? payload.email.split('@')[0] : 'User'),
+              email: payload.email || '',
+              username: meta.username || (payload.email ? payload.email.split('@')[0] : ''),
+              createdAt: new Date().toISOString(),
+              token
+            };
+          }
+        } catch (e) {}
+      }
     }
 
     // Direct User ID matching (for internal / guest-scoped API calls)
@@ -412,7 +433,7 @@ const handler = async (req, res) => {
 
   // --- AUTHENTICATION ENDPOINTS ---
 
-  // 1. Register User
+  // 1. Register User (Supabase Auth + Local Cache)
   if (req.method === 'POST' && reqPath === '/api/auth/register') {
     try {
       const body = await readBody(req);
@@ -424,36 +445,65 @@ const handler = async (req, res) => {
       if (!ident || ident.length < 3) return sendJson(res, 400, { error: 'Email or username must be at least 3 characters' });
       if (!password || password.length < 4) return sendJson(res, 400, { error: 'Password must be at least 4 characters' });
 
-      const existing = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(ident, ident);
-      if (existing) return sendJson(res, 409, { error: 'An account with this email/username already exists' });
-
       const isEmail = ident.includes('@');
       const email = isEmail ? ident : `${ident}@user`;
       const username = isEmail ? ident.split('@')[0] : ident;
-      const userId = 'usr_' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      const now = new Date().toISOString();
+      let userId = 'usr_' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      let token = generateToken();
+
+      // Attempt Supabase Auth signup
+      try {
+        const supaRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            data: { name, username, wishlist_items: [] }
+          })
+        });
+        const supaData = await supaRes.json();
+        if (supaData && supaData.user && supaData.user.id) {
+          userId = supaData.user.id;
+        }
+        if (supaData && supaData.access_token) {
+          token = supaData.access_token;
+        }
+      } catch (e) {}
+
+      // Cache in Local SQLite
       const salt = crypto.randomBytes(16).toString('hex');
       const passwordHash = hashPassword(password, salt);
-      const now = new Date().toISOString();
 
-      db.prepare(`
-        INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(userId, name, email, username, passwordHash, salt, now);
+      const existing = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(email, username);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(userId, name, email, username, passwordHash, salt, now);
+      }
 
-      const token = generateToken();
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       db.prepare(`
         INSERT INTO sessions (token, user_id, created_at, expires_at)
         VALUES (?, ?, ?, ?)
       `).run(token, userId, now, expiresAt);
 
-      return sendJson(res, 201, { success: true, token, user: { id: userId, name, email, username, createdAt: now } });
+      return sendJson(res, 201, {
+        success: true,
+        token,
+        user: { id: userId, name, email, username, createdAt: now }
+      });
     } catch (err) {
       return sendJson(res, 500, { error: err.message || 'Registration failed' });
     }
   }
 
-  // 2. Login User
+  // 2. Login User (Supabase Auth + Local Cache)
   if (req.method === 'POST' && reqPath === '/api/auth/login') {
     try {
       const body = await readBody(req);
@@ -462,25 +512,112 @@ const handler = async (req, res) => {
 
       if (!ident || !password) return sendJson(res, 400, { error: 'Email/Username and password are required' });
 
-      const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(ident, ident);
-      if (!user) return sendJson(res, 401, { error: 'Invalid username or password' });
-
-      const hash = hashPassword(password, user.salt);
-      if (hash !== user.password_hash) return sendJson(res, 401, { error: 'Invalid username or password' });
-
-      const token = generateToken();
+      const isEmail = ident.includes('@');
+      const email = isEmail ? ident : `${ident}@user`;
+      const username = isEmail ? ident.split('@')[0] : ident;
       const now = new Date().toISOString();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
+      let authenticatedUser = null;
+      let token = null;
+
+      // 1. Attempt Supabase Auth login
+      try {
+        const supaRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (supaRes.ok) {
+          const supaData = await supaRes.json();
+          if (supaData && supaData.user) {
+            token = generateToken();
+            const sUser = supaData.user;
+            const meta = sUser.user_metadata || {};
+            const userId = sUser.id;
+            const userName = meta.name || sUser.email.split('@')[0];
+            const userEmail = sUser.email;
+            const uName = meta.username || sUser.email.split('@')[0];
+
+            authenticatedUser = {
+              id: userId,
+              name: userName,
+              email: userEmail,
+              username: uName,
+              createdAt: sUser.created_at || now
+            };
+
+            // Sync user to SQLite
+            const salt = crypto.randomBytes(16).toString('hex');
+            const passwordHash = hashPassword(password, salt);
+            try {
+              db.prepare('DELETE FROM users WHERE id = ? OR email = ? OR username = ?').run(userId, userEmail, uName);
+            } catch (e) {}
+            db.prepare(`
+              INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(userId, userName, userEmail, uName, passwordHash, salt, now);
+
+            // Sync wishlist_items from Supabase user_metadata if available
+            if (Array.isArray(meta.wishlist_items) && meta.wishlist_items.length > 0) {
+              const insertStmt = db.prepare(`
+                INSERT OR REPLACE INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `);
+              meta.wishlist_items.forEach(it => {
+                const itemId = it.id || 'item_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+                insertStmt.run(
+                  itemId,
+                  userId,
+                  it.title || 'Untitled',
+                  Number(it.price) || 0,
+                  it.currency || 'IDR',
+                  it.group || it.group_name || null,
+                  Number(it.priority) || 2,
+                  it.checked ? 1 : 0,
+                  it.link || null,
+                  it.imageData || it.image_data || null,
+                  it.createdAt || it.created_at || now,
+                  it.updatedAt || it.updated_at || now
+                );
+              });
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Fallback to Local SQLite if Supabase auth was not used or failed
+      if (!authenticatedUser) {
+        const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(ident, ident);
+        if (!user) return sendJson(res, 401, { error: 'Invalid username or password' });
+
+        const hash = hashPassword(password, user.salt);
+        if (hash !== user.password_hash) return sendJson(res, 401, { error: 'Invalid username or password' });
+
+        token = generateToken();
+        authenticatedUser = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          createdAt: user.created_at
+        };
+      }
+
+      // Store active session
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       db.prepare(`
         INSERT INTO sessions (token, user_id, created_at, expires_at)
         VALUES (?, ?, ?, ?)
-      `).run(token, user.id, now, expiresAt);
+      `).run(token, authenticatedUser.id, now, expiresAt);
 
       return sendJson(res, 200, {
         success: true,
         token,
-        user: { id: user.id, name: user.name, email: user.email, username: user.username, createdAt: user.created_at }
+        user: authenticatedUser
       });
     } catch (err) {
       return sendJson(res, 500, { error: err.message || 'Login failed' });
