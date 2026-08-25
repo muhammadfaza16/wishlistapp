@@ -210,15 +210,16 @@ const cleanProductTitle = (t) => {
 const guessGroupFromTitle = (title) => {
   if (!title) return null;
   const t = title.toLowerCase();
-  if (/\b(headphone|headphones|earphone|earphones|tws|iem|speaker|speakers|airpods|audio|mic|microphone|soundbar)\b/i.test(t)) return 'Audio';
-  if (/\b(baju|kaos|kemeja|celana|hoodie|jacket|jaket|sepatu|sneaker|sneakers|dress|outfit|shirt|tshirt|shoes|pants|sock|socks)\b/i.test(t)) return 'Outfit';
-  if (/\b(monitor|keyboard|mouse|desk|pad|deskmat|holder|stand|lampu meja|lightbar)\b/i.test(t)) return 'Desk Setup';
-  if (/\b(game|playstation|nintendo|xbox|ps5|switch|controller|gamepad|steam deck|rog ally)\b/i.test(t)) return 'Gaming';
-  if (/\b(kamera|camera|lensa|lens|tripod|gimbal|drone|lighting|fujifilm|lumix)\b/i.test(t)) return 'Photography';
-  if (/\b(laptop|pc|macbook|ipad|tablet|iphone|android|samsung|charger|hub|ssd|ram|gpu|gadget)\b/i.test(t)) return 'Electronics';
-  if (/\b(buku|book|books|novel|hardcover|paperback|komik|comic|manga|kindle)\b/i.test(t)) return 'Books';
-  if (/\b(gym|dumbbell|barbell|matras|yoga|sepeda|running|sports)\b/i.test(t)) return 'Fitness';
-  if (/\b(cangkir|tumbler|mug|kasur|bantal|sprei|diffuser|lampu|meja|kursi|sofa)\b/i.test(t)) return 'Home & Living';
+  if (/\b(headphone|headphones|earphone|earphones|tws|iem|speaker|speakers|airpods|audio|mic|microphone|soundbar|dac|amp)\b/i.test(t)) return 'Audio & Sound';
+  if (/\b(baju|kaos|kemeja|celana|hoodie|jacket|jaket|sepatu|sneaker|sneakers|dress|outfit|shirt|tshirt|shoes|pants|sock|socks|denim|jeans|skinny|jogger|chino|cardigan|blazer|sweater|polo|vest|outer|wrangler|uniqlo|zara|levis)\b/i.test(t)) return 'Outfit & Fashion';
+  if (/\b(monitor|keyboard|mouse|desk|pad|deskmat|holder|stand|lampu meja|lightbar|screenbar|keychron|nuphy)\b/i.test(t)) return 'Workspace & Desk';
+  if (/\b(game|playstation|nintendo|xbox|ps5|switch|controller|gamepad|steam deck|rog ally)\b/i.test(t)) return 'Gaming & Gear';
+  if (/\b(kamera|camera|lensa|lens|tripod|gimbal|drone|lighting|fujifilm|lumix|sony|canon)\b/i.test(t)) return 'Photography';
+  if (/\b(laptop|pc|macbook|ipad|tablet|iphone|android|samsung|charger|hub|ssd|ram|gpu|gadget|watch|smartwatch)\b/i.test(t)) return 'Electronics & Gadgets';
+  if (/\b(buku|book|books|novel|hardcover|paperback|komik|comic|manga|kindle)\b/i.test(t)) return 'Books & Study';
+  if (/\b(gym|dumbbell|barbell|matras|yoga|sepeda|running|sports)\b/i.test(t)) return 'Fitness & Health';
+  if (/\b(cangkir|tumbler|mug|kasur|bantal|sprei|diffuser|lampu|meja|kursi|sofa|home|living|room)\b/i.test(t)) return 'Home & Living';
+  if (/\b(kopi|coffee|cafe|lifestyle)\b/i.test(t)) return 'Daily Lifestyle';
   return null;
 };
 
@@ -227,15 +228,25 @@ const extractSlugTitle = (urlStr) => {
     const u = new URL(urlStr);
     const parts = u.pathname.split('/').filter(p => p && p.length > 2 && !['p', 'product', 'item', 'dp', 'gp', 'products', 'shop'].includes(p.toLowerCase()));
     if (parts.length > 0) {
-      const lastPart = decodeURIComponent(parts[parts.length - 1]);
-      // Remove query-like extensions or hash
+      let lastPart = decodeURIComponent(parts[parts.length - 1]);
+      // Remove shopee id suffix (e.g. -i.55945766.17841330802 or i.1234.5678)
+      lastPart = lastPart.replace(/-?i\.\d+\.\d+/ig, '');
       const cleanSlug = lastPart.replace(/\.(html|htm|php|asp)$/i, '').replace(/[-_]+/g, ' ').trim();
-      if (cleanSlug.length >= 4 && !/^\d+$/.test(cleanSlug)) {
+      if (cleanSlug.length >= 3 && !/^\d+$/.test(cleanSlug)) {
         return cleanSlug.replace(/\b\w/g, l => l.toUpperCase());
       }
     }
   } catch (e) {}
   return '';
+};
+
+const extractMetaTag = (html, propName) => {
+  const reg1 = new RegExp(`<meta\\s+[^>]*property=["']${propName}["'][^>]*content=["']([^"']+)["']`, 'i');
+  const reg2 = new RegExp(`<meta\\s+[^>]*content=["']([^"']+)["'][^>]*property=["']${propName}["']`, 'i');
+  const reg3 = new RegExp(`<meta\\s+[^>]*name=["']${propName}["'][^>]*content=["']([^"']+)["']`, 'i');
+  const reg4 = new RegExp(`<meta\\s+[^>]*content=["']([^"']+)["'][^>]*name=["']${propName}["']`, 'i');
+  const m = html.match(reg1) || html.match(reg2) || html.match(reg3) || html.match(reg4);
+  return m ? decodeHtmlEntities(m[1].trim()) : '';
 };
 
 const scrapeProduct = async (rawUrl) => {
@@ -254,108 +265,103 @@ const scrapeProduct = async (rawUrl) => {
   let imageUrl = '';
   let brand = '';
 
-  try {
-    const res = await fetch(finalUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
-      },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(8000)
-    });
+  const userAgents = [
+    'WhatsApp/2.21.12.21 A',
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+  ];
 
-    if (res.ok) {
-      const html = await res.text();
+  for (const ua of userAgents) {
+    try {
+      const res = await fetch(finalUrl, {
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Cache-Control': 'no-cache'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(6000)
+      });
 
-      // 1. OpenGraph & Twitter Meta Tags
-      const ogTitle = html.match(/<meta\s+[^>]*property=["']og:title["'][^>]*content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["']og:title["']/i) ||
-                      html.match(/<meta\s+[^>]*name=["']twitter:title["'][^>]*content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']twitter:title["']/i);
-      
-      const ogImage = html.match(/<meta\s+[^>]*property=["']og:image(?::secure_url)?["'][^>]*content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["']og:image(?::secure_url)?["']/i) ||
-                      html.match(/<meta\s+[^>]*name=["']twitter:image(?::src)?["'][^>]*content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']twitter:image(?::src)?["']/i);
+      if (res.ok) {
+        const html = await res.text();
 
-      const ogPrice = html.match(/<meta\s+[^>]*property=["'](?:product|og):price:amount["'][^>]*content=["'](.*?)["']/i) ||
-                      html.match(/<meta\s+[^>]*content=["'](.*?)["'][^>]*property=["'](?:product|og):price:amount["']/i);
+        // 1. OpenGraph & Meta Tags
+        const ogTitle = extractMetaTag(html, 'og:title') || extractMetaTag(html, 'twitter:title');
+        const ogImage = extractMetaTag(html, 'og:image') || extractMetaTag(html, 'og:image:secure_url') || extractMetaTag(html, 'twitter:image');
+        const ogPrice = extractMetaTag(html, 'product:price:amount') || extractMetaTag(html, 'og:price:amount');
+        const tagTitle = html.match(/<title[^>]*>(.*?)<\/title>/i);
 
-      const tagTitle = html.match(/<title[^>]*>(.*?)<\/title>/i);
+        if (ogTitle) title = cleanProductTitle(ogTitle);
+        else if (tagTitle && tagTitle[1]) title = cleanProductTitle(tagTitle[1]);
 
-      if (ogTitle && ogTitle[1]) title = cleanProductTitle(ogTitle[1]);
-      else if (tagTitle && tagTitle[1]) title = cleanProductTitle(tagTitle[1]);
+        if (ogImage && !ogImage.includes('placeholder') && ogImage.startsWith('http')) {
+          imageUrl = ogImage;
+        }
 
-      if (ogImage && ogImage[1] && !ogImage[1].includes('placeholder')) {
-        imageUrl = decodeHtmlEntities(ogImage[1]);
-      }
+        if (ogPrice) {
+          const parsedPrice = parseFloat(ogPrice.replace(/[^0-9.]/g, ''));
+          if (!isNaN(parsedPrice) && parsedPrice > 0) price = parsedPrice;
+        }
 
-      if (ogPrice && ogPrice[1]) {
-        const parsedPrice = parseFloat(ogPrice[1].replace(/[^0-9.]/g, ''));
-        if (!isNaN(parsedPrice) && parsedPrice > 0) price = parsedPrice;
-      }
+        // 2. JSON-LD Structured Data
+        const jsonLdMatches = html.matchAll(/<script\s+type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gis);
+        for (const m of jsonLdMatches) {
+          try {
+            const rawLd = JSON.parse(m[1]);
+            const ldItems = Array.isArray(rawLd) ? rawLd : (rawLd['@graph'] ? rawLd['@graph'] : [rawLd]);
 
-      // 2. JSON-LD Structured Data
-      const jsonLdMatches = html.matchAll(/<script\s+type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gis);
-      for (const m of jsonLdMatches) {
-        try {
-          const rawLd = JSON.parse(m[1]);
-          const ldItems = Array.isArray(rawLd) ? rawLd : (rawLd['@graph'] ? rawLd['@graph'] : [rawLd]);
+            for (const ld of ldItems) {
+              if (!ld || typeof ld !== 'object') continue;
+              const type = ld['@type'] || '';
+              const isProduct = type === 'Product' || type === 'IndividualProduct' || !!ld.offers;
 
-          for (const ld of ldItems) {
-            if (!ld || typeof ld !== 'object') continue;
-            const type = ld['@type'] || '';
-            const isProduct = type === 'Product' || type === 'IndividualProduct' || !!ld.offers;
-
-            if (isProduct || ld.name) {
-              if (ld.name && !title) title = cleanProductTitle(ld.name);
-              if (ld.image && !imageUrl) {
-                const img = Array.isArray(ld.image) ? ld.image[0] : ld.image;
-                imageUrl = typeof img === 'object' ? (img.url || img.contentUrl || '') : img;
-              }
-              if (ld.offers) {
-                const offersList = Array.isArray(ld.offers) ? ld.offers : [ld.offers];
-                for (const offer of offersList) {
-                  if (offer.price && (!price || price === 0)) {
-                    price = Number(offer.price);
+              if (isProduct || ld.name) {
+                if (ld.name && !title) title = cleanProductTitle(ld.name);
+                if (ld.image && !imageUrl) {
+                  const img = Array.isArray(ld.image) ? ld.image[0] : ld.image;
+                  imageUrl = typeof img === 'object' ? (img.url || img.contentUrl || '') : img;
+                }
+                if (ld.offers) {
+                  const offersList = Array.isArray(ld.offers) ? ld.offers : [ld.offers];
+                  for (const offer of offersList) {
+                    if (offer.price && (!price || price === 0)) {
+                      price = Number(offer.price);
+                    }
+                    if (offer.lowPrice && (!price || price === 0)) {
+                      price = Number(offer.lowPrice);
+                    }
+                    if (offer.priceCurrency) currency = offer.priceCurrency;
                   }
-                  if (offer.lowPrice && (!price || price === 0)) {
-                    price = Number(offer.lowPrice);
-                  }
-                  if (offer.priceCurrency) currency = offer.priceCurrency;
+                }
+                if (ld.brand && !brand) {
+                  brand = typeof ld.brand === 'object' ? ld.brand.name : ld.brand;
                 }
               }
-              if (ld.brand && !brand) {
-                brand = typeof ld.brand === 'object' ? ld.brand.name : ld.brand;
-              }
+            }
+          } catch (e) {}
+        }
+
+        // 3. Fallback Price Extraction from common regex patterns or description
+        if (!price || price === 0) {
+          const ogDesc = extractMetaTag(html, 'og:description') || extractMetaTag(html, 'description');
+          const textToSearch = ogDesc ? `${ogDesc} ${html.slice(0, 5000)}` : html.slice(0, 5000);
+          const rpMatch = textToSearch.match(/(?:Rp|IDR)\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]+)?)/i);
+          if (rpMatch && rpMatch[1]) {
+            const cleanNum = parseInt(rpMatch[1].replace(/\./g, ''), 10);
+            if (!isNaN(cleanNum) && cleanNum > 1000) {
+              price = cleanNum;
             }
           }
-        } catch (e) {}
-      }
-
-      // 3. Fallback Price Extraction from common regex patterns
-      if (!price || price === 0) {
-        const rpMatch = html.match(/(?:Rp|IDR)\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]+)?)/i);
-        if (rpMatch && rpMatch[1]) {
-          const cleanNum = parseInt(rpMatch[1].replace(/\./g, ''), 10);
-          if (!isNaN(cleanNum) && cleanNum > 1000) {
-            price = cleanNum;
-          }
         }
+
+        // If we found a title or image, we got valid product data!
+        if (title || imageUrl) break;
       }
-    }
-  } catch (err) {}
+    } catch (err) {}
+  }
 
   // Fallback title from URL slug if still empty
   if (!title) {
