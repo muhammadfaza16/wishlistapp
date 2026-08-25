@@ -605,6 +605,48 @@ const SESSION_STORAGE_KEY = 'wishlist_active_session';
 // In-memory fallback map if both localStorage and sessionStorage are unavailable/full
 const _memoryStorageFallback = new Map();
 
+const optimizeLocalStorage = () => {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const allKeys = Object.keys(localStorage);
+    
+    // 1. Remove obsolete or sample keys
+    allKeys.forEach(k => {
+      if (k.startsWith('wishlist_sample') || k.startsWith('wishlist_temp') || k === 'wishlist_items' || k === 'wishlist_notes_items' || k === 'wishlist_raw_notepad' || k === 'wishlist_state') {
+        try { localStorage.removeItem(k); } catch (e) {}
+      }
+    });
+
+    // 2. Strip oversized base64 images from cached items to keep localStorage < 500KB
+    const remainingKeys = Object.keys(localStorage);
+    remainingKeys.forEach(k => {
+      if (k.startsWith('wishlist_u_') && (k.endsWith('_notes') || k.endsWith('_items'))) {
+        const raw = localStorage.getItem(k);
+        if (raw && raw.includes('data:image')) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              let modified = false;
+              const clean = parsed.map(item => {
+                if (item && item.imageData && item.imageData.length > 25000) {
+                  modified = true;
+                  return { ...item, imageData: null };
+                }
+                return item;
+              });
+              if (modified) {
+                localStorage.setItem(k, JSON.stringify(clean));
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    });
+  } catch (err) {
+    console.warn('Storage optimization notice:', err);
+  }
+};
+
 const safeGetLocalStorage = (key) => {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -631,7 +673,18 @@ const safeSetLocalStorage = (key, value) => {
     return;
   }
 
-  const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+  // Pre-strip oversized images before serializing to localStorage
+  let cleanValue = value;
+  if (typeof value === 'object' && Array.isArray(value)) {
+    cleanValue = value.map(item => {
+      if (item && item.imageData && item.imageData.length > 25000) {
+        return { ...item, imageData: null };
+      }
+      return item;
+    });
+  }
+
+  const strValue = typeof cleanValue === 'string' ? cleanValue : JSON.stringify(cleanValue);
 
   // 1. Try regular localStorage.setItem
   try {
@@ -641,48 +694,13 @@ const safeSetLocalStorage = (key, value) => {
     console.warn(`Storage quota handled for "${key}":`, err.message);
   }
 
-  // 2. Storage quota cleanup pass: purge legacy keys and truncate oversized thumbnails
+  // 2. Storage quota cleanup pass: purge legacy keys and optimize storage
   try {
-    const keysToClean = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k !== key && (
-        k.startsWith('wishlist_sample') ||
-        k.startsWith('wishlist_temp') ||
-        k === 'wishlist_items' ||
-        k === 'wishlist_notes_items' ||
-        k === 'wishlist_raw_notepad' ||
-        k === 'wishlist_state'
-      )) {
-        keysToClean.push(k);
-      }
-    }
-    keysToClean.forEach(k => localStorage.removeItem(k));
-
-    // Strip heavy base64 images from other user caches if still needed
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k !== key && (k.includes('_notes') || k.includes('_items'))) {
-        const raw = localStorage.getItem(k);
-        if (raw && raw.includes('data:image')) {
-          try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              const stripped = parsed.map(item => ({
-                ...item,
-                imageData: (item.imageData && item.imageData.length > 20000) ? null : item.imageData
-              }));
-              localStorage.setItem(k, JSON.stringify(stripped));
-            }
-          } catch (e) {}
-        }
-      }
-    }
-
+    optimizeLocalStorage();
     localStorage.setItem(key, strValue);
     return;
   } catch (err2) {
-    console.warn('LocalStorage full after cleanup pass. Trying fallback:', err2.message);
+    console.warn('LocalStorage still full after optimization. Falling back:', err2.message);
   }
 
   // 3. Fallback to sessionStorage for session persistence (e.g. auth token)
@@ -1109,41 +1127,43 @@ const syncDataToBackend = async () => {
 
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
-
-    // 1. If public.wishlist_items PostgreSQL table exists, sync rows directly to table
+    // 1. If public.wishlist_items PostgreSQL table is available, sync rows directly to table
     let tableUpsertOk = false;
-    try {
-      const tableRows = cleanItems.map(item => ({
-        id: String(item.id),
-        user_id: state.currentUser.id,
-        title: String(item.title || 'Untitled'),
-        price: Number(item.price) || 0,
-        currency: item.currency || state.currency || 'IDR',
-        group: item.group || null,
-        priority: Number(item.priority) || 2,
-        checked: !!item.checked,
-        link: item.link || null,
-        image_data: item.imageData || null,
-        created_at: item.createdAt || new Date().toISOString(),
-        updated_at: item.updatedAt || new Date().toISOString()
-      }));
+    if (isWishlistTableAvailable) {
+      try {
+        const tableRows = cleanItems.map(item => ({
+          id: String(item.id),
+          user_id: state.currentUser.id,
+          title: String(item.title || 'Untitled'),
+          price: Number(item.price) || 0,
+          currency: item.currency || state.currency || 'IDR',
+          group: item.group || null,
+          priority: Number(item.priority) || 2,
+          checked: !!item.checked,
+          link: item.link || null,
+          created_at: item.createdAt || new Date().toISOString(),
+          updated_at: item.updatedAt || new Date().toISOString()
+        }));
 
-      if (tableRows.length > 0) {
-        const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows);
-        if (upsertErr) {
-          console.warn('Supabase table upsert note:', upsertErr.message);
+        if (tableRows.length > 0) {
+          const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows, { onConflict: 'id' });
+          if (upsertErr) {
+            console.warn('Supabase table sync notice (using Auth metadata):', upsertErr.message);
+            isWishlistTableAvailable = false;
+          } else {
+            tableUpsertOk = true;
+          }
         } else {
           tableUpsertOk = true;
         }
-      } else {
-        tableUpsertOk = true; // nothing to upsert is fine
-      }
 
-      if (deletedArr.length > 0) {
-        await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', state.currentUser.id);
+        if (deletedArr.length > 0) {
+          await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', state.currentUser.id);
+        }
+      } catch (tblErr) {
+        console.warn('Table sync notice (using Auth metadata):', tblErr.message);
+        isWishlistTableAvailable = false;
       }
-    } catch (tblErr) {
-      console.warn('Table sync fallback:', tblErr.message);
     }
 
     // 2. Also keep Auth user_metadata synchronized as reliable redundancy
@@ -1186,8 +1206,8 @@ const syncDataToBackend = async () => {
 
     // Update locally cached copies
     const userId = state.currentUser.id;
-    safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
-    safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+    safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
+    safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
 
     // Report success only when at least one cloud write path succeeded
     if (!tableUpsertOk && !metadataOk) {
@@ -1199,6 +1219,8 @@ const syncDataToBackend = async () => {
     return { success: false, error: err.message || 'Network error' };
   }
 };
+
+let isWishlistTableAvailable = true;
 
 const syncDataFromBackend = async (showFeedback = false) => {
   const sb = getSupabase();
@@ -1233,30 +1255,36 @@ const syncDataFromBackend = async (showFeedback = false) => {
     let tableItems = [];
     let cloudDeleted = [];
 
-    // 1. Try pulling directly from PostgreSQL wishlist_items table
-    try {
-      const { data: tableData, error: tableErr } = await sb
-        .from('wishlist_items')
-        .select('*')
-        .eq('user_id', userId);
+    // 1. Try pulling directly from PostgreSQL wishlist_items table if available
+    if (isWishlistTableAvailable) {
+      try {
+        const { data: tableData, error: tableErr } = await sb
+          .from('wishlist_items')
+          .select('id, user_id, title, price, currency, group, priority, checked, link, created_at, updated_at')
+          .eq('user_id', userId);
 
-      if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
-        tableItems = tableData.map(row => ({
-          id: String(row.id),
-          title: String(row.title || 'Untitled'),
-          price: Number(row.price) || 0,
-          currency: row.currency || state.currency || 'IDR',
-          group: row.group || null,
-          priority: Number(row.priority) || 2,
-          checked: !!row.checked,
-          link: row.link || null,
-          imageData: row.image_data || row.imageData || null,
-          createdAt: row.created_at || row.createdAt,
-          updatedAt: row.updated_at || row.updatedAt
-        }));
+        if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
+          tableItems = tableData.map(row => ({
+            id: String(row.id),
+            title: String(row.title || 'Untitled'),
+            price: Number(row.price) || 0,
+            currency: row.currency || state.currency || 'IDR',
+            group: row.group || null,
+            priority: Number(row.priority) || 2,
+            checked: !!row.checked,
+            link: row.link || null,
+            imageData: null,
+            createdAt: row.created_at || row.createdAt,
+            updatedAt: row.updated_at || row.updatedAt
+          }));
+        } else if (tableErr) {
+          console.warn('Table read notice (using Auth metadata):', tableErr.message);
+          isWishlistTableAvailable = false;
+        }
+      } catch (tblReadErr) {
+        console.warn('Table network notice (using Auth metadata):', tblReadErr.message);
+        isWishlistTableAvailable = false;
       }
-    } catch (tblReadErr) {
-      console.warn('Table read note:', tblReadErr.message);
     }
 
     // 2. Read Auth user_metadata (contains full redundancy backup + catalog items)
@@ -4859,6 +4887,9 @@ window.resetWishlistCache = () => {
 
 const init = async () => {
   try {
+    // 1. Proactive storage optimization: purge oversized strings from local cache
+    optimizeLocalStorage();
+
     // Self-healing query parameter check (?reset=1 or ?clear=1)
     if (typeof window !== 'undefined' && window.location && window.location.search) {
       if (window.location.search.includes('reset=1') || window.location.search.includes('clear=1')) {
