@@ -709,7 +709,7 @@ const openGroupModal = (presetGroup = '') => {
 
   if (presetContainer) {
     presetContainer.innerHTML = CATEGORY_PRESETS.map(cat => `
-      <button type="button" class="category-chip" data-preset="${escapeHtml(cat)}">${escapeHtml(cat)}</button>
+      <button type="button" class="category-chip ${presetGroup === cat ? 'active' : ''}" data-preset="${escapeHtml(cat)}">${escapeHtml(cat)}</button>
     `).join('');
   }
 
@@ -1142,7 +1142,12 @@ const initEventHandlers = () => {
     if (chip) {
       const preset = chip.getAttribute('data-preset');
       const input = document.getElementById('group-name-input');
-      if (input) input.value = preset;
+      if (input) {
+        input.value = preset;
+        input.focus();
+      }
+      document.querySelectorAll('#group-modal-presets .category-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
     }
   });
 

@@ -4265,6 +4265,87 @@ input#search-input:focus {
   border-color: var(--text-primary);
 }
 
+/* Group / Grouper Modal Styling */
+#group-modal .modal-header {
+  padding: 22px 24px 14px;
+  border-bottom: 1px solid #F4F4F6;
+}
+
+#group-modal .modal-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181B;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+#group-modal .modal-body {
+  padding: 18px 24px 24px;
+}
+
+#group-modal #group-name-input {
+  height: 42px;
+  border-radius: 9px;
+  border: 1px solid #E4E4E7;
+  background: #FAFAFA;
+  font-size: 13.5px;
+  padding: 0 13px;
+  transition: all 150ms ease;
+}
+
+#group-modal #group-name-input:focus {
+  background: #FFFFFF;
+  border-color: #18181B;
+  box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.08);
+}
+
+.category-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.category-chip {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #3F3F46;
+  background: #F4F4F6;
+  border: 1px solid #E4E4E7;
+  border-radius: 8px;
+  padding: 6px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 150ms ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.category-chip:hover {
+  background: #E4E4E7;
+  color: #18181B;
+  border-color: #D4D4D8;
+  transform: translateY(-1px);
+}
+
+.category-chip.active {
+  background: #18181B;
+  color: #FFFFFF;
+  border-color: #18181B;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+#group-modal #group-save-btn {
+  height: 40px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 .upload-divider {
   text-align: center;
   margin: 14px 0;
