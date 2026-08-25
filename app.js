@@ -226,41 +226,32 @@ const renderGroupedItemRow = (item) => {
   const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
   const priority = Number(item.priority) || 2;
-  const hasImage = !!(item.imageData || item.imageUrl);
-  const imgSrc = item.imageData || item.imageUrl || '';
+  const isEditMode = state.viewMode === 'edit';
 
   return `
-    <div class="reader-row reader-grouped-row ${isChecked ? 'checked' : ''}" data-id="${escapeHtml(item.id)}">
-      <div class="reader-row-left">
+    <div class="reader-row reader-grouped-row ${isChecked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+      <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
-          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="margin-right: 6px;">
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         ` : ''}
-        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
-        
-        ${hasImage ? `
-          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(item.title)}" class="item-thumbnail-img" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; margin-left: 6px; cursor: pointer;" data-action="preview" data-id="${escapeHtml(item.id)}" loading="lazy">
-        ` : ''}
+        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
 
-        <span class="reader-grouped-title" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${escapeHtml(item.title || 'Untitled')}</span>
-        <span class="note-priority-pill p-${priority}">P${priority}</span>
-        
-        ${item.link ? `
-          <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="preview-link-btn" style="padding: 1px 5px; font-size: 11px; margin-left: 4px; height: 18px;" onclick="event.stopPropagation()" title="Open Link">
-            <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
-          </a>
-        ` : ''}
+        <span class="reader-grouped-title">${escapeHtml(item.title || 'Untitled')}</span>
+        ${priority === 1 ? `<span class="note-priority-pill p-1">P1</span>` : ''}
       </div>
 
       <div class="quick-note-right">
-        <span class="reader-grouped-price">${formatPrice(item.price, item.currency || state.currency)}</span>
-        <div class="quick-note-actions">
-          <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
-            <i data-lucide="edit-2"></i>
-          </button>
-          <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
+        <span class="reader-grouped-price" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
+        ${isEditMode ? `
+          <div class="quick-note-actions">
+            <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
+              <i data-lucide="edit-2"></i>
+            </button>
+            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -270,41 +261,32 @@ const renderStandaloneItemRow = (item) => {
   const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
   const priority = Number(item.priority) || 2;
-  const hasImage = !!(item.imageData || item.imageUrl);
-  const imgSrc = item.imageData || item.imageUrl || '';
+  const isEditMode = state.viewMode === 'edit';
 
   return `
-    <div class="quick-note-row reader-standalone-row ${isChecked ? 'checked' : ''}" data-id="${escapeHtml(item.id)}">
-      <div class="reader-row-left">
+    <div class="quick-note-row reader-standalone-row ${isChecked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+      <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
-          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} style="margin-right: 6px;">
+          <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         ` : ''}
-        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} style="margin-right: 8px;" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
-        
-        ${hasImage ? `
-          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(item.title)}" class="item-thumbnail-img" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; margin-right: 6px; cursor: pointer;" data-action="preview" data-id="${escapeHtml(item.id)}" loading="lazy">
-        ` : ''}
+        <input type="checkbox" class="quick-note-checkbox" data-action="toggle-check" data-id="${escapeHtml(item.id)}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()" title="${isChecked ? 'Mark unacquired' : 'Mark acquired'}">
 
-        <span class="quick-note-title" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${escapeHtml(item.title || 'Untitled')}</span>
-        <span class="note-priority-pill p-${priority}">P${priority}</span>
-        
-        ${item.link ? `
-          <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="preview-link-btn" style="padding: 1px 5px; font-size: 11px; margin-left: 4px; height: 18px;" onclick="event.stopPropagation()" title="Open Link">
-            <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
-          </a>
-        ` : ''}
+        <span class="quick-note-title">${escapeHtml(item.title || 'Untitled')}</span>
+        ${priority === 1 ? `<span class="note-priority-pill p-1">P1</span>` : ''}
       </div>
 
       <div class="quick-note-right">
-        <span class="quick-note-price">${formatPrice(item.price, item.currency || state.currency)}</span>
-        <div class="quick-note-actions">
-          <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
-            <i data-lucide="edit-2"></i>
-          </button>
-          <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
+        <span class="quick-note-price" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
+        ${isEditMode ? `
+          <div class="quick-note-actions">
+            <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
+              <i data-lucide="edit-2"></i>
+            </button>
+            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
