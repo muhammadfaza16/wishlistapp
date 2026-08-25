@@ -862,26 +862,87 @@ const handler = async (req, res) => {
 
     try {
       const body = await readBody(req);
-      const existing = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?').get(itemId, userId);
-      if (!existing) return sendJson(res, 404, { error: 'Item not found' });
+      let existing = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?').get(itemId, userId);
 
-      const title = body.title !== undefined ? String(body.title).trim() : existing.title;
-      const price = body.price !== undefined ? Number(body.price) : existing.price;
-      const currency = body.currency !== undefined ? body.currency : existing.currency;
-      const groupName = body.group !== undefined ? (body.group ? String(body.group).trim() : null) : existing.group_name;
-      const priority = body.priority !== undefined ? Number(body.priority) : existing.priority;
-      const checked = body.checked !== undefined ? (body.checked ? 1 : 0) : existing.checked;
-      const link = body.link !== undefined ? (body.link ? String(body.link).trim() : null) : existing.link;
-      const imageData = body.imageData !== undefined ? body.imageData : (body.image_data !== undefined ? body.image_data : existing.image_data);
+      // If not found in local SQLite cache on this cold container, query Supabase wishlist_items
+      if (!existing && user && user.id && user.id !== 'guest' && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          const targetUserId = toUUID(user.id);
+          const targetItemId = toUUID(itemId);
+          const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?id=eq.${encodeURIComponent(targetItemId)}&user_id=eq.${encodeURIComponent(targetUserId)}&select=*`, {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          });
+          if (supaRes.ok) {
+            const supaRows = await supaRes.json();
+            if (Array.isArray(supaRows) && supaRows.length > 0) {
+              const r = supaRows[0];
+              existing = {
+                id: r.id,
+                user_id: user.id,
+                title: r.title,
+                price: r.price,
+                currency: r.currency,
+                group_name: r.group || r.group_name || null,
+                priority: r.priority,
+                checked: r.checked ? 1 : 0,
+                link: r.link,
+                image_data: r.image_data,
+                created_at: r.created_at,
+                updated_at: r.updated_at
+              };
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (!existing && body.title === undefined && body.checked === undefined && body.price === undefined) {
+        return sendJson(res, 404, { error: 'Item not found' });
+      }
+
       const now = new Date().toISOString();
+      const title = body.title !== undefined ? String(body.title).trim() : (existing ? existing.title : 'Untitled');
+      const price = body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0);
+      const currency = body.currency !== undefined ? body.currency : (existing ? existing.currency : 'IDR');
+      const groupName = body.group !== undefined ? (body.group ? String(body.group).trim() : null) : (existing ? existing.group_name : null);
+      const priority = body.priority !== undefined ? Number(body.priority) : (existing ? existing.priority : 2);
+      const checked = body.checked !== undefined ? (body.checked ? 1 : 0) : (existing ? existing.checked : 0);
+      const link = body.link !== undefined ? (body.link ? String(body.link).trim() : null) : (existing ? existing.link : null);
+      const imageData = body.imageData !== undefined ? body.imageData : (body.image_data !== undefined ? body.image_data : (existing ? existing.image_data : null));
+      const createdAt = existing ? existing.created_at : (body.createdAt || now);
 
       db.prepare(`
-        UPDATE items
-        SET title = ?, price = ?, currency = ?, group_name = ?, priority = ?, checked = ?, link = ?, image_data = ?, updated_at = ?
-        WHERE id = ? AND user_id = ?
-      `).run(title, price, currency, groupName, priority, checked, link, imageData, now, itemId, userId);
+        INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          price = excluded.price,
+          currency = excluded.currency,
+          group_name = excluded.group_name,
+          priority = excluded.priority,
+          checked = excluded.checked,
+          link = excluded.link,
+          image_data = excluded.image_data,
+          updated_at = excluded.updated_at
+      `).run(itemId, userId, title, price, currency, groupName, priority, checked, link, imageData, createdAt, now);
 
-      const updatedItem = { id: itemId, user_id: userId, title, price, currency, group: groupName, priority, checked: checked === 1, link, imageData, createdAt: existing.created_at, updatedAt: now };
+      const updatedItem = {
+        id: itemId,
+        user_id: userId,
+        title,
+        price,
+        currency,
+        group: groupName,
+        priority,
+        checked: checked === 1,
+        link,
+        imageData,
+        createdAt,
+        updatedAt: now
+      };
+
       await syncItemToSupabase(updatedItem, 'upsert');
 
       return sendJson(res, 200, { success: true, item: updatedItem });
@@ -897,7 +958,9 @@ const handler = async (req, res) => {
     const itemId = decodeURIComponent(reqPath.replace('/api/items/', ''));
 
     try {
-      db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemId, userId);
+      try {
+        db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemId, userId);
+      } catch (e) {}
       await syncItemToSupabase({ id: itemId, user_id: userId }, 'delete');
       return sendJson(res, 200, { success: true, id: itemId });
     } catch (err) {
