@@ -2641,7 +2641,7 @@ input, button, select, textarea {
   font-weight: 600;
 }
 
-/* Custom Minimalist Priority Dropdown */
+/* Custom Minimalist Priority Dropdown (Zero Slop / Monochrome) */
 .custom-select-group {
   position: relative;
 }
@@ -2690,48 +2690,11 @@ input, button, select, textarea {
   transform: rotate(180deg);
 }
 
-.prio-selected-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.prio-badge {
+.prio-text {
   font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 550;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.prio-badge::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.prio-badge-1 {
-  color: #DC2626;
-}
-.prio-badge-1::before {
-  background: #EF4444;
-}
-
-.prio-badge-2 {
-  color: #D97706;
-}
-.prio-badge-2::before {
-  background: #F59E0B;
-}
-
-.prio-badge-3 {
-  color: #475569;
-}
-.prio-badge-3::before {
-  background: #94A3B8;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0F172A;
 }
 
 .custom-dropdown-menu {
@@ -2770,8 +2733,28 @@ input, button, select, textarea {
   box-sizing: border-box;
 }
 
+.custom-dropdown-item .prio-item-label {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 450;
+  color: #334155;
+}
+
 .custom-dropdown-item:hover {
   background: #F1F5F9;
+}
+
+.custom-dropdown-item:hover .prio-item-label {
+  color: #0F172A;
+}
+
+.custom-dropdown-item.active {
+  background: #F8FAFC;
+}
+
+.custom-dropdown-item.active .prio-item-label {
+  font-weight: 600;
+  color: #0F172A;
 }
 
 .custom-dropdown-item .item-check {
@@ -2780,10 +2763,6 @@ input, button, select, textarea {
   color: #0F172A;
   opacity: 0;
   transition: opacity 100ms ease;
-}
-
-.custom-dropdown-item.active {
-  background: #F8FAFC;
 }
 
 .custom-dropdown-item.active .item-check {

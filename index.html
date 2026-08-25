@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=357">
+  <link rel="stylesheet" href="styles.css?v=358">
 </head>
 <body>
   <div id="app">
@@ -386,28 +386,26 @@
             </div>
           </div>
 
-          <!-- Custom Minimalist Priority Dropdown -->
+          <!-- Minimalist Priority Custom Select -->
           <div class="form-group custom-select-group" id="quick-note-priority-container">
             <label>Priority</label>
             <div class="custom-dropdown-wrap">
               <button type="button" id="quick-note-priority-trigger" class="custom-dropdown-btn">
-                <span class="prio-selected-wrap">
-                  <span class="prio-badge prio-badge-2" id="quick-note-priority-badge">Medium</span>
-                </span>
+                <span class="prio-text" id="quick-note-priority-badge">Medium</span>
                 <i data-lucide="chevron-down" class="dropdown-chevron"></i>
               </button>
               <input type="hidden" id="quick-note-priority-input" value="2">
               <div id="quick-note-priority-menu" class="custom-dropdown-menu hidden">
                 <button type="button" class="custom-dropdown-item" data-priority="1">
-                  <span class="prio-badge prio-badge-1">High</span>
+                  <span class="prio-item-label">High</span>
                   <i data-lucide="check" class="item-check"></i>
                 </button>
                 <button type="button" class="custom-dropdown-item active" data-priority="2">
-                  <span class="prio-badge prio-badge-2">Medium</span>
+                  <span class="prio-item-label">Medium</span>
                   <i data-lucide="check" class="item-check"></i>
                 </button>
                 <button type="button" class="custom-dropdown-item" data-priority="3">
-                  <span class="prio-badge prio-badge-3">Low</span>
+                  <span class="prio-item-label">Low</span>
                   <i data-lucide="check" class="item-check"></i>
                 </button>
               </div>
@@ -511,6 +509,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=357" defer></script>
+  <script src="app.js?v=358" defer></script>
 </body>
 </html>

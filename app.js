@@ -1106,7 +1106,7 @@ const setModalPriority = (priority) => {
 
   const badge = document.getElementById('quick-note-priority-badge');
   if (badge) {
-    badge.className = `prio-badge prio-badge-${p}`;
+    badge.className = 'prio-text';
     badge.textContent = p === 1 ? 'High' : (p === 3 ? 'Low' : 'Medium');
   }
 
