@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=386">
+  <link rel="stylesheet" href="styles.css?v=387">
 </head>
 <body>
   <div id="app">
@@ -201,29 +201,29 @@
 
   <!-- Group / Rename Modal -->
   <div id="group-modal" class="modal-overlay hidden">
-    <div class="modal modal-sm">
+    <div class="modal group-modal-card">
       <div class="modal-sheet-handle mobile-only"></div>
-      <div class="modal-header">
+      <div class="modal-header group-modal-header">
         <h2 id="group-modal-title">Group Items</h2>
         <button type="button" class="modal-close group-modal-close" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body group-modal-body">
         <form id="group-form">
-          <div class="form-group" style="margin-bottom: 14px;">
-            <label for="group-name-input">Group Name</label>
-            <input type="text" id="group-name-input" placeholder="e.g. Outfit, Electronics, Desk Setup" required autocomplete="off" list="group-options-list">
+          <div class="form-group group-modal-field">
+            <label for="group-name-input" class="group-modal-label">Group Name</label>
+            <input type="text" id="group-name-input" placeholder="e.g. Outfit, Electronics, Desk Setup" required autocomplete="off" list="group-options-list" class="group-modal-input">
             <datalist id="group-options-list"></datalist>
           </div>
 
-          <div class="form-group" style="margin-bottom: 14px;">
-            <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 8px; display: block;">Suggested Presets</label>
+          <div class="form-group group-modal-field">
+            <label class="group-modal-label">Suggested Presets</label>
             <div class="category-preset-chips" id="group-modal-presets"></div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 8px; display: block;">Custom Icon</label>
+          <div class="form-group group-modal-field">
+            <label class="group-modal-label">Group Icon</label>
             <div class="group-emoji-picker-grid" id="group-emoji-picker"></div>
           </div>
 
