@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=351">
+  <link rel="stylesheet" href="styles.css?v=352">
 </head>
 <body>
   <div id="app">
@@ -346,18 +346,11 @@
             <label for="quick-note-price-input">Price</label>
             <input type="number" id="quick-note-price-input" class="modal-input mono-input" placeholder="0" min="0" step="any" autocomplete="off">
           </div>
-          <div class="form-group group-combobox-wrap" id="quick-note-group-container">
+          <div class="form-group" id="quick-note-group-container">
             <label for="quick-note-group-input">Group</label>
-            <div class="group-input-relative">
-              <input type="text" id="quick-note-group-input" class="modal-input" placeholder="e.g. Workspace" autocomplete="off">
-              <!-- Minimalist suggestions popover -->
-              <div id="quick-note-group-popover" class="group-suggestions-popover hidden">
-                <div class="group-popover-header">
-                  <span>Existing Groups</span>
-                </div>
-                <div id="quick-note-group-pills-list" class="group-pills-wrap"></div>
-              </div>
-            </div>
+            <input type="text" id="quick-note-group-input" class="modal-input" placeholder="e.g. Workspace" autocomplete="off">
+            <!-- Minimalist Existing Group Pills Tray -->
+            <div id="quick-note-group-pills-list" class="modal-group-pills-tray"></div>
           </div>
         </div>
 
@@ -500,6 +493,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=351" defer></script>
+  <script src="app.js?v=352" defer></script>
 </body>
 </html>

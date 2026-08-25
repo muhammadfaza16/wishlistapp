@@ -2572,81 +2572,31 @@ input, button, select, textarea {
   font-variant-numeric: tabular-nums;
 }
 
-/* Modal Group Combobox & Floating Pills Popover */
-.modal-add-form .form-grid-2:first-of-type {
-  position: relative;
-  z-index: 100;
-}
-
-.group-combobox-wrap {
-  position: relative;
-  z-index: 100;
-}
-
-.group-input-relative {
-  position: relative;
-  width: 100%;
-}
-
-.group-suggestions-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  min-width: 220px;
-  background: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
-  border-radius: 10px;
-  padding: 10px 12px;
-  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
-  z-index: 99999 !important;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  max-height: 200px;
-  overflow-y: auto;
-  animation: popoverFadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.group-suggestions-popover.hidden {
-  display: none !important;
-}
-
-@keyframes popoverFadeIn {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.group-popover-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #94A3B8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding-bottom: 2px;
-}
-
-.group-pills-wrap {
+/* Modal Group Pills Tray */
+.modal-group-pills-tray {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
+  margin-top: 6px;
+  max-height: 62px;
+  overflow-y: auto;
+}
+
+.modal-group-pills-tray:empty {
+  display: none;
 }
 
 .group-pill-opt {
   display: inline-flex;
   align-items: center;
-  padding: 4px 9.5px;
+  padding: 3px 8.5px;
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: #1E293B;
-  background: #F1F5F9;
-  border: 1px solid #CBD5E1;
-  border-radius: 6px;
+  color: #475569;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 120ms ease;
   user-select: none;
@@ -2657,7 +2607,6 @@ input, button, select, textarea {
   background: #0F172A !important;
   border-color: #0F172A !important;
   color: #FFFFFF !important;
-  transform: translateY(-0.5px);
 }
 
 .group-pill-opt.active {

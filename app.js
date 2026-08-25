@@ -1002,9 +1002,9 @@ const openQuickNoteModal = (itemId = null) => {
     const item = state.items.find(i => i.id === itemId);
     if (!item) return;
     if (titleEl) titleEl.textContent = 'Edit Item';
-    if (titleInput) titleInput.value = item.title || '';
-    if (priceInput) priceInput.value = item.price || '';
-    if (groupInput) groupInput.value = item.group || '';
+    const currentGroup = item.group || '';
+    if (groupInput) groupInput.value = currentGroup;
+    populateModalGroupPills(currentGroup);
     if (linkInput) linkInput.value = item.link || '';
 
     setModalPriority(item.priority || 2);
@@ -1044,6 +1044,7 @@ const openQuickNoteModal = (itemId = null) => {
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
+    populateModalGroupPills('');
     if (linkInput) linkInput.value = '';
     const checkedInput = document.getElementById('quick-note-checked-input');
     if (checkedInput) checkedInput.checked = false;
@@ -1497,71 +1498,47 @@ const initEventHandlers = () => {
     });
   });
 
-  // Group Input Suggestions Popover Logic
-  const groupInput = document.getElementById('quick-note-group-input');
-  const groupPopover = document.getElementById('quick-note-group-popover');
-  const groupPillsList = document.getElementById('quick-note-group-pills-list');
+  // Group Input & Pills Tray Logic
+  const populateModalGroupPills = (selectedGroup = '') => {
+    const container = document.getElementById('quick-note-group-pills-list');
+    if (!container) return;
 
-  const renderGroupPills = (filterText = '') => {
-    if (!groupPopover || !groupPillsList || !groupInput) return;
-
-    const currentVal = groupInput.value.trim().toLowerCase();
     const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
-    const allGroups = Array.from(new Set([...existingGroups, ...CATEGORY_PRESETS]));
+    const otherPresets = CATEGORY_PRESETS.filter(p => !existingGroups.includes(p));
+    const allGroups = [...existingGroups, ...otherPresets.slice(0, 5)];
 
-    let matched = allGroups;
-    if (filterText && filterText.trim()) {
-      const q = filterText.trim().toLowerCase();
-      matched = allGroups.filter(g => g.toLowerCase().includes(q));
-    }
-
-    if (matched.length === 0) {
-      groupPopover.classList.add('hidden');
+    if (allGroups.length === 0) {
+      container.innerHTML = '';
       return;
     }
 
-    groupPillsList.innerHTML = matched.map(g => {
+    const currentVal = (selectedGroup || '').trim().toLowerCase();
+    container.innerHTML = allGroups.map(g => {
       const isActive = g.toLowerCase() === currentVal;
       return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`;
     }).join('');
-
-    groupPopover.classList.remove('hidden');
   };
 
-  groupInput?.addEventListener('focus', () => {
-    renderGroupPills(groupInput.value);
+  const groupInput = document.getElementById('quick-note-group-input');
+  groupInput?.addEventListener('input', (e) => {
+    populateModalGroupPills(e.target.value);
   });
 
-  groupInput?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    renderGroupPills(groupInput.value);
-  });
-
-  groupInput?.addEventListener('input', () => {
-    renderGroupPills(groupInput.value);
-  });
-
-  // Select pill on mousedown and click
-  const handlePillSelect = (e) => {
+  // Select pill in modal tray
+  document.getElementById('quick-note-group-pills-list')?.addEventListener('click', (e) => {
     const pill = e.target.closest('.group-pill-opt');
-    if (pill) {
-      e.preventDefault();
-      e.stopPropagation();
-      const g = pill.getAttribute('data-group');
-      if (groupInput && g) {
-        groupInput.value = g;
+    if (!pill) return;
+    e.preventDefault();
+    const g = pill.getAttribute('data-group');
+    const input = document.getElementById('quick-note-group-input');
+    if (input && g) {
+      if (input.value.trim().toLowerCase() === g.toLowerCase()) {
+        input.value = '';
+        populateModalGroupPills('');
+      } else {
+        input.value = g;
+        populateModalGroupPills(g);
       }
-      groupPopover?.classList.add('hidden');
-    }
-  };
-
-  groupPillsList?.addEventListener('mousedown', handlePillSelect);
-  groupPillsList?.addEventListener('click', handlePillSelect);
-
-  // Dismiss group suggestions when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#quick-note-group-container')) {
-      groupPopover?.classList.add('hidden');
     }
   });
 
