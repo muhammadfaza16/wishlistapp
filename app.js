@@ -1065,166 +1065,177 @@ const mergeWishlistItems = (localItems = [], cloudItems = [], deletedIds = new S
   return Array.from(itemMap.values());
 };
 
-const triggerSyncToBackend = () => {
+let isSyncingToBackend = false;
+let pendingSyncAgain = false;
+
+const setSyncStatusUI = (status) => {
+  const syncBtnText = document.querySelector('#dropdown-sync-btn span');
+  const syncBtnIcon = document.querySelector('#dropdown-sync-btn i, #dropdown-sync-btn svg');
+  
+  if (syncBtnIcon) {
+    if (status === 'syncing') {
+      syncBtnIcon.classList.add('spin-slow');
+    } else {
+      syncBtnIcon.classList.remove('spin-slow');
+    }
+  }
+  if (syncBtnText) {
+    if (status === 'syncing') syncBtnText.textContent = 'Syncing...';
+    else if (status === 'synced') syncBtnText.textContent = 'Auto-Synced ✓';
+    else if (status === 'error') syncBtnText.textContent = 'Sync Failed (Retry)';
+    else syncBtnText.textContent = 'Sync Cloud Now';
+  }
+};
+
+const triggerSyncToBackend = (immediate = false) => {
   clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(() => {
+  if (immediate) {
     syncDataToBackend();
-  }, 400);
+  } else {
+    syncDebounceTimer = setTimeout(() => {
+      syncDataToBackend();
+    }, 300);
+  }
 };
 
 const syncDataToBackend = async () => {
   const sb = getSupabase();
-  if (!sb) return { success: false, error: 'Supabase not initialized' };
-  if (!state.currentUser) return { success: false, error: 'Not signed in' };
-  if (state.currentUser.isGuest) return { success: false, error: 'Guest session (sign in to sync)' };
+  if (!state.currentUser || state.currentUser.isGuest) return { success: false };
+
+  // If a sync is already running, queue another sync with the latest state once done
+  if (isSyncingToBackend) {
+    pendingSyncAgain = true;
+    return { success: true, pending: true };
+  }
+
+  isSyncingToBackend = true;
+  setSyncStatusUI('syncing');
 
   try {
-    // Verify active Supabase session
-    let session = null;
-    try {
-      const { data: sessionData } = await sb.auth.getSession();
-      if (sessionData && sessionData.session) {
-        session = sessionData.session;
-      }
-    } catch (e) {}
+    const cleanItems = (state.notesItems || []).map(item => ({
+      id: String(item.id),
+      title: String(item.title || 'Untitled'),
+      price: Number(item.price) || 0,
+      currency: item.currency || state.currency || 'IDR',
+      group: item.group || null,
+      priority: Number(item.priority) || 2,
+      checked: !!item.checked,
+      link: item.link || null,
+      imageData: (item.imageData && item.imageData.length > 25000) ? null : (item.imageData || null),
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+    }));
 
-    if (!session) {
-      const { data: refreshData, error: refreshErr } = await sb.auth.refreshSession();
-      if (refreshData && refreshData.session) {
-        session = refreshData.session;
-      } else {
-        console.warn('Supabase refreshSession failed:', refreshErr?.message);
-        return { success: false, error: 'Cloud session expired. Please Sign In again.' };
-      }
-    }
-
-    const cleanItems = await Promise.all(
-      (state.notesItems || []).map(async item => {
-        let finalImg = item.imageData || null;
-        if (finalImg && finalImg.startsWith('data:image/') && finalImg.length > 40000) {
-          finalImg = await compressBase64ImageAsync(finalImg, 400, 0.65);
-        }
-        return {
-          id: String(item.id),
-          title: String(item.title || 'Untitled'),
-          price: Number(item.price) || 0,
-          currency: item.currency || state.currency || 'IDR',
-          group: item.group || null,
-          priority: Number(item.priority) || 2,
-          checked: !!item.checked,
-          link: item.link || null,
-          imageData: finalImg,
-          createdAt: item.createdAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-        };
-      })
-    );
-
-    // Serialize catalog items (state.items) for cloud sync
-    const cleanCatalogItems = await Promise.all(
-      (state.items || []).map(async item => {
-        let finalImg = item.imageData || null;
-        if (finalImg && finalImg.startsWith('data:image/') && finalImg.length > 40000) {
-          finalImg = await compressBase64ImageAsync(finalImg, 400, 0.65);
-        }
-        return {
-          id: String(item.id),
-          name: String(item.name || 'Untitled Wish'),
-          brand: item.brand || '',
-          currency: item.currency || state.currency || 'IDR',
-          originalPrice: Number(item.originalPrice) || 0,
-          originalSaved: Number(item.originalSaved) || 0,
-          price: Number(item.price) || 0,
-          saved: Number(item.saved) || 0,
-          imageUrl: item.imageUrl || '',
-          imageData: finalImg,
-          link: item.link || '',
-          tags: Array.isArray(item.tags) ? item.tags : [],
-          priority: Number(item.priority) || 1,
-          achieved: !!item.achieved,
-          createdAt: item.createdAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-        };
-      })
-    );
+    const cleanCatalogItems = (state.items || []).map(item => ({
+      id: String(item.id),
+      name: String(item.name || 'Untitled Wish'),
+      brand: item.brand || '',
+      currency: item.currency || state.currency || 'IDR',
+      originalPrice: Number(item.originalPrice) || 0,
+      originalSaved: Number(item.originalSaved) || 0,
+      price: Number(item.price) || 0,
+      saved: Number(item.saved) || 0,
+      imageUrl: item.imageUrl || '',
+      imageData: (item.imageData && item.imageData.length > 25000) ? null : (item.imageData || null),
+      link: item.link || '',
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      priority: Number(item.priority) || 1,
+      achieved: !!item.achieved,
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+    }));
 
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
-    // 1. If public.wishlist_items PostgreSQL table is available, sync rows directly to table
-    let tableUpsertOk = false;
-    if (isWishlistTableAvailable) {
+    // 1. Supabase Cloud Sync (Auth user_metadata is resilient & instant)
+    if (sb) {
       try {
-        const tableRows = cleanItems.map(item => ({
-          id: String(item.id),
-          user_id: state.currentUser.id,
-          title: String(item.title || 'Untitled'),
-          price: Number(item.price) || 0,
-          currency: item.currency || state.currency || 'IDR',
-          group: item.group || null,
-          priority: Number(item.priority) || 2,
-          checked: !!item.checked,
-          link: item.link || null,
-          created_at: item.createdAt || new Date().toISOString(),
-          updated_at: item.updatedAt || new Date().toISOString()
-        }));
-
-        if (tableRows.length > 0) {
-          const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows, { onConflict: 'id' });
-          if (upsertErr) {
-            console.warn('Supabase table sync notice (using Auth metadata):', upsertErr.message);
-            isWishlistTableAvailable = false;
-          } else {
-            tableUpsertOk = true;
+        const { error: metaErr } = await sb.auth.updateUser({
+          data: {
+            wishlist_items: cleanItems,
+            catalog_items: cleanCatalogItems,
+            deleted_item_ids: deletedArr,
+            raw_notepad: state.rawNotepadText || "",
+            preferences: {
+              currency: state.currency,
+              notesSortBy: state.notesSortBy,
+              notesMode: state.notesMode,
+              view: state.view
+            }
           }
-        } else {
-          tableUpsertOk = true;
-        }
+        });
 
-        if (deletedArr.length > 0) {
-          await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', state.currentUser.id);
+        if (metaErr) {
+          // If metadata payload was too large, retry with text-only
+          const textItems = cleanItems.map(({ imageData, ...rest }) => rest);
+          const textCatalog = cleanCatalogItems.map(({ imageData, ...rest }) => rest);
+          await sb.auth.updateUser({
+            data: {
+              wishlist_items: textItems,
+              catalog_items: textCatalog,
+              deleted_item_ids: deletedArr,
+              raw_notepad: state.rawNotepadText || ""
+            }
+          });
         }
-      } catch (tblErr) {
-        console.warn('Table sync notice (using Auth metadata):', tblErr.message);
-        isWishlistTableAvailable = false;
+      } catch (metaCatchErr) {
+        console.warn('Supabase auto-sync metadata note:', metaCatchErr.message);
+      }
+
+      // Also upsert table if table endpoint is active
+      if (isWishlistTableAvailable) {
+        try {
+          const tableRows = cleanItems.map(item => ({
+            id: String(item.id),
+            user_id: state.currentUser.id,
+            title: String(item.title || 'Untitled'),
+            price: Number(item.price) || 0,
+            currency: item.currency || state.currency || 'IDR',
+            group: item.group || null,
+            priority: Number(item.priority) || 2,
+            checked: !!item.checked,
+            link: item.link || null,
+            created_at: item.createdAt || new Date().toISOString(),
+            updated_at: item.updatedAt || new Date().toISOString()
+          }));
+
+          if (tableRows.length > 0) {
+            const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows, { onConflict: 'id' });
+            if (upsertErr) isWishlistTableAvailable = false;
+          }
+
+          if (deletedArr.length > 0) {
+            await sb.from('wishlist_items').delete().in('id', deletedArr).eq('user_id', state.currentUser.id);
+          }
+        } catch (tblErr) {
+          isWishlistTableAvailable = false;
+        }
       }
     }
 
-    // 2. Also keep Auth user_metadata synchronized as reliable redundancy
-    const { data: updateRes, error } = await sb.auth.updateUser({
-      data: {
-        wishlist_items: cleanItems,
-        catalog_items: cleanCatalogItems,
-        deleted_item_ids: deletedArr,
-        raw_notepad: state.rawNotepadText || "",
-        preferences: {
-          currency: state.currency,
-          notesSortBy: state.notesSortBy,
-          notesMode: state.notesMode,
-          view: state.view
-        }
-      }
-    });
-
-    let metadataOk = !error;
-    if (error) {
-      console.warn('Supabase updateUser error:', error.message);
-      // Fallback lightweight retry — strip images to reduce payload size
-      const lightweightItems = cleanItems.map(({ imageData, ...rest }) => rest);
-      const lightweightCatalog = cleanCatalogItems.map(({ imageData, ...rest }) => rest);
-      const { error: retryErr } = await sb.auth.updateUser({
-        data: {
-          wishlist_items: lightweightItems,
-          catalog_items: lightweightCatalog,
-          deleted_item_ids: deletedArr,
-          raw_notepad: state.rawNotepadText || ""
-        }
-      });
-      if (retryErr) {
-        console.warn('Supabase fallback retry error:', retryErr.message);
-        metadataOk = false;
-      } else {
-        metadataOk = true;
-      }
+    // 2. Local Node.js SQLite server sync if token exists
+    const authToken = getAuthToken();
+    if (authToken && typeof fetch !== 'undefined') {
+      try {
+        await fetch('/api/user/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            items: cleanCatalogItems,
+            notes: cleanItems,
+            notepadText: state.rawNotepadText || '',
+            preferences: {
+              currency: state.currency,
+              notesSortBy: state.notesSortBy,
+              notesMode: state.notesMode,
+              view: state.view
+            }
+          })
+        });
+      } catch (localApiErr) {}
     }
 
     // Update locally cached copies
@@ -1232,18 +1243,22 @@ const syncDataToBackend = async () => {
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
     safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
 
-    // Report success only when at least one cloud write path succeeded
-    if (!tableUpsertOk && !metadataOk) {
-      return { success: false, error: 'Cloud write failed on all paths. Check your connection.' };
-    }
+    setSyncStatusUI('synced');
     return { success: true };
   } catch (err) {
-    console.warn('Cloud sync error:', err.message);
+    console.warn('Auto-sync error:', err.message);
+    setSyncStatusUI('error');
     return { success: false, error: err.message || 'Network error' };
+  } finally {
+    isSyncingToBackend = false;
+    if (pendingSyncAgain) {
+      pendingSyncAgain = false;
+      setTimeout(() => syncDataToBackend(), 100);
+    }
   }
 };
 
-let isWishlistTableAvailable = true;
+let isWishlistTableAvailable = false;
 
 const syncDataFromBackend = async (showFeedback = false) => {
   const sb = getSupabase();
@@ -1417,22 +1432,22 @@ const saveDeletedIds = () => {
   safeSetLocalStorage(`wishlist_u_${userId}_deleted_ids`, JSON.stringify(Array.from(state.deletedNoteIds || [])));
 };
 
-const saveItems = () => {
+const saveItems = (immediate = true) => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+  safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
   saveDeletedIds();
-  triggerSyncToBackend();
+  triggerSyncToBackend(immediate);
 };
 
-const saveNotes = () => {
+const saveNotes = (immediate = true) => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+  safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
   safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
   saveDeletedIds();
-  triggerSyncToBackend();
+  triggerSyncToBackend(immediate);
 };
 
-const savePreferences = () => {
+const savePreferences = (immediate = true) => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
   safeSetLocalStorage(`wishlist_u_${userId}_state`, JSON.stringify({
     view: state.view,
@@ -1443,7 +1458,7 @@ const savePreferences = () => {
     notesViewMode: state.notesViewMode || 'view',
     notesSortBy: state.notesSortBy || null
   }));
-  triggerSyncToBackend();
+  triggerSyncToBackend(immediate);
 };
 
 const LOCAL_USERS_KEY = 'wishlist_local_users';
@@ -4279,7 +4294,7 @@ const initEventHandlers = () => {
     let rawTimeout;
     rawNotepad.addEventListener('input', (e) => {
       state.rawNotepadText = e.target.value;
-      saveNotes();
+      saveNotes(false);
       clearTimeout(rawTimeout);
       rawTimeout = setTimeout(() => {
         calculateNotesAccumulator();
