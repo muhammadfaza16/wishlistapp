@@ -326,9 +326,13 @@ const updateSortUI = () => {
   });
 
   const sortLabel = document.getElementById('notes-sort-label');
+  const sortIcon = document.getElementById('notes-sort-icon');
   if (sortLabel) {
     const nameMap = { priority: 'Priority', price: 'Price', title: 'Title', date: 'Date' };
-    sortLabel.textContent = `${nameMap[sort] || 'Sort'} ${isAsc ? '↑' : '↓'}`;
+    sortLabel.textContent = nameMap[sort] || 'Sort';
+  }
+  if (sortIcon) {
+    sortIcon.setAttribute('data-lucide', isAsc ? 'arrow-up' : 'arrow-down');
   }
   safeCreateLucideIcons();
 };
