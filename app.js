@@ -602,61 +602,116 @@ let state = {
 const AUTH_TOKEN_KEY = 'wishlist_auth_token';
 const SESSION_STORAGE_KEY = 'wishlist_active_session';
 
-const safeSetLocalStorage = (key, value) => {
+// In-memory fallback map if both localStorage and sessionStorage are unavailable/full
+const _memoryStorageFallback = new Map();
+
+const safeGetLocalStorage = (key) => {
   try {
-    localStorage.setItem(key, value);
+    if (typeof localStorage !== 'undefined') {
+      const val = localStorage.getItem(key);
+      if (val !== null) return val;
+    }
+  } catch (e) {}
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const val = sessionStorage.getItem(key);
+      if (val !== null) return val;
+    }
+  } catch (e) {}
+
+  return _memoryStorageFallback.get(key) || null;
+};
+
+const safeSetLocalStorage = (key, value) => {
+  if (value === null || value === undefined) {
+    try { if (typeof localStorage !== 'undefined') localStorage.removeItem(key); } catch (e) {}
+    try { if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key); } catch (e) {}
+    _memoryStorageFallback.delete(key);
+    return;
+  }
+
+  const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+
+  // 1. Try regular localStorage.setItem
+  try {
+    localStorage.setItem(key, strValue);
+    return;
   } catch (err) {
     console.warn(`Storage quota handled for "${key}":`, err.message);
-    try {
-      // 1. Purge legacy or obsolete storage keys to free space
-      const keysToClean = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k !== key && (k.startsWith('wishlist_sample') || k.startsWith('wishlist_temp') || k === 'wishlist_items' || k === 'wishlist_notes_items' || k === 'wishlist_raw_notepad' || k === 'wishlist_state')) {
-          keysToClean.push(k);
-        }
-      }
-      keysToClean.forEach(k => localStorage.removeItem(k));
-      localStorage.setItem(key, value);
-    } catch (err2) {
-      // 2. If still full (e.g. heavy base64 image strings), strip large base64 thumbnails from local cache
-      try {
-        if (typeof value === 'string' && value.includes('data:image')) {
-          const parsed = JSON.parse(value);
-          if (Array.isArray(parsed)) {
-            const stripped = parsed.map(item => ({
-              ...item,
-              imageData: (item.imageData && item.imageData.length > 50000) ? null : item.imageData
-            }));
-            localStorage.setItem(key, JSON.stringify(stripped));
-          }
-        }
-      } catch (err3) {
-        console.warn('Storage fallback warning:', err3);
+  }
+
+  // 2. Storage quota cleanup pass: purge legacy keys and truncate oversized thumbnails
+  try {
+    const keysToClean = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k !== key && (
+        k.startsWith('wishlist_sample') ||
+        k.startsWith('wishlist_temp') ||
+        k === 'wishlist_items' ||
+        k === 'wishlist_notes_items' ||
+        k === 'wishlist_raw_notepad' ||
+        k === 'wishlist_state'
+      )) {
+        keysToClean.push(k);
       }
     }
+    keysToClean.forEach(k => localStorage.removeItem(k));
+
+    // Strip heavy base64 images from other user caches if still needed
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k !== key && (k.includes('_notes') || k.includes('_items'))) {
+        const raw = localStorage.getItem(k);
+        if (raw && raw.includes('data:image')) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              const stripped = parsed.map(item => ({
+                ...item,
+                imageData: (item.imageData && item.imageData.length > 20000) ? null : item.imageData
+              }));
+              localStorage.setItem(k, JSON.stringify(stripped));
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    localStorage.setItem(key, strValue);
+    return;
+  } catch (err2) {
+    console.warn('LocalStorage full after cleanup pass. Trying fallback:', err2.message);
   }
+
+  // 3. Fallback to sessionStorage for session persistence (e.g. auth token)
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(key, strValue);
+      return;
+    }
+  } catch (err3) {}
+
+  // 4. In-memory fallback
+  _memoryStorageFallback.set(key, strValue);
 };
 
 const getAuthToken = () => {
-  try {
-    return localStorage.getItem(AUTH_TOKEN_KEY) || null;
-  } catch (e) {
-    return null;
-  }
+  return safeGetLocalStorage(AUTH_TOKEN_KEY);
 };
 
 const setAuthToken = (token) => {
   if (token) {
     safeSetLocalStorage(AUTH_TOKEN_KEY, token);
   } else {
-    try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch (e) {}
+    safeSetLocalStorage(AUTH_TOKEN_KEY, null);
   }
 };
 
 const getActiveSession = () => {
   try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    const raw = safeGetLocalStorage(SESSION_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
@@ -667,7 +722,7 @@ const setActiveSession = (session) => {
   if (session) {
     safeSetLocalStorage(SESSION_STORAGE_KEY, JSON.stringify(session));
   } else {
-    try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
+    safeSetLocalStorage(SESSION_STORAGE_KEY, null);
   }
 };
 
