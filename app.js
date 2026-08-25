@@ -610,17 +610,40 @@ const optimizeLocalStorage = () => {
     if (typeof localStorage === 'undefined') return;
     const allKeys = Object.keys(localStorage);
     
-    // 1. Remove obsolete or sample keys
+    // 1. Remove obsolete, temporary, or sample keys
     allKeys.forEach(k => {
       if (k.startsWith('wishlist_sample') || k.startsWith('wishlist_temp') || k === 'wishlist_items' || k === 'wishlist_notes_items' || k === 'wishlist_raw_notepad' || k === 'wishlist_state') {
         try { localStorage.removeItem(k); } catch (e) {}
       }
     });
 
-    // 2. Strip oversized base64 images from cached items to keep localStorage < 500KB
+    // 2. Prune oversized Supabase SDK session data if bloated with old base64 images
+    const keysNow = Object.keys(localStorage);
+    keysNow.forEach(k => {
+      if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(k);
+        if (raw && raw.length > 50000 && raw.includes('data:image')) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.user && parsed.user.user_metadata) {
+              const meta = parsed.user.user_metadata;
+              if (Array.isArray(meta.wishlist_items)) {
+                meta.wishlist_items = meta.wishlist_items.map(i => ({ ...i, imageData: null }));
+              }
+              if (Array.isArray(meta.catalog_items)) {
+                meta.catalog_items = meta.catalog_items.map(i => ({ ...i, imageData: null }));
+              }
+              localStorage.setItem(k, JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
+      }
+    });
+
+    // 3. Strip oversized base64 images from all cached items to keep localStorage < 200KB
     const remainingKeys = Object.keys(localStorage);
     remainingKeys.forEach(k => {
-      if (k.startsWith('wishlist_u_') && (k.endsWith('_notes') || k.endsWith('_items'))) {
+      if (k.startsWith('wishlist_u_')) {
         const raw = localStorage.getItem(k);
         if (raw && raw.includes('data:image')) {
           try {
@@ -628,7 +651,7 @@ const optimizeLocalStorage = () => {
             if (Array.isArray(parsed)) {
               let modified = false;
               const clean = parsed.map(item => {
-                if (item && item.imageData && item.imageData.length > 25000) {
+                if (item && item.imageData && item.imageData.length > 10000) {
                   modified = true;
                   return { ...item, imageData: null };
                 }
