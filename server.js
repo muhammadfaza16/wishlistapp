@@ -286,15 +286,68 @@ const decodeHtmlEntities = (str) => {
     .replace(/&nbsp;/g, ' ');
 };
 
-const cleanProductTitle = (t) => {
-  if (!t) return '';
-  return decodeHtmlEntities(t)
-    .replace(/^Jual\s+/i, '')
-    .replace(/\s*\|\s*(Shopee|Tokopedia|Blibli|Lazada|TikTok|Bukalapak|Amazon).*$/i, '')
-    .replace(/\s*-\s*(Shopee|Tokopedia|Blibli|Lazada|TikTok|Bukalapak|Amazon).*$/i, '')
-    .replace(/i\.\d+\.\d+/ig, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+const cleanProductTitle = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+
+  let t = decodeHtmlEntities(raw).trim();
+
+  // 1. Remove emojis & unicode symbol sparkles
+  t = t.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, ' ');
+
+  // 2. Remove marketplace SEO prefixes
+  t = t.replace(/^(?:Jual|Beli|Ready\s*Stock\s*[:\-]?|Pre-?Order\s*[:\-]?|PO\s*[:\-]?)\s+/i, '');
+
+  // 3. Remove marketing tags inside brackets, parens or japanese brackets:
+  t = t.replace(/[\[\(\【\〔\‹\<]\s*(?:[^\]\)\】\〕\›\>]*?(?:promo|diskon|discount|sale|garansi|resmi|terlaris|termurah|best\s*seller|ready|stock|bisa\s*cod|cod|gratis\s*ongkir|free\s*ongkir|import|terlengkap|flash\s*sale|special\s*edition|murah|cuci\s*gudang|premium|authentic|original|ori|100%|official|store|terpercaya|hemat)[^\]\)\】\〕\›\>]*?)\s*[\]\)\】\〕\›\>]/gi, ' ');
+
+  // 4. Remove marketplace brand suffixes & SEO tails
+  t = t.replace(/\s*[\|\-–—•/]\s*(?:Shopee|Tokopedia|Blibli|Lazada|TikTok(?:\s*Shop)?|Bukalapak|Amazon|Zalora)(?:\s*(?:Indonesia|\.co\.id|\.com))?.*$/i, '');
+  t = t.replace(/\s*(?:[\|\-–—•/]\s*)?(?:Official\s*Store|Flagship\s*Store|Authorized\s*(?:Reseller|Dealer)|Gratis\s*Ongkir|Cashback(?:\s*Xtra)?|Bisa\s*COD|Termurah|Terlaris|Terpercaya|100%\s*Original)\s*$/i, '');
+
+  // 5. Remove Shopee/marketplace ID artifacts (e.g. -i.55945766.17841330802)
+  t = t.replace(/-?i\.\d+\.\d+/ig, ' ');
+
+  // 6. Clean consecutive symbols and normalize slashes/hyphens
+  t = t.replace(/[\s\-_\|\/]{3,}/g, ' - ');
+  t = t.replace(/([a-zA-Z0-9])\/([a-zA-Z0-9])/g, '$1 / $2');
+  t = t.replace(/\s+/g, ' ').trim();
+
+  // 7. Smart Title Casing for words
+  const acronyms = new Set([
+    'RGB', 'USB', 'TWS', 'SSD', 'RAM', 'GPU', 'CPU', 'OLED', 'ANC', 'LED', 
+    'PRO', 'MAX', 'PLUS', 'MINI', 'SE', 'HD', '4K', '8K', 'FPS', 'DPI', 
+    'PCB', 'BT', 'ISO', 'ANSI', 'IDR', 'USD', 'UK', 'US', 'EU', 'XL', 'XXL', 'XXXL',
+    '3S', '4S', '5S', 'GT', 'XR', 'XS', 'MX', 'AI', 'ANC', 'GPS', 'NFC', 'PD', 'QC',
+    'WH', 'WF', 'WI', 'MDR', 'FE', 'RTX', 'GTX', 'RX'
+  ]);
+  const minorWords = new Set(['and', 'or', 'in', 'on', 'at', 'for', 'with', 'by', 'to', 'of', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan', 'yang', 'yg']);
+
+  const cleanSubWord = (sw, idx) => {
+    const cleanAlphanum = sw.replace(/[^a-zA-Z0-9]/g, '');
+    const upper = cleanAlphanum.toUpperCase();
+    if (acronyms.has(upper)) return sw.toUpperCase();
+    if (/\d/.test(sw)) return sw.toUpperCase();
+    if (idx > 0 && minorWords.has(sw.toLowerCase())) return sw.toLowerCase();
+
+    const cleanLetters = sw.replace(/[^a-zA-Z]/g, '');
+    if (cleanLetters.length > 1 && cleanLetters === cleanLetters.toUpperCase()) {
+      return sw.charAt(0).toUpperCase() + sw.slice(1).toLowerCase();
+    }
+    return sw;
+  };
+
+  const words = t.split(' ');
+  t = words.map((w, idx) => {
+    if (w.includes('-')) {
+      return w.split('-').map((sw, sIdx) => cleanSubWord(sw, idx === 0 && sIdx === 0 ? 0 : 1)).join('-');
+    }
+    return cleanSubWord(w, idx);
+  }).join(' ');
+
+  // 8. Final trim of dangling punctuation & whitespace
+  t = t.replace(/^[\|\-–—:,\./\s]+|[\|\-–—:,\./\s]+$/g, '').trim();
+
+  return t;
 };
 
 const guessGroupFromTitle = (title) => {
@@ -818,7 +871,7 @@ const handler = async (req, res) => {
     try {
       const body = await readBody(req);
       const id = String(body.id || ('item_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5)));
-      const title = String(body.title || 'Untitled').trim();
+      const title = cleanProductTitle(String(body.title || 'Untitled'));
       const price = Number(body.price) || 0;
       const currency = body.currency || 'IDR';
       const groupName = body.group ? String(body.group).trim() : null;
@@ -903,7 +956,7 @@ const handler = async (req, res) => {
       }
 
       const now = new Date().toISOString();
-      const title = body.title !== undefined ? String(body.title).trim() : (existing ? existing.title : 'Untitled');
+      const title = body.title !== undefined ? cleanProductTitle(String(body.title)) : (existing ? existing.title : 'Untitled');
       const price = body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0);
       const currency = body.currency !== undefined ? body.currency : (existing ? existing.currency : 'IDR');
       const groupName = body.group !== undefined ? (body.group ? String(body.group).trim() : null) : (existing ? existing.group_name : null);
@@ -1025,7 +1078,7 @@ const handler = async (req, res) => {
         try {
           body.items.forEach(item => {
             const id = String(item.id || ('item_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5)));
-            const title = String(item.title || item.name || 'Untitled').trim();
+            const title = cleanProductTitle(String(item.title || item.name || 'Untitled'));
             const price = Number(item.price) || 0;
             const currency = item.currency || 'IDR';
             const groupName = item.group ? String(item.group).trim() : null;
