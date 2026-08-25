@@ -25,6 +25,16 @@ const generateId = () => {
   return 'id_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 };
 
+const escapeHtml = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 let liveExchangeRateUSDToIDR = 16000;
 
 const fetchLiveExchangeRate = async () => {
@@ -864,6 +874,21 @@ const loadScopedData = () => {
     } catch (e) {}
   }
 
+  // Deleted IDs Sanitization
+  const storedDeleted = safeGetLocalStorage(`wishlist_u_${userId}_deleted_ids`);
+  if (storedDeleted) {
+    try {
+      const parsed = JSON.parse(storedDeleted);
+      if (Array.isArray(parsed)) {
+        state.deletedNoteIds = new Set(parsed.map(String));
+      }
+    } catch (e) {
+      state.deletedNoteIds = new Set();
+    }
+  } else {
+    state.deletedNoteIds = new Set();
+  }
+
   // Guarantee runtime state data structures
   if (!(state.selectedNoteIds instanceof Set)) state.selectedNoteIds = new Set();
   if (!(state.collapsedGroups instanceof Set)) state.collapsedGroups = new Set();
@@ -1150,9 +1175,8 @@ const syncDataFromBackend = async (showFeedback = false) => {
     }
 
     const userId = state.currentUser.id;
-    let cloudItems = [];
+    let tableItems = [];
     let cloudDeleted = [];
-    let fromTable = false;
 
     // 1. Try pulling directly from PostgreSQL wishlist_items table
     try {
@@ -1162,7 +1186,7 @@ const syncDataFromBackend = async (showFeedback = false) => {
         .eq('user_id', userId);
 
       if (!tableErr && Array.isArray(tableData) && tableData.length > 0) {
-        cloudItems = tableData.map(row => ({
+        tableItems = tableData.map(row => ({
           id: String(row.id),
           title: String(row.title || 'Untitled'),
           price: Number(row.price) || 0,
@@ -1175,28 +1199,30 @@ const syncDataFromBackend = async (showFeedback = false) => {
           createdAt: row.created_at || row.createdAt,
           updatedAt: row.updated_at || row.updatedAt
         }));
-        fromTable = true;
       }
     } catch (tblReadErr) {
       console.warn('Table read note:', tblReadErr.message);
     }
 
-    // 2. Fallback to user_metadata if table was empty or not created yet
+    // 2. Read Auth user_metadata (contains full redundancy backup + catalog items)
     const metadata = (user && user.user_metadata) ? user.user_metadata : {};
-    if (!fromTable) {
-      cloudItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
-    }
+    const metaItems = Array.isArray(metadata.wishlist_items) ? metadata.wishlist_items : [];
     cloudDeleted = Array.isArray(metadata.deleted_item_ids) ? metadata.deleted_item_ids : [];
 
-    // Track cloud deleted IDs in local Set
+    // Track cloud deleted IDs in local Set and persist
     if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
     cloudDeleted.forEach(id => state.deletedNoteIds.add(String(id)));
+    saveDeletedIds();
+
+    // Combine cloud items from both table & user_metadata via LWW
+    // This guarantees that even if table upsert had missing columns, latest metadata items win!
+    const cloudCombined = mergeWishlistItems(tableItems, metaItems, state.deletedNoteIds);
 
     // Filter out dummy sample items from local state
     const localRealItems = (state.notesItems || []).filter(item => item && !['note-1', 'note-2', 'note-3'].includes(item.id));
 
-    if (cloudItems.length > 0) {
-      state.notesItems = mergeWishlistItems(localRealItems, cloudItems, state.deletedNoteIds);
+    if (cloudCombined.length > 0) {
+      state.notesItems = mergeWishlistItems(localRealItems, cloudCombined, state.deletedNoteIds);
     } else if (localRealItems.length > 0) {
       state.notesItems = localRealItems;
       await syncDataToBackend();
@@ -1280,9 +1306,15 @@ const syncDataFromBackend = async (showFeedback = false) => {
   }
 };
 
+const saveDeletedIds = () => {
+  const userId = state.currentUser ? state.currentUser.id : 'guest';
+  safeSetLocalStorage(`wishlist_u_${userId}_deleted_ids`, JSON.stringify(Array.from(state.deletedNoteIds || [])));
+};
+
 const saveItems = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
   safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+  saveDeletedIds();
   triggerSyncToBackend();
 };
 
@@ -1290,6 +1322,7 @@ const saveNotes = () => {
   const userId = state.currentUser ? state.currentUser.id : 'guest';
   safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
   safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
+  saveDeletedIds();
   triggerSyncToBackend();
 };
 
@@ -2015,6 +2048,44 @@ const closeQuickNotePreviewModal = () => {
   state.previewingNoteId = null;
 };
 
+const convertNoteToCatalog = (noteId) => {
+  const note = state.notesItems.find(n => n.id === noteId);
+  if (!note) return;
+
+  const catalogItem = {
+    id: generateId(),
+    currency: note.currency || state.currency,
+    originalPrice: Number(note.price) || 0,
+    originalSaved: 0,
+    brand: '',
+    name: note.title || 'Untitled Wish',
+    price: convertCurrency(note.price || 0, note.currency || state.currency, 'IDR'),
+    saved: 0,
+    imageUrl: note.imageUrl || '',
+    imageData: note.imageData || null,
+    link: note.link || '',
+    tags: note.group ? [note.group.replace(/^#/, '')] : [],
+    priority: Number(note.priority) || 2,
+    achieved: !!note.checked,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  state.items.push(catalogItem);
+  saveItems();
+
+  // Remove from notes items and track deletion for cloud sync
+  if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+  state.deletedNoteIds.add(String(noteId));
+  saveDeletedIds();
+  state.notesItems = state.notesItems.filter(n => n.id !== noteId);
+  saveNotes();
+
+  render();
+  renderNotesView();
+  showToast(`Converted "${note.title}" to catalog`);
+};
+
 const getFilteredItems = () => {
   const activeItems = [];
   const achievedItems = [];
@@ -2458,14 +2529,15 @@ const renderNoteItemRow = (item, isGrouped = false) => {
   const formattedPrice = formatCurrencyValue(displayPrice, state.currency);
   const isSelected = state.selectedNoteIds.has(item.id);
   const isReader = (state.notesViewMode || 'view') === 'view';
+  const escapedTitle = escapeHtml(item.title || 'Untitled');
 
   if (isReader) {
     if (isGrouped) {
       return `
         <div class="quick-note-row reader-row reader-grouped-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note" style="cursor: pointer;">
           <div class="reader-row-left">
-            <span class="reader-grouped-bullet">•</span>
-            <span class="quick-note-title reader-grouped-title">${item.title}</span>
+            <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
+            <span class="quick-note-title reader-grouped-title">${escapedTitle}</span>
           </div>
           <div class="reader-row-right">
             <span class="quick-note-price reader-grouped-price">${formattedPrice}</span>
@@ -2476,7 +2548,8 @@ const renderNoteItemRow = (item, isGrouped = false) => {
     return `
       <div class="quick-note-row reader-row reader-standalone-row ${item.checked ? 'checked' : ''}" data-id="${item.id}" data-action="preview-note" style="cursor: pointer;">
         <div class="reader-row-left">
-          <span class="quick-note-title">${item.title}</span>
+          <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
+          <span class="quick-note-title">${escapedTitle}</span>
         </div>
         <div class="reader-row-right">
           <span class="quick-note-price">${formattedPrice}</span>
@@ -2490,7 +2563,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
       <div class="quick-note-row ${isSelected ? 'selected-row' : ''}" data-id="${item.id}" data-action="select-item-row" style="cursor: pointer;">
         <div class="quick-note-left">
           <input type="checkbox" class="quick-note-select-checkbox" data-action="select-item-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''}>
-          <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${item.title}</span>
+          <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${escapedTitle}</span>
         </div>
         <div class="quick-note-right">
           <span class="quick-note-price ${isGrouped ? 'reader-grouped-price' : ''}">${formattedPrice}</span>
@@ -2503,7 +2576,7 @@ const renderNoteItemRow = (item, isGrouped = false) => {
     <div class="quick-note-row ${item.checked ? 'checked' : ''} ${isGrouped ? 'reader-grouped-row' : ''}" data-id="${item.id}" data-action="open-edit-row" style="cursor: pointer;">
       <div class="quick-note-left">
         <input type="checkbox" class="quick-note-checkbox" data-action="toggle-note-checked" data-id="${item.id}" ${item.checked ? 'checked' : ''} title="Mark completed">
-        <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${item.title}</span>
+        <span class="quick-note-title ${isGrouped ? 'reader-grouped-title' : ''}">${escapedTitle}</span>
       </div>
       <div class="quick-note-right">
         <span class="quick-note-price ${isGrouped ? 'reader-grouped-price' : ''}">${formattedPrice}</span>
@@ -2665,20 +2738,33 @@ const renderQuickNotesManageList = () => {
     const isEditMode = (state.notesViewMode || 'view') === 'edit';
     const isCollapsed = !isEditMode && state.collapsedGroups && state.collapsedGroups.has(groupName);
     const groupIcon = getGroupIcon(groupName);
+    const escapedGroup = escapeHtml(groupName);
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}">
         <div class="reader-group-header ${isEditMode ? 'editable-group-header' : ''}" 
-             data-action="${isEditMode ? 'edit-group-name' : 'toggle-group-collapse'}" 
-             data-group="${groupName}" 
-             title="${isEditMode ? 'Click to rename group' : (isCollapsed ? 'Expand folder' : 'Collapse folder')}">
+             data-action="toggle-group-collapse" 
+             data-group="${escapedGroup}" 
+             title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
           <div class="group-header-left">
-            <i data-lucide="${groupIcon}" class="group-folder-icon"></i>
-            <span class="group-header-title">${groupName}</span>
+            <i data-lucide="${isCollapsed ? 'folder' : groupIcon}" class="group-folder-icon"></i>
+            <span class="group-header-title" data-action="rename-group-btn" data-group="${escapedGroup}" title="Click to rename group">${escapedGroup}</span>
             <span class="group-badge-pill">${groupItems.length}</span>
           </div>
           <div class="group-header-right">
+            <div class="group-header-actions">
+              <button type="button" class="group-action-btn" data-action="rename-group-btn" data-group="${escapedGroup}" title="Rename Group">
+                <i data-lucide="edit-2"></i>
+              </button>
+              <button type="button" class="group-action-btn" data-action="ungroup-entire-group-btn" data-group="${escapedGroup}" title="Ungroup All Items">
+                <i data-lucide="corner-up-left"></i>
+              </button>
+              <button type="button" class="group-action-btn group-action-delete" data-action="delete-entire-group-btn" data-group="${escapedGroup}" title="Delete Group & Items">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
             <span class="group-header-total">${formattedTotal}</span>
+            <i data-lucide="chevron-down" class="group-chevron-icon ${isCollapsed ? 'rotated' : ''}"></i>
           </div>
         </div>
         <div class="reader-group-items ${isCollapsed ? 'hidden' : ''}">
@@ -3449,13 +3535,24 @@ const initEventHandlers = () => {
       if (!groupName) return;
 
       if (state.renamingGroupName) {
+        const oldGroup = (state.renamingGroupName || '').trim().toLowerCase();
+        let matchCount = 0;
         state.notesItems.forEach(item => {
-          if (item.group === state.renamingGroupName) {
+          if (item.group && item.group.trim().toLowerCase() === oldGroup) {
             item.group = groupName;
             item.updatedAt = new Date().toISOString();
+            matchCount++;
           }
         });
-        showToast(`Group renamed to '${groupName}'`);
+        if (state.collapsedGroups) {
+          state.collapsedGroups.forEach(g => {
+            if (g && g.trim().toLowerCase() === oldGroup) {
+              state.collapsedGroups.delete(g);
+              state.collapsedGroups.add(groupName);
+            }
+          });
+        }
+        showToast(`Group renamed to '${groupName}' (${matchCount} items updated)`);
       } else {
         state.notesItems.forEach(item => {
           if (state.selectedNoteIds.has(item.id)) {
@@ -3913,6 +4010,80 @@ const initEventHandlers = () => {
   const quickNotesManageList = document.getElementById('quick-notes-manage-list');
   if (quickNotesManageList) {
     quickNotesManageList.addEventListener('click', (e) => {
+      // 1. Rename Group button
+      const renameBtn = e.target.closest('[data-action="rename-group-btn"]');
+      if (renameBtn) {
+        e.stopPropagation();
+        const groupName = renameBtn.getAttribute('data-group');
+        if (groupName) openGroupModal(true, groupName);
+        return;
+      }
+
+      // 2. Ungroup Entire Group button
+      const ungroupGroupBtn = e.target.closest('[data-action="ungroup-entire-group-btn"]');
+      if (ungroupGroupBtn) {
+        e.stopPropagation();
+        const groupName = ungroupGroupBtn.getAttribute('data-group');
+        if (groupName) {
+          showConfirmDialog({
+            title: 'Ungroup Items',
+            message: `Remove all items from "${groupName}" group?`,
+            confirmText: 'Ungroup All',
+            onConfirm: () => {
+              const target = groupName.trim().toLowerCase();
+              let count = 0;
+              state.notesItems.forEach(item => {
+                if (item.group && item.group.trim().toLowerCase() === target) {
+                  item.group = null;
+                  item.updatedAt = new Date().toISOString();
+                  count++;
+                }
+              });
+              saveNotes();
+              showToast(`Ungrouped ${count} item(s) from '${groupName}'`);
+              renderNotesView();
+            }
+          });
+        }
+        return;
+      }
+
+      // 3. Delete Entire Group & Items button
+      const deleteGroupBtn = e.target.closest('[data-action="delete-entire-group-btn"]');
+      if (deleteGroupBtn) {
+        e.stopPropagation();
+        const groupName = deleteGroupBtn.getAttribute('data-group');
+        if (groupName) {
+          const target = groupName.trim().toLowerCase();
+          const count = state.notesItems.filter(item => item.group && item.group.trim().toLowerCase() === target).length;
+          showConfirmDialog({
+            title: 'Delete Group',
+            message: `Delete group "${groupName}" and all ${count} item(s) inside it?`,
+            confirmText: 'Delete Group & Items',
+            onConfirm: () => {
+              if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+              state.notesItems.forEach(item => {
+                if (item.group && item.group.trim().toLowerCase() === target) {
+                  state.deletedNoteIds.add(String(item.id));
+                }
+              });
+              saveDeletedIds();
+              state.notesItems = state.notesItems.filter(item => !(item.group && item.group.trim().toLowerCase() === target));
+              if (state.collapsedGroups) {
+                state.collapsedGroups.forEach(g => {
+                  if (g && g.trim().toLowerCase() === target) state.collapsedGroups.delete(g);
+                });
+              }
+              saveNotes();
+              showToast(`Group '${groupName}' and ${count} item(s) deleted`);
+              renderNotesView();
+            }
+          });
+        }
+        return;
+      }
+
+      // 4. Selection Mode Item Select
       if (state.isSelectionMode) {
         const row = e.target.closest('[data-action="select-item-row"]');
         if (row) {
@@ -3928,9 +4099,10 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Toggle Individual Note Checked
+      // 5. Toggle Individual Note Checked (works in both View & Edit mode)
       const toggleNoteChecked = e.target.closest('[data-action="toggle-note-checked"]');
       if (toggleNoteChecked) {
+        e.stopPropagation();
         const id = toggleNoteChecked.getAttribute('data-id');
         const item = state.notesItems.find(n => n.id === id);
         if (item) {
@@ -3944,9 +4116,19 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Toggle Group Collapse on Header Click (View Mode)
+      // 6. Edit / Rename Group on Header Click (Edit Mode)
+      const groupEditHeader = e.target.closest('[data-action="edit-group-name"]');
+      if (groupEditHeader && !e.target.closest('button') && !e.target.closest('input')) {
+        const groupName = groupEditHeader.getAttribute('data-group');
+        if (groupName) {
+          openGroupModal(true, groupName);
+        }
+        return;
+      }
+
+      // 7. Toggle Group Collapse on Header Click
       const groupCollapseHeader = e.target.closest('[data-action="toggle-group-collapse"]');
-      if (groupCollapseHeader && !e.target.closest('button')) {
+      if (groupCollapseHeader && !e.target.closest('button') && !e.target.closest('input')) {
         const groupName = groupCollapseHeader.getAttribute('data-group');
         if (groupName) {
           if (!state.collapsedGroups) state.collapsedGroups = new Set();
@@ -3960,17 +4142,7 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Edit / Rename Group on Header Click (Edit Mode)
-      const groupEditHeader = e.target.closest('[data-action="edit-group-name"]');
-      if (groupEditHeader && !e.target.closest('button') && !e.target.closest('input')) {
-        const groupName = groupEditHeader.getAttribute('data-group');
-        if (groupName) {
-          openGroupModal(true, groupName);
-        }
-        return;
-      }
-
-      // View Mode: Click on Note Row -> Open Preview Modal (aturan lama)
+      // 8. View Mode: Click on Note Row -> Open Preview Modal
       if ((state.notesViewMode || 'view') === 'view') {
         const previewRow = e.target.closest('[data-action="preview-note"]') || e.target.closest('.quick-note-row');
         if (previewRow && !e.target.closest('button') && !e.target.closest('input')) {
@@ -3983,9 +4155,9 @@ const initEventHandlers = () => {
         return;
       }
 
-      // Edit Mode: Click on Note Row -> Open Edit Modal!
+      // 9. Edit Mode: Click on Note Row -> Open Edit Modal!
       const noteRow = e.target.closest('.quick-note-row');
-      if (noteRow && !e.target.closest('input')) {
+      if (noteRow && !e.target.closest('input') && !e.target.closest('button')) {
         const id = noteRow.getAttribute('data-id');
         if (id) {
           openQuickNoteModal(id);

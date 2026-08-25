@@ -1783,6 +1783,11 @@ input, button, select, textarea {
   font-weight: 600;
   color: #18181B;
   letter-spacing: -0.01em;
+  transition: color 150ms ease;
+}
+
+.reader-group-header .group-header-title:hover {
+  color: #2563EB;
 }
 
 .reader-group-header .group-badge-pill {
@@ -1794,6 +1799,75 @@ input, button, select, textarea {
   border: 1px solid #E4E4E7;
   border-radius: 9999px;
   padding: 1px 7px;
+}
+
+.reader-group-header .group-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.reader-group-header:hover .group-header-actions,
+.reader-group-header:focus-within .group-header-actions {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .group-header-actions {
+    opacity: 0.85;
+  }
+}
+
+.group-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #71717A;
+  cursor: pointer;
+  padding: 0;
+  transition: all 150ms ease;
+}
+
+.group-action-btn:hover {
+  background: #FFFFFF;
+  border-color: #E4E4E7;
+  color: #18181B;
+}
+
+.group-action-btn.group-action-delete:hover {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+  color: #DC2626;
+}
+
+.group-action-btn svg,
+.group-action-btn i {
+  width: 12px;
+  height: 12px;
+}
+
+.group-chevron-icon {
+  width: 13px;
+  height: 13px;
+  color: #A1A1AA;
+  transition: transform 200ms ease;
+}
+
+.reader-group-block.collapsed .group-chevron-icon {
+  transform: rotate(-90deg);
 }
 
 .reader-group-header .group-header-total {
