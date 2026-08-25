@@ -1793,6 +1793,7 @@ input, button, select, textarea {
   display: flex;
   align-items: center;
   gap: 7px;
+  min-height: 24px;
 }
 
 .reader-group-header .group-folder-icon {
@@ -1800,7 +1801,11 @@ input, button, select, textarea {
   height: 13.5px;
   color: var(--accent, #0F172A);
   stroke-width: 2.2;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .reader-group-header .group-header-title {
@@ -1810,6 +1815,9 @@ input, button, select, textarea {
   color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.045em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
   transition: color 150ms ease;
 }
 
@@ -1833,6 +1841,7 @@ input, button, select, textarea {
   justify-content: center;
   line-height: 1;
   letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 
 .reader-group-header .group-header-right {
@@ -3505,7 +3514,7 @@ textarea#raw-notepad-input:focus {
 .stat-card {
   background: #0F172A;
   border: 1px solid #1E293B;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 13px 16px;
   box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.16), 0 2px 6px -1px rgba(15, 23, 42, 0.1);
   transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
