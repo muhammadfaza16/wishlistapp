@@ -171,12 +171,15 @@ const api = {
 const renderSummaryBar = () => {
   const items = state.items;
   const totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+  const remainingNeeded = items.filter(i => !i.checked).reduce((sum, i) => sum + (Number(i.price) || 0), 0);
 
   const totalEl = document.getElementById('notes-total-value');
+  const remainingEl = document.getElementById('notes-remaining-value');
   const countEl = document.getElementById('notes-items-count');
   const dropdownCountEl = document.getElementById('dropdown-notes-count');
 
   if (totalEl) totalEl.textContent = formatPrice(totalEst, state.currency);
+  if (remainingEl) remainingEl.textContent = formatPrice(remainingNeeded, state.currency);
   if (countEl) countEl.textContent = items.length;
   if (dropdownCountEl) dropdownCountEl.textContent = items.length;
 };
