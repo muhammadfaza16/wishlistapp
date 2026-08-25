@@ -135,7 +135,9 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
-// Password Hashing
+// Password Hashing & Stateless JWT Signing
+const JWT_SECRET = process.env.JWT_SECRET || 'wishlist_app_jwt_secret_2026';
+
 const hashPassword = (password, salt) => {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
 };
@@ -144,7 +146,36 @@ const generateToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
-// Authentication Middleware Helper
+const createSessionToken = (user) => {
+  const payload = {
+    id: user.id,
+    name: user.name || 'User',
+    email: user.email || '',
+    username: user.username || (user.email ? user.email.split('@')[0] : 'user'),
+    exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days valid
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
+  return `${body}.${sig}`;
+};
+
+const verifySessionToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
+  if (sig !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Authentication Middleware Helper (Stateless across serverless instances + SQLite cache)
 const getAuthenticatedUser = (req) => {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -154,22 +185,35 @@ const getAuthenticatedUser = (req) => {
 
   try {
     if (token) {
-      const sessionStmt = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?');
-      const session = sessionStmt.get(token);
-      if (session && new Date(session.expires_at) >= new Date()) {
-        const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
-        const user = userStmt.get(session.user_id);
-        if (user) return { ...user, token };
+      // 1. Verify signed stateless session token (shared across all Vercel/lambda instances)
+      const verified = verifySessionToken(token);
+      if (verified && verified.id) {
+        return {
+          id: verified.id,
+          name: verified.name,
+          email: verified.email,
+          username: verified.username,
+          createdAt: verified.createdAt || new Date().toISOString(),
+          token
+        };
       }
 
-      // If token is a JWT token (from Supabase Auth)
-      if (token.includes('.')) {
+      // 2. Check local SQLite sessions
+      try {
+        const sessionStmt = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?');
+        const session = sessionStmt.get(token);
+        if (session && new Date(session.expires_at) >= new Date()) {
+          const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
+          const user = userStmt.get(session.user_id);
+          if (user) return { ...user, token };
+        }
+      } catch (e) {}
+
+      // 3. If token is standard 3-part JWT (e.g. direct Supabase JWT)
+      if (token.includes('.') && token.split('.').length === 3) {
         try {
           const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8'));
           if (payload && payload.sub) {
-            const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
-            const user = userStmt.get(payload.sub);
-            if (user) return { ...user, token };
             const meta = payload.user_metadata || {};
             return {
               id: payload.sub,
@@ -186,10 +230,12 @@ const getAuthenticatedUser = (req) => {
 
     // Direct User ID matching (for internal / guest-scoped API calls)
     const targetUserId = token || headerUserId;
-    if (targetUserId) {
-      const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
-      const user = userStmt.get(targetUserId);
-      if (user) return { ...user, token: token || targetUserId };
+    if (targetUserId && targetUserId !== 'guest') {
+      try {
+        const userStmt = db.prepare('SELECT id, name, email, username, created_at FROM users WHERE id = ?');
+        const user = userStmt.get(targetUserId);
+        if (user) return { ...user, token: targetUserId };
+      } catch (e) {}
     }
   } catch (err) {
     console.warn('Auth check error:', err.message);
@@ -461,7 +507,6 @@ const handler = async (req, res) => {
       const username = isEmail ? ident.split('@')[0] : ident;
       const now = new Date().toISOString();
       let userId = 'usr_' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
-      let token = generateToken();
 
       // Attempt Supabase Auth signup
       try {
@@ -481,9 +526,6 @@ const handler = async (req, res) => {
         if (supaData && supaData.user && supaData.user.id) {
           userId = supaData.user.id;
         }
-        if (supaData && supaData.access_token) {
-          token = supaData.access_token;
-        }
       } catch (e) {}
 
       // Cache in Local SQLite
@@ -498,16 +540,21 @@ const handler = async (req, res) => {
         `).run(userId, name, email, username, passwordHash, salt, now);
       }
 
+      const userObj = { id: userId, name, email, username, createdAt: now };
+      const token = createSessionToken(userObj);
+
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      db.prepare(`
-        INSERT INTO sessions (token, user_id, created_at, expires_at)
-        VALUES (?, ?, ?, ?)
-      `).run(token, userId, now, expiresAt);
+      try {
+        db.prepare(`
+          INSERT INTO sessions (token, user_id, created_at, expires_at)
+          VALUES (?, ?, ?, ?)
+        `).run(token, userId, now, expiresAt);
+      } catch (e) {}
 
       return sendJson(res, 201, {
         success: true,
         token,
-        user: { id: userId, name, email, username, createdAt: now }
+        user: userObj
       });
     } catch (err) {
       return sendJson(res, 500, { error: err.message || 'Registration failed' });
@@ -529,7 +576,6 @@ const handler = async (req, res) => {
       const now = new Date().toISOString();
 
       let authenticatedUser = null;
-      let token = null;
 
       // 1. Attempt Supabase Auth login
       try {
@@ -545,7 +591,6 @@ const handler = async (req, res) => {
         if (supaRes.ok) {
           const supaData = await supaRes.json();
           if (supaData && supaData.user) {
-            token = generateToken();
             const sUser = supaData.user;
             const meta = sUser.user_metadata || {};
             const userId = sUser.id;
@@ -571,31 +616,6 @@ const handler = async (req, res) => {
               INSERT INTO users (id, name, email, username, password_hash, salt, created_at)
               VALUES (?, ?, ?, ?, ?, ?, ?)
             `).run(userId, userName, userEmail, uName, passwordHash, salt, now);
-
-            // Sync wishlist_items from Supabase user_metadata if available
-            if (Array.isArray(meta.wishlist_items) && meta.wishlist_items.length > 0) {
-              const insertStmt = db.prepare(`
-                INSERT OR REPLACE INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `);
-              meta.wishlist_items.forEach(it => {
-                const itemId = it.id || 'item_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
-                insertStmt.run(
-                  itemId,
-                  userId,
-                  it.title || 'Untitled',
-                  Number(it.price) || 0,
-                  it.currency || 'IDR',
-                  it.group || it.group_name || null,
-                  Number(it.priority) || 2,
-                  it.checked ? 1 : 0,
-                  it.link || null,
-                  it.imageData || it.image_data || null,
-                  it.createdAt || it.created_at || now,
-                  it.updatedAt || it.updated_at || now
-                );
-              });
-            }
           }
         }
       } catch (e) {}
@@ -608,7 +628,6 @@ const handler = async (req, res) => {
         const hash = hashPassword(password, user.salt);
         if (hash !== user.password_hash) return sendJson(res, 401, { error: 'Invalid username or password' });
 
-        token = generateToken();
         authenticatedUser = {
           id: user.id,
           name: user.name,
@@ -618,12 +637,17 @@ const handler = async (req, res) => {
         };
       }
 
-      // Store active session
+      // Generate signed stateless session token
+      const token = createSessionToken(authenticatedUser);
+
+      // Store active session in SQLite
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      db.prepare(`
-        INSERT INTO sessions (token, user_id, created_at, expires_at)
-        VALUES (?, ?, ?, ?)
-      `).run(token, authenticatedUser.id, now, expiresAt);
+      try {
+        db.prepare(`
+          INSERT INTO sessions (token, user_id, created_at, expires_at)
+          VALUES (?, ?, ?, ?)
+        `).run(token, authenticatedUser.id, now, expiresAt);
+      } catch (e) {}
 
       return sendJson(res, 200, {
         success: true,
@@ -662,6 +686,77 @@ const handler = async (req, res) => {
     const userId = user ? user.id : (req.headers['x-user-id'] || 'guest');
 
     try {
+      // 1. If authenticated user, ALWAYS fetch latest real-time items from Supabase wishlist_items
+      if (user && user.id && user.id !== 'guest' && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          const targetUserId = toUUID(user.id);
+          const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?user_id=eq.${encodeURIComponent(targetUserId)}&select=*&order=created_at.asc`, {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          });
+
+          if (supaRes.ok) {
+            const supaItems = await supaRes.json();
+            if (Array.isArray(supaItems)) {
+              const items = supaItems.map(r => ({
+                id: r.id,
+                title: r.title,
+                price: Number(r.price) || 0,
+                currency: r.currency || 'IDR',
+                group: r.group || r.group_name || null,
+                priority: Number(r.priority) || 2,
+                checked: r.checked === true || r.checked === 1,
+                link: r.link || null,
+                imageData: r.image_data || null,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at
+              }));
+
+              // Sync to local SQLite cache
+              try {
+                const insertStmt = db.prepare(`
+                  INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    price = excluded.price,
+                    currency = excluded.currency,
+                    group_name = excluded.group_name,
+                    priority = excluded.priority,
+                    checked = excluded.checked,
+                    link = excluded.link,
+                    image_data = excluded.image_data,
+                    updated_at = excluded.updated_at
+                `);
+                items.forEach(it => {
+                  insertStmt.run(
+                    it.id,
+                    user.id,
+                    it.title,
+                    it.price,
+                    it.currency,
+                    it.group,
+                    it.priority,
+                    it.checked ? 1 : 0,
+                    it.link,
+                    it.imageData,
+                    it.createdAt,
+                    it.updatedAt
+                  );
+                });
+              } catch (e) {}
+
+              return sendJson(res, 200, { success: true, items });
+            }
+          }
+        } catch (supaErr) {
+          console.warn('Supabase fetch items error, falling back to SQLite:', supaErr.message);
+        }
+      }
+
+      // 2. Fallback to Local SQLite (or Guest)
       let rows = db.prepare(`
         SELECT id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at
         FROM items
@@ -751,7 +846,7 @@ const handler = async (req, res) => {
       `).run(id, userId, title, price, currency, groupName, priority, checked, link, imageData, createdAt, updatedAt);
 
       const newItem = { id, user_id: userId, title, price, currency, group: groupName, priority, checked: checked === 1, link, imageData, createdAt, updatedAt };
-      syncItemToSupabase(newItem, 'upsert');
+      await syncItemToSupabase(newItem, 'upsert');
 
       return sendJson(res, 201, { success: true, item: newItem });
     } catch (err) {
@@ -787,7 +882,7 @@ const handler = async (req, res) => {
       `).run(title, price, currency, groupName, priority, checked, link, imageData, now, itemId, userId);
 
       const updatedItem = { id: itemId, user_id: userId, title, price, currency, group: groupName, priority, checked: checked === 1, link, imageData, createdAt: existing.created_at, updatedAt: now };
-      syncItemToSupabase(updatedItem, 'upsert');
+      await syncItemToSupabase(updatedItem, 'upsert');
 
       return sendJson(res, 200, { success: true, item: updatedItem });
     } catch (err) {
@@ -803,7 +898,7 @@ const handler = async (req, res) => {
 
     try {
       db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemId, userId);
-      syncItemToSupabase({ id: itemId, user_id: userId }, 'delete');
+      await syncItemToSupabase({ id: itemId, user_id: userId }, 'delete');
       return sendJson(res, 200, { success: true, id: itemId });
     } catch (err) {
       return sendJson(res, 500, { error: err.message || 'Failed to delete item' });
@@ -825,7 +920,7 @@ const handler = async (req, res) => {
         if (ids.length > 0) {
           const placeholders = ids.map(() => '?').join(',');
           db.prepare(`DELETE FROM items WHERE user_id = ? AND id IN (${placeholders})`).run(userId, ...ids);
-          ids.forEach(id => syncItemToSupabase({ id, user_id: userId }, 'delete'));
+          await Promise.all(ids.map(id => syncItemToSupabase({ id, user_id: userId }, 'delete')));
         }
         return sendJson(res, 200, { success: true, count: ids.length });
       }
@@ -836,6 +931,19 @@ const handler = async (req, res) => {
         if (oldGroup) {
           db.prepare('UPDATE items SET group_name = ?, updated_at = ? WHERE user_id = ? AND group_name = ?')
             .run(newGroup, now, userId, oldGroup);
+
+          if (SUPABASE_URL && SUPABASE_ANON_KEY && userId && userId !== 'guest') {
+            const targetUserId = toUUID(userId);
+            await fetch(`${SUPABASE_URL}/rest/v1/wishlist_items?user_id=eq.${encodeURIComponent(targetUserId)}&group=eq.${encodeURIComponent(oldGroup)}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ group: newGroup, updated_at: now })
+            }).catch(e => console.warn('Supabase rename group error:', e.message));
+          }
         }
         return sendJson(res, 200, { success: true, oldGroup, newGroup });
       }
