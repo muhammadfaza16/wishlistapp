@@ -1043,7 +1043,6 @@ const openQuickNoteModal = (itemId = null) => {
     if (titleEl) titleEl.textContent = 'Add Item';
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
-    if (groupSelect) groupSelect.value = '';
     if (groupInput) groupInput.value = '';
     if (linkInput) linkInput.value = '';
     const checkedInput = document.getElementById('quick-note-checked-input');
