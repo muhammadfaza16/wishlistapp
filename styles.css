@@ -2480,7 +2480,8 @@ input, button, select, textarea {
   border-radius: 16px;
   box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.06);
   border: 1px solid #E2E8F0;
-  overflow: hidden;
+  overflow: visible !important;
+  position: relative;
 }
 
 .modal-add-card .modal-header {
@@ -2490,6 +2491,7 @@ input, button, select, textarea {
   padding: 18px 22px 14px;
   border-bottom: 1px solid #F1F5F9;
   background: #FFFFFF;
+  border-radius: 16px 16px 0 0;
 }
 
 .modal-add-card .modal-header h2 {
@@ -2507,6 +2509,8 @@ input, button, select, textarea {
   flex-direction: column;
   gap: 14px;
   background: #FFFFFF;
+  border-radius: 0 0 16px 16px;
+  overflow: visible !important;
 }
 
 .modal-add-form .form-group {
@@ -2514,6 +2518,7 @@ input, button, select, textarea {
   flex-direction: column;
   margin-bottom: 0;
   min-width: 0;
+  position: relative;
 }
 
 .modal-add-form .form-group label {
@@ -2570,6 +2575,7 @@ input, button, select, textarea {
 /* Modal Group Combobox & Floating Pills Popover */
 .group-combobox-wrap {
   position: relative;
+  z-index: 60;
 }
 
 .group-input-relative {
@@ -2586,8 +2592,8 @@ input, button, select, textarea {
   border: 1px solid #E2E8F0;
   border-radius: 10px;
   padding: 10px 12px;
-  box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.04);
-  z-index: 100;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  z-index: 9999 !important;
   display: flex;
   flex-direction: column;
   gap: 7px;

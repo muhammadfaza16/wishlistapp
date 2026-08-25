@@ -1532,24 +1532,33 @@ const initEventHandlers = () => {
     renderGroupPills(groupInput.value);
   });
 
+  groupInput?.addEventListener('click', () => {
+    renderGroupPills(groupInput.value);
+  });
+
   groupInput?.addEventListener('input', () => {
     renderGroupPills(groupInput.value);
   });
 
-  // Select pill on mousedown
-  groupPillsList?.addEventListener('mousedown', (e) => {
+  // Select pill on mousedown and click
+  const handlePillSelect = (e) => {
     const pill = e.target.closest('.group-pill-opt');
     if (pill) {
+      e.preventDefault();
+      e.stopPropagation();
       const g = pill.getAttribute('data-group');
       if (groupInput && g) {
         groupInput.value = g;
       }
       groupPopover?.classList.add('hidden');
     }
-  });
+  };
+
+  groupPillsList?.addEventListener('mousedown', handlePillSelect);
+  groupPillsList?.addEventListener('click', handlePillSelect);
 
   // Dismiss group suggestions when clicking outside
-  document.addEventListener('click', (e) => {
+  document.addEventListener('pointerdown', (e) => {
     if (!e.target.closest('#quick-note-group-container')) {
       groupPopover?.classList.add('hidden');
     }
