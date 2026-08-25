@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=346">
+  <link rel="stylesheet" href="styles.css?v=347">
 </head>
 <body>
   <div id="app">
@@ -403,23 +403,14 @@
             </div>
           </div>
 
-          <!-- Refined Priority Segmented Switch -->
+          <!-- Priority Clean Dropdown -->
           <div class="form-group">
-            <label>Priority</label>
-            <div class="modal-priority-segmented" id="quick-note-priority-options">
-              <button type="button" class="priority-item p1" data-priority="1">
-                <span class="p-dot"></span>
-                <span class="p-text">P1 High</span>
-              </button>
-              <button type="button" class="priority-item p2 active" data-priority="2">
-                <span class="p-dot"></span>
-                <span class="p-text">P2 Med</span>
-              </button>
-              <button type="button" class="priority-item p3" data-priority="3">
-                <span class="p-dot"></span>
-                <span class="p-text">P3 Low</span>
-              </button>
-            </div>
+            <label for="quick-note-priority-select">Priority</label>
+            <select id="quick-note-priority-select" class="modal-input modal-select">
+              <option value="2">Medium</option>
+              <option value="1">High</option>
+              <option value="3">Low</option>
+            </select>
           </div>
         </div>
 
@@ -519,6 +510,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=346" defer></script>
+  <script src="app.js?v=347" defer></script>
 </body>
 </html>

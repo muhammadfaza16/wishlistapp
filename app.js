@@ -1102,12 +1102,8 @@ const closeQuickNoteModal = () => {
 };
 
 const setModalPriority = (priority) => {
-  const btns = document.querySelectorAll('#quick-note-priority-options button');
-  btns.forEach(btn => {
-    const p = Number(btn.getAttribute('data-priority'));
-    if (p === priority) btn.classList.add('active');
-    else btn.classList.remove('active');
-  });
+  const select = document.getElementById('quick-note-priority-select');
+  if (select) select.value = String(priority || 2);
 };
 
 const openPreviewModal = (itemId) => {
@@ -1528,8 +1524,8 @@ const initEventHandlers = () => {
     }
 
     const link = document.getElementById('quick-note-link-input')?.value.trim() || null;
-    const activePriorityBtn = document.querySelector('#quick-note-priority-options button.active');
-    const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
+    const prioritySelect = document.getElementById('quick-note-priority-select');
+    const priority = prioritySelect ? (Number(prioritySelect.value) || 2) : 2;
     const checked = !!document.getElementById('quick-note-checked-input')?.checked;
 
     if (!title) return;
