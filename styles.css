@@ -1859,11 +1859,32 @@ input, button, select, textarea {
   height: 12px;
 }
 
+.group-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  transition: all 150ms ease;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: -2px;
+}
+
+.group-chevron-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.group-chevron-btn:hover .group-chevron-icon {
+  color: #18181B;
+}
+
 .group-chevron-icon {
   width: 13px;
   height: 13px;
   color: #A1A1AA;
-  transition: transform 200ms ease;
+  transition: transform 200ms ease, color 150ms ease;
 }
 
 .reader-group-block.collapsed .group-chevron-icon {

@@ -309,9 +309,11 @@ const renderItemsList = () => {
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}" data-group="${escapeHtml(groupName)}">
-        <div class="reader-group-header" data-action="${groupAction}" data-group="${escapeHtml(groupName)}" style="cursor: pointer;">
+        <div class="reader-group-header" data-action="${isEditMode ? 'rename-group' : 'toggle-group'}" data-group="${escapeHtml(groupName)}" style="cursor: pointer;">
           <div class="group-header-left">
-            <i data-lucide="chevron-down" class="group-chevron-icon"></i>
+            <span class="group-chevron-btn" data-action="toggle-group" data-group="${escapeHtml(groupName)}" title="Expand/Collapse">
+              <i data-lucide="chevron-down" class="group-chevron-icon"></i>
+            </span>
             <i data-lucide="folder" class="group-folder-icon"></i>
             <span class="group-header-title">${escapeHtml(groupName)}</span>
             <span class="group-badge-pill">${groupItems.length}</span>
@@ -882,6 +884,7 @@ const initEventHandlers = () => {
     // 6. Group Toggle (Accordion)
     const groupToggle = e.target.closest('[data-action="toggle-group"]');
     if (groupToggle) {
+      e.stopPropagation();
       const groupName = groupToggle.getAttribute('data-group');
       if (state.collapsedGroups.has(groupName)) state.collapsedGroups.delete(groupName);
       else state.collapsedGroups.add(groupName);
