@@ -1820,13 +1820,19 @@ input, button, select, textarea {
 
 .reader-group-header .group-badge-pill {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   color: #FFFFFF;
   background: var(--accent, #0F172A);
   border: 1px solid var(--accent, #0F172A);
   border-radius: 9999px;
-  padding: 1px 6.5px;
+  padding: 0 5px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
 .reader-group-header .group-header-right {
@@ -3396,11 +3402,15 @@ input, button, select, textarea {
 
 .group-badge-pill {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   background: var(--accent, #0F172A);
   color: #FFFFFF;
-  padding: 1px 5.5px;
+  padding: 0 5px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9999px;
   letter-spacing: -0.01em;
   flex-shrink: 0;
