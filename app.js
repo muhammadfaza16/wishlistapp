@@ -980,7 +980,8 @@ const populateModalGroupPills = (selectedGroup = '') => {
   if (!container) return;
 
   const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
-  const otherPresets = CATEGORY_PRESETS.filter(p => !existingGroups.includes(p));
+  const presetNames = (CATEGORY_PRESETS || []).map(p => (typeof p === 'object' ? p.name : p)).filter(Boolean);
+  const otherPresets = presetNames.filter(p => !existingGroups.includes(p));
   const allGroups = [...existingGroups, ...otherPresets.slice(0, 5)];
 
   if (allGroups.length === 0) {
@@ -990,8 +991,9 @@ const populateModalGroupPills = (selectedGroup = '') => {
 
   const currentVal = (selectedGroup || '').trim().toLowerCase();
   container.innerHTML = allGroups.map(g => {
-    const isActive = g.toLowerCase() === currentVal;
-    return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`;
+    const str = String(g);
+    const isActive = str.toLowerCase() === currentVal;
+    return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(str)}">${escapeHtml(str)}</button>`;
   }).join('');
 };
 
@@ -1086,6 +1088,9 @@ const closeQuickNoteModal = () => {
   state.activeModalItemId = null;
   currentUploadedImage = null;
 };
+
+window.openQuickNoteModal = openQuickNoteModal;
+window.closeQuickNoteModal = closeQuickNoteModal;
 
 const setModalPriority = (priority) => {
   const select = document.getElementById('quick-note-priority-select');
