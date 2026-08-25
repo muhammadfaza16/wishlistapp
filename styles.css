@@ -3095,28 +3095,31 @@ input, button, select, textarea {
   justify-content: center;
   gap: 6px;
   height: 40px;
-  padding: 0 16px;
-  background: var(--danger-light, #FFF1F2);
-  color: var(--danger, #E11D48);
-  border: 1px solid #FFE4E6;
-  border-radius: 8px;
+  padding: 0 18px;
+  background: #E11D48 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #E11D48 !important;
+  border-radius: 8px !important;
   font-family: var(--font-sans);
   font-size: 13.5px;
-  font-weight: 550;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 140ms ease;
+  transition: all 150ms ease;
   white-space: nowrap;
   flex-shrink: 0;
+  opacity: 1 !important;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.2);
 }
 
 .modal-delete-btn:hover {
-  background: #FFE4E6;
-  color: var(--danger-hover, #BE123C);
-  border-color: #FECDD3;
+  background: #BE123C !important;
+  border-color: #BE123C !important;
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.28);
 }
 
 .modal-delete-btn:active {
   transform: translateY(0.5px);
+  background: #9F1239 !important;
 }
 
 .modal-delete-btn.hidden {
@@ -3127,6 +3130,8 @@ input, button, select, textarea {
 .modal-delete-btn i {
   width: 15px;
   height: 15px;
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
 }
 
 .modal-save-btn {
