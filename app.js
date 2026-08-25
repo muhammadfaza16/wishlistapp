@@ -1,11 +1,19 @@
 // app.js - WISHLIST Application Engine
 
+// Batched lucide icon creation: all calls within the same animation frame
+// collapse into a single createIcons() DOM traversal instead of 16.
+let _lucideRafPending = false;
 const safeCreateLucideIcons = () => {
-  try {
-    if (typeof window !== 'undefined' && window.lucide && typeof window.lucide.createIcons === 'function') {
-      window.lucide.createIcons();
-    }
-  } catch (e) {}
+  if (_lucideRafPending) return;
+  _lucideRafPending = true;
+  requestAnimationFrame(() => {
+    _lucideRafPending = false;
+    try {
+      if (typeof window !== 'undefined' && window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    } catch (e) {}
+  });
 };
 
 const generateId = () => {
@@ -25,9 +33,12 @@ const fetchLiveExchangeRate = async () => {
     if (res.ok) {
       const data = await res.json();
       if (data && data.rates && data.rates.IDR) {
-        liveExchangeRateUSDToIDR = data.rates.IDR;
-        console.log('Live Exchange Rate updated: 1 USD =', liveExchangeRateUSDToIDR, 'IDR');
-        if (typeof render === 'function') render();
+        const newRate = data.rates.IDR;
+        if (newRate !== liveExchangeRateUSDToIDR) {
+          liveExchangeRateUSDToIDR = newRate;
+          console.log('Live Exchange Rate updated: 1 USD =', liveExchangeRateUSDToIDR, 'IDR');
+          if (typeof render === 'function') render();
+        }
       }
     }
   } catch (e) {
@@ -61,22 +72,18 @@ const getItemDisplaySaved = (item, targetCurrency = state.currency) => {
   return convertCurrency(srcSaved, srcCurrency, targetCurrency);
 };
 
+// Cached formatters — Intl.NumberFormat is expensive to instantiate.
+// Reusing module-level instances eliminates per-call allocation overhead.
+const _fmtIDR = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const _fmtUSDInt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const _fmtUSDDec = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const formatCurrencyValue = (amount, currencyCode = state.currency) => {
   const num = Number(amount) || 0;
   if (currencyCode === 'USD') {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: num % 1 === 0 ? 0 : 2
-    }).format(num);
+    return (num % 1 === 0 ? _fmtUSDInt : _fmtUSDDec).format(num);
   }
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(num);
+  return _fmtIDR.format(num);
 };
 
 const formatItemPrice = (item) => {
@@ -325,7 +332,18 @@ const fetchProductMetadata = async (url) => {
   return null;
 };
 
+// Compression cache: avoids re-running canvas draw for the same image on each sync.
+// Key = first 200 chars of dataUrl + params; automatically cleared when user switches accounts.
+const _imgCompressCache = new Map();
+const clearImgCompressCache = () => _imgCompressCache.clear();
+
 const compressBase64ImageAsync = (dataUrl, maxDim = 480, quality = 0.70) => {
+  // Cache lookup — use a lightweight key to avoid storing huge strings
+  const cacheKey = `${dataUrl.slice(0, 200)}|${maxDim}|${quality}`;
+  if (_imgCompressCache.has(cacheKey)) {
+    return Promise.resolve(_imgCompressCache.get(cacheKey));
+  }
+
   return new Promise((resolve) => {
     if (!dataUrl || typeof dataUrl !== 'string') {
       resolve(null);
@@ -360,6 +378,7 @@ const compressBase64ImageAsync = (dataUrl, maxDim = 480, quality = 0.70) => {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
         const compressed = canvas.toDataURL('image/jpeg', quality);
+        _imgCompressCache.set(cacheKey, compressed);
         resolve(compressed);
       };
       img.onerror = () => resolve(dataUrl);
@@ -1551,6 +1570,7 @@ const logoutUser = async () => {
     } catch (e) {}
   }
 
+  clearImgCompressCache();
   setAuthToken(null);
   setActiveSession(null);
   state.currentUser = null;
@@ -2693,7 +2713,8 @@ const renderNotesView = () => {
 const render = () => {
   renderNotesView();
   updateUserProfileUI();
-  safeCreateLucideIcons();
+  // safeCreateLucideIcons is already scheduled by renderNotesView & updateUserProfileUI;
+  // rAF batching collapses all calls within the frame into one DOM traversal.
 };
 
 let currentImageData = null;
@@ -3156,16 +3177,18 @@ const initEventHandlers = () => {
   }
 
   // Cross-device live sync: auto-pull on tab focus & visibility change
-  window.addEventListener('focus', () => {
-    if (state.currentUser && !state.currentUser.isGuest) {
+  // Cooldown: only sync if 30+ seconds have passed since the last auto-sync
+  let lastAutoSyncAt = 0;
+  const SYNC_COOLDOWN_MS = 30_000;
+  const maybeSyncOnFocus = () => {
+    if (state.currentUser && !state.currentUser.isGuest && Date.now() - lastAutoSyncAt > SYNC_COOLDOWN_MS) {
+      lastAutoSyncAt = Date.now();
       syncDataFromBackend();
     }
-  });
-
+  };
+  window.addEventListener('focus', maybeSyncOnFocus);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.currentUser && !state.currentUser.isGuest) {
-      syncDataFromBackend();
-    }
+    if (!document.hidden) maybeSyncOnFocus();
   });
 
   if (logoutBtn) {
