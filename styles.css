@@ -1433,7 +1433,7 @@ input, button, select, textarea {
   top: calc(100% + 4px);
   right: 0;
   left: auto;
-  min-width: 108px;
+  min-width: 124px;
   background: #FFFFFF;
   border: 1px solid #E4E4E7;
   border-radius: 8px;
@@ -1449,7 +1449,7 @@ input, button, select, textarea {
   background: transparent;
   border: none;
   border-radius: 6px;
-  padding: 0 9px;
+  padding: 0 8px;
   font-size: 11.5px;
   font-weight: 500;
   font-family: var(--font-sans);
@@ -1457,7 +1457,7 @@ input, button, select, textarea {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   text-align: left;
   transition: all 120ms ease;
 }
@@ -1471,6 +1471,14 @@ input, button, select, textarea {
   background: #F4F4F5;
   color: #18181B;
   font-weight: 600;
+}
+
+.notes-sort-dropdown .sort-menu-item .sort-menu-item-icon {
+  width: 12px;
+  height: 12px;
+  color: #18181B;
+  flex-shrink: 0;
+  transition: opacity 120ms ease;
 }
 
 .btn-clean-action {

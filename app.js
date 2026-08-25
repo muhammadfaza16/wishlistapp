@@ -325,7 +325,21 @@ const updateSortUI = () => {
 
   document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
     const itemSort = el.getAttribute('data-sort');
-    el.classList.toggle('active', itemSort === sort);
+    const isActive = itemSort === sort;
+    el.classList.toggle('active', isActive);
+
+    const iconEl = el.querySelector('.sort-menu-item-icon');
+    if (iconEl) {
+      if (isActive) {
+        const iconName = getSortIcon(state.sortBy, state.sortOrder);
+        iconEl.setAttribute('data-lucide', iconName);
+        iconEl.style.opacity = '1';
+        iconEl.style.visibility = 'visible';
+      } else {
+        iconEl.style.opacity = '0';
+        iconEl.style.visibility = 'hidden';
+      }
+    }
   });
 
   const sortLabel = document.getElementById('notes-sort-label');
