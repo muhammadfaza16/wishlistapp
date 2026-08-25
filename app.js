@@ -1031,9 +1031,11 @@ const openQuickNoteModal = (itemId = null) => {
     const item = state.items.find(i => i.id === itemId);
     if (!item) return;
     if (titleEl) titleEl.textContent = 'Edit Item';
+    if (titleInput) titleInput.value = item.title || '';
+    if (priceInput) priceInput.value = (item.price !== undefined && item.price !== null && item.price !== 0) ? item.price : (item.price === 0 ? '0' : '');
     const currentGroup = item.group || '';
     if (groupInput) groupInput.value = currentGroup;
-    populateModalGroupPills(currentGroup);
+    populateModalGroupPills(currentGroup, false);
     if (linkInput) linkInput.value = item.link || '';
 
     setModalPriority(item.priority || 2);
@@ -1050,17 +1052,6 @@ const openQuickNoteModal = (itemId = null) => {
       if (previewImg) {
         previewImg.src = currentUploadedImage;
         previewImg.style.objectPosition = `${currentImagePan.x}% ${currentImagePan.y}%`;
-        const fitText = document.getElementById('quick-note-img-fit-text');
-        const dragHint = document.getElementById('quick-note-edit-drag-hint');
-        if (currentImageFit === 'contain') {
-          previewImg.classList.add('fit-contain');
-          if (fitText) fitText.textContent = 'Contain';
-          if (dragHint) dragHint.classList.add('hidden');
-        } else {
-          previewImg.classList.remove('fit-contain');
-          if (fitText) fitText.textContent = 'Cover';
-          if (dragHint) dragHint.classList.remove('hidden');
-        }
       }
       if (previewBox) previewBox.classList.remove('hidden');
       if (uploadArea) uploadArea.classList.add('hidden');
@@ -1073,12 +1064,10 @@ const openQuickNoteModal = (itemId = null) => {
     if (titleInput) titleInput.value = '';
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
-    populateModalGroupPills('');
+    populateModalGroupPills('', false);
     if (linkInput) linkInput.value = '';
     const checkedInput = document.getElementById('quick-note-checked-input');
     if (checkedInput) checkedInput.checked = false;
-    if (deleteBtn) deleteBtn.classList.add('hidden');
-    if (ungroupBtn) ungroupBtn.classList.add('hidden');
     if (previewBox) previewBox.classList.add('hidden');
     if (uploadArea) uploadArea.classList.remove('hidden');
     setModalPriority(2);
