@@ -1018,30 +1018,79 @@ const openPreviewModal = (itemId) => {
   const modal = document.getElementById('quick-note-preview-modal');
   const nameEl = document.getElementById('quick-note-preview-name');
   const priceEl = document.getElementById('quick-note-preview-price');
+  const statusPill = document.getElementById('quick-note-preview-status-pill');
+  const topBadge = document.getElementById('quick-note-preview-top-badge');
   const groupEl = document.getElementById('quick-note-preview-group');
   const priorityEl = document.getElementById('quick-note-preview-priority');
   const linkRow = document.getElementById('quick-note-preview-link-row');
   const linkVal = document.getElementById('quick-note-preview-link-val');
+  const visitBtn = document.getElementById('quick-note-preview-visit-btn');
   const imgBox = document.getElementById('quick-note-preview-image-container');
   const modalImg = document.getElementById('quick-note-preview-modal-img');
 
   if (!modal) return;
 
+  const isChecked = item.checked === true || item.checked === 1;
+
+  // 1. Top Badge
+  if (topBadge) {
+    topBadge.innerHTML = isChecked
+      ? `<i data-lucide="check-check"></i><span>Acquired Item</span>`
+      : `<i data-lucide="sparkles"></i><span>Wishlist Item</span>`;
+  }
+
+  // 2. Title & Price
   if (nameEl) nameEl.textContent = item.title || 'Untitled';
   if (priceEl) priceEl.textContent = formatPrice(item.price, item.currency || state.currency);
-  if (groupEl) groupEl.textContent = item.group || 'General (None)';
+
+  // 3. Status Pill
+  if (statusPill) {
+    statusPill.innerHTML = isChecked
+      ? `<span class="status-pill-badge is-acquired"><i data-lucide="check"></i> Acquired</span>`
+      : `<span class="status-pill-badge is-target"><i data-lucide="clock"></i> In Wishlist</span>`;
+  }
+
+  // 4. Group & Icon
+  if (groupEl) {
+    const gName = item.group ? item.group.trim() : 'General';
+    const gIcon = getGroupIcon(gName);
+    groupEl.innerHTML = `<span class="preview-tag-pill"><i data-lucide="${gIcon}"></i><span>${escapeHtml(gName)}</span></span>`;
+  }
+
+  // 5. Priority Badge
   if (priorityEl) {
     const p = Number(item.priority) || 2;
-    priorityEl.textContent = p === 1 ? 'P1 — High Priority' : (p === 3 ? 'P3 — Low Priority' : 'P2 — Medium Priority');
+    if (p === 1) {
+      priorityEl.innerHTML = `<span class="preview-priority-tag p1"><span class="priority-dot-indicator dot-p1"></span>High (P1)</span>`;
+    } else if (p === 3) {
+      priorityEl.innerHTML = `<span class="preview-priority-tag p3"><span class="priority-dot-indicator dot-p3"></span>Low (P3)</span>`;
+    } else {
+      priorityEl.innerHTML = `<span class="preview-priority-tag p2"><span class="priority-dot-indicator dot-p2"></span>Medium (P2)</span>`;
+    }
   }
 
-  if (item.link) {
+  // 6. Link & Store Button
+  if (item.link && item.link.trim().length > 0) {
+    let domain = 'Store Link';
+    try {
+      const parsed = new URL(item.link);
+      domain = parsed.hostname.replace(/^www\./, '');
+    } catch (e) {}
+
     if (linkRow) linkRow.classList.remove('hidden');
-    if (linkVal) linkVal.innerHTML = `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.link)}</a>`;
+    if (linkVal) {
+      linkVal.innerHTML = `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="preview-link-pill"><i data-lucide="external-link"></i><span>${escapeHtml(domain)}</span></a>`;
+    }
+    if (visitBtn) {
+      visitBtn.href = item.link;
+      visitBtn.classList.remove('hidden');
+    }
   } else {
     if (linkRow) linkRow.classList.add('hidden');
+    if (visitBtn) visitBtn.classList.add('hidden');
   }
 
+  // 7. Image & Panning
   const src = getImageSrc(item);
   const pan = getImagePan(item);
   const fit = getImageFit(item);

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=335">
+  <link rel="stylesheet" href="styles.css?v=336">
 </head>
 <body>
   <div id="app">
@@ -260,14 +260,17 @@
       <div class="modal-sheet-handle mobile-only"></div>
       
       <div class="preview-modal-top">
-        <span class="preview-type-tag">Quick Note</span>
+        <div id="quick-note-preview-top-badge" class="preview-type-tag">
+          <i data-lucide="sparkles"></i>
+          <span>Wishlist Item</span>
+        </div>
         <button type="button" class="modal-close quick-note-preview-close" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
 
       <div class="preview-modal-body">
-        <div id="quick-note-preview-image-container" class="preview-hero-img-box hidden" style="margin-bottom: 14px;">
+        <div id="quick-note-preview-image-container" class="preview-hero-img-box hidden">
           <div class="pannable-image-wrapper can-pan" id="quick-note-preview-pan-wrapper">
             <img id="quick-note-preview-modal-img" alt="Item Photo" class="pannable-img" draggable="false">
             <div class="img-controls-bar">
@@ -282,33 +285,49 @@
             </div>
             <div class="img-drag-indicator" id="quick-note-preview-drag-hint">
               <i data-lucide="move"></i>
-              <span>Drag to pan</span>
+              <span>Drag to reposition</span>
             </div>
           </div>
         </div>
-        <h3 id="quick-note-preview-name" class="preview-title"></h3>
-        <div id="quick-note-preview-price" class="preview-price"></div>
+
+        <div class="preview-header-meta">
+          <h3 id="quick-note-preview-name" class="preview-title"></h3>
+          <div class="preview-price-status-wrap">
+            <div id="quick-note-preview-price" class="preview-price"></div>
+            <div id="quick-note-preview-status-pill" class="preview-status-pill"></div>
+          </div>
+        </div>
 
         <div class="preview-details-list">
           <div class="preview-detail-row">
-            <span class="preview-detail-label">Group</span>
+            <span class="preview-detail-label">
+              <i data-lucide="folder"></i> Group
+            </span>
             <div id="quick-note-preview-group" class="preview-detail-value"></div>
           </div>
           <div class="preview-detail-row">
-            <span class="preview-detail-label">Priority</span>
+            <span class="preview-detail-label">
+              <i data-lucide="flag"></i> Priority
+            </span>
             <div id="quick-note-preview-priority" class="preview-detail-value"></div>
           </div>
           <div class="preview-detail-row" id="quick-note-preview-link-row">
-            <span class="preview-detail-label">Link</span>
+            <span class="preview-detail-label">
+              <i data-lucide="link-2"></i> Source Link
+            </span>
             <div id="quick-note-preview-link-val" class="preview-detail-value"></div>
           </div>
         </div>
 
         <div class="preview-modal-actions">
-          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" style="width: 100%;" title="Edit this item">
-            <i data-lucide="edit-2"></i>
+          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
+            <i data-lucide="edit-3"></i>
             <span>Edit Item</span>
           </button>
+          <a id="quick-note-preview-visit-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-preview-secondary hidden" title="Open Store Page">
+            <i data-lucide="external-link"></i>
+            <span>Open Link</span>
+          </a>
         </div>
       </div>
     </div>
@@ -502,6 +521,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=335" defer></script>
+  <script src="app.js?v=336" defer></script>
 </body>
 </html>
