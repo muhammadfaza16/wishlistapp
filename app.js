@@ -296,10 +296,11 @@ const renderItemsList = () => {
     const isCollapsed = state.collapsedGroups.has(groupName);
     const totalGroupPrice = groupItems.reduce((acc, i) => acc + (Number(i.price) || 0), 0);
     const isEditMode = state.viewMode === 'edit';
+    const groupAction = isEditMode ? 'rename-group' : 'toggle-group';
 
     html += `
       <div class="reader-group-block ${isCollapsed ? 'collapsed' : ''}" data-group="${escapeHtml(groupName)}">
-        <div class="reader-group-header" data-action="toggle-group" data-group="${escapeHtml(groupName)}" style="cursor: pointer;">
+        <div class="reader-group-header" data-action="${groupAction}" data-group="${escapeHtml(groupName)}" style="cursor: pointer;">
           <div class="group-header-left">
             <i data-lucide="chevron-down" class="group-chevron-icon"></i>
             <i data-lucide="folder" class="group-folder-icon"></i>
@@ -697,8 +698,13 @@ const openGroupModal = (presetGroup = '') => {
   const modal = document.getElementById('group-modal');
   const groupInput = document.getElementById('group-name-input');
   const presetContainer = document.getElementById('group-modal-presets');
+  const modalTitle = document.getElementById('group-modal-title');
 
   if (!modal) return;
+  state.activeRenamingGroup = presetGroup || null;
+  if (modalTitle) {
+    modalTitle.textContent = presetGroup ? 'Rename Group' : 'Group Items';
+  }
   if (groupInput) groupInput.value = presetGroup;
 
   if (presetContainer) {
@@ -715,6 +721,7 @@ const openGroupModal = (presetGroup = '') => {
 const closeGroupModal = () => {
   const modal = document.getElementById('group-modal');
   if (modal) modal.classList.add('hidden');
+  state.activeRenamingGroup = null;
 };
 
 const openConfirmModal = (message, onConfirm) => {
@@ -1085,10 +1092,31 @@ const initEventHandlers = () => {
   });
 
   // Group Form Submit
-  document.getElementById('group-form')?.addEventListener('submit', (e) => {
+  document.getElementById('group-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const groupName = document.getElementById('group-name-input')?.value.trim();
     if (!groupName) return;
+
+    if (state.activeRenamingGroup) {
+      const oldGroup = state.activeRenamingGroup;
+      state.items.forEach(i => {
+        if (i.group === oldGroup) i.group = groupName;
+      });
+      state.activeRenamingGroup = null;
+      render();
+      closeGroupModal();
+      try {
+        await api.bulkOperation({
+          action: 'rename_group',
+          oldGroup,
+          newGroup: groupName
+        });
+        showToast(`Group renamed to "${groupName}"`);
+      } catch (err) {
+        showToast('Failed to rename group');
+      }
+      return;
+    }
 
     if (state.isSelectMode && state.selectedIds.size > 0) {
       state.items.forEach(i => {
