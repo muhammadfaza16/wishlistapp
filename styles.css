@@ -94,10 +94,12 @@ input, button, select, textarea {
   color: inherit;
 }
 
-/* Monospace Utilities */
-.mono-text, .mono-badge, .stat-value, .card-price, .row-price, .progress-text {
+/* Monospace & Price Typography Utilities */
+.mono-text, .mono-badge, .stat-value, .card-price, .row-price, .progress-text, .quick-note-price, .reader-grouped-price, .preview-price, .group-header-total {
   font-family: var(--font-mono);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
 }
 
 .mono-badge {
@@ -1897,11 +1899,12 @@ input, button, select, textarea {
 
 .reader-group-header .group-header-total {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #334155;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
   text-align: right;
 }
 
@@ -1965,11 +1968,12 @@ input, button, select, textarea {
 
 .reader-grouped-price {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 550;
-  color: #475569;
-  letter-spacing: -0.015em;
+  color: #334155;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
   text-align: right;
   flex-shrink: 0;
 }
@@ -2189,11 +2193,13 @@ input, button, select, textarea {
 
 .preview-price {
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: #09090B;
-  letter-spacing: -0.025em;
+  color: #0F172A;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
 }
 
 .preview-status-tag {
@@ -2937,14 +2943,13 @@ textarea#raw-notepad-input:focus {
 }
 
 .stat-card .stat-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
   color: #64748B;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 550;
+  letter-spacing: -0.01em;
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2952,7 +2957,7 @@ textarea#raw-notepad-input:focus {
 
 .stat-card .stat-value {
   font-family: var(--font-mono);
-  font-size: clamp(14px, 1.8vw, 18px);
+  font-size: clamp(14.5px, 1.85vw, 18.5px);
   font-weight: 650;
   color: #0F172A;
   display: block;
@@ -2960,8 +2965,9 @@ textarea#raw-notepad-input:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
 }
 
 /* Master Progress Bar */
@@ -3606,14 +3612,16 @@ input#search-input:focus {
   font-size: 12.5px;
   font-weight: 600;
   color: #FFFFFF;
-  background: #09090B;
-  border: 1px solid #09090B;
-  padding: 3px 9px;
+  background: #0F172A;
+  border: 1px solid #0F172A;
+  padding: 2.5px 8.5px;
   border-radius: 6px;
   letter-spacing: -0.02em;
   margin: 0;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(9, 9, 11, 0.18);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
 }
 
 .card-title .title-text {

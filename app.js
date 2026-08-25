@@ -211,7 +211,7 @@ const formatPrice = (amount, currency = 'IDR') => {
   if (currency === 'USD') {
     return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
-  return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+  return 'Rp\u00A0' + Math.round(num).toLocaleString('id-ID');
 };
 
 let _lucideRaf = false;
