@@ -1706,11 +1706,10 @@ input, button, select, textarea {
 
 .group-header-title {
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 600;
   color: #09090B;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2000,11 +1999,10 @@ input, button, select, textarea {
 
 .reader-standalone-header .standalone-header-title {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #64748B;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: -0.01em;
 }
 
 .reader-standalone-row {
@@ -2567,69 +2565,91 @@ input, button, select, textarea {
   right: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   z-index: 10;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.pannable-image-wrapper:hover .img-controls-bar,
+.pannable-image-wrapper:focus-within .img-controls-bar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .img-action-pill {
-  height: 25px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  height: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  padding: 0 8px;
+  padding: 0 7px;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: all 150ms ease;
+  gap: 3.5px;
+  transition: all 140ms ease;
   user-select: none;
 }
 
 .img-action-pill:hover {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(15, 23, 42, 0.85);
+  color: #FFFFFF;
   border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px);
 }
 
 .img-action-pill.img-remove-pill:hover {
-  background: rgba(220, 38, 38, 0.9);
-  border-color: rgba(220, 38, 38, 0.9);
+  background: rgba(225, 29, 72, 0.85);
+  border-color: rgba(225, 29, 72, 0.85);
 }
 
 .img-action-pill svg,
 .img-action-pill i {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
 }
 
 .img-drag-indicator {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  color: #FFFFFF;
-  font-size: 10.5px;
-  font-weight: 500;
-  padding: 3px 7px;
-  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 450;
+  padding: 2.5px 6.5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3.5px;
   pointer-events: none;
-  transition: opacity 300ms ease;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 180ms ease, transform 180ms ease;
   z-index: 5;
+}
+
+.pannable-image-wrapper:hover .img-drag-indicator {
+  opacity: 0.85;
+  transform: translateY(0);
 }
 
 .img-drag-indicator svg,
 .img-drag-indicator i {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
 }
 
 .option-card-icon {
@@ -3610,16 +3630,15 @@ input#search-input:focus {
 }
 
 .card-tags-row .tag-pill {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 550;
   padding: 2px 7px;
   border-radius: 5px;
-  background: #F4F4F6;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  color: #3F3F46;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  color: #475569;
+  letter-spacing: -0.01em;
 }
 
 .card-footer-link {
@@ -3765,16 +3784,15 @@ input#search-input:focus {
 }
 
 .card-tags .tag-pill, .row-tags .tag-pill {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 550;
   padding: 2px 7px;
   border-radius: 4px;
   background: var(--bg-hover);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: -0.01em;
   cursor: default;
   line-height: 1.3;
 }
