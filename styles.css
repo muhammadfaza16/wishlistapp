@@ -1459,24 +1459,26 @@ input, button, select, textarea {
   top: calc(100% + 4px);
   right: 0;
   left: auto;
-  min-width: 124px;
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
   background: #FFFFFF;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 7px;
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
-  padding: 4px;
+  padding: 3px;
   z-index: 600;
   animation: modalSlideIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .notes-sort-dropdown .sort-menu-item {
   width: 100%;
-  height: 28px;
+  height: 25px;
   background: transparent;
   border: none;
-  border-radius: 6px;
-  padding: 0 8px;
-  font-size: 11.5px;
+  border-radius: 5px;
+  padding: 0 6px;
+  font-size: 11px;
   font-weight: 500;
   font-family: var(--font-sans);
   color: var(--text-secondary);
@@ -1500,8 +1502,8 @@ input, button, select, textarea {
 }
 
 .notes-sort-dropdown .sort-menu-item .sort-menu-item-icon {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   color: var(--text-primary);
   flex-shrink: 0;
   transition: opacity 120ms ease;
@@ -1810,11 +1812,11 @@ input, button, select, textarea {
 
 .reader-group-header .group-header-title {
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  font-weight: 650;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.045em;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  text-transform: capitalize;
+  letter-spacing: -0.01em;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -2059,11 +2061,11 @@ input, button, select, textarea {
 
 .reader-standalone-header .standalone-header-title {
   font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 650;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #64748B;
-  text-transform: uppercase;
-  letter-spacing: 0.045em;
+  text-transform: capitalize;
+  letter-spacing: -0.01em;
 }
 
 .reader-standalone-row {
@@ -3748,12 +3750,14 @@ textarea#raw-notepad-input:focus {
   top: calc(100% + 6px);
   right: 0;
   left: auto;
-  width: 210px;
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
+  border-radius: var(--radius, 7px);
   box-shadow: var(--shadow-lg);
-  padding: 6px;
+  padding: 3px;
   z-index: 500;
   animation: modalSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
