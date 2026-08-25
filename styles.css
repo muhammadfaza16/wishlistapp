@@ -1777,16 +1777,16 @@ input, button, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 13px;
-  background: #F8FAFC;
-  border-bottom: 1px solid var(--border-light);
+  padding: 8px 12px;
+  background: #0F172A;
+  border-bottom: 1px solid #1E293B;
   cursor: pointer;
   user-select: none;
   transition: background 150ms ease;
 }
 
 .reader-group-header:hover {
-  background: #F1F5F9;
+  background: #1E293B;
 }
 
 .reader-group-header .group-header-left {
@@ -1798,36 +1798,33 @@ input, button, select, textarea {
 .reader-group-header .group-folder-icon {
   width: 13.5px;
   height: 13.5px;
-  color: #64748B;
+  color: #94A3B8;
   stroke-width: 2.2;
   display: inline-block;
 }
 
 .reader-group-header .group-header-title {
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 650;
-  color: #475569;
+  color: #F8FAFC;
   text-transform: uppercase;
-  letter-spacing: 0.045em;
+  letter-spacing: 0.05em;
   transition: color 150ms ease;
 }
 
-.reader-group-header:hover .group-header-title {
-  color: #0F172A;
-}
-
+.reader-group-header:hover .group-header-title,
 .reader-group-header.editable-group-header:hover .group-header-title {
-  color: #0F172A;
+  color: #FFFFFF;
 }
 
 .reader-group-header .group-badge-pill {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  color: #64748B;
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  color: #CBD5E1;
+  background: #1E293B;
+  border: 1px solid #334155;
   border-radius: 9999px;
   padding: 1px 6.5px;
 }
@@ -1866,22 +1863,22 @@ input, button, select, textarea {
   border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
-  color: #64748B;
+  color: #94A3B8;
   cursor: pointer;
   padding: 0;
   transition: all 150ms ease;
 }
 
 .group-action-btn:hover {
-  background: #FFFFFF;
-  border-color: #E2E8F0;
-  color: #0F172A;
+  background: #1E293B;
+  border-color: #334155;
+  color: #FFFFFF;
 }
 
 .group-action-btn.group-action-delete:hover {
-  background: #FFE4E6;
-  border-color: #FECDD3;
-  color: #E11D48;
+  background: #3B0712;
+  border-color: #E11D48;
+  color: #FDA4AF;
 }
 
 .group-action-btn svg,
@@ -1904,11 +1901,11 @@ input, button, select, textarea {
 }
 
 .group-chevron-btn:hover {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .group-chevron-btn:hover .group-chevron-icon {
-  color: #0F172A;
+  color: #FFFFFF;
 }
 
 .group-chevron-icon {
@@ -1924,13 +1921,18 @@ input, button, select, textarea {
 
 .reader-group-header .group-header-total {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: #CBD5E1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
   text-align: right;
+}
+
+.reader-group-header .group-header-total .currency-prefix {
+  color: #94A3B8;
+  opacity: 0.85;
 }
 
 .reader-group-items {
@@ -1993,9 +1995,9 @@ input, button, select, textarea {
 
 .reader-grouped-price {
   font-family: var(--font-mono);
-  font-size: 13.5px;
-  font-weight: 650;
-  color: #0F172A;
+  font-size: 13px;
+  font-weight: 550;
+  color: #64748B;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
@@ -2021,18 +2023,20 @@ input, button, select, textarea {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 12px 6px 12px;
-  margin-top: 6px;
-  border-bottom: 1px solid #E2E8F0;
+  padding: 8px 12px;
+  margin-top: 10px;
+  background: #0F172A;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #1E293B;
 }
 
 .reader-standalone-header .standalone-header-title {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 650;
-  color: #64748B;
+  color: #F8FAFC;
   text-transform: uppercase;
-  letter-spacing: 0.045em;
+  letter-spacing: 0.05em;
 }
 
 .reader-standalone-row {
