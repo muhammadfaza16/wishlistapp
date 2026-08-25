@@ -812,7 +812,8 @@ const loadScopedData = () => {
           imageData: i.imageData || null,
           imageUrl: i.imageUrl || '',
           priority: Number(i.priority) || 2,
-          createdAt: i.createdAt || new Date().toISOString()
+          createdAt: i.createdAt || new Date().toISOString(),
+          updatedAt: i.updatedAt || i.createdAt || new Date().toISOString()
         }));
       } else {
         state.notesItems = fallbackNotes;
@@ -979,7 +980,36 @@ const syncDataToBackend = async () => {
       })
     );
 
+    // Serialize catalog items (state.items) for cloud sync
+    const cleanCatalogItems = await Promise.all(
+      (state.items || []).map(async item => {
+        let finalImg = item.imageData || null;
+        if (finalImg && finalImg.startsWith('data:image/') && finalImg.length > 40000) {
+          finalImg = await compressBase64ImageAsync(finalImg, 400, 0.65);
+        }
+        return {
+          id: String(item.id),
+          name: String(item.name || 'Untitled Wish'),
+          brand: item.brand || '',
+          currency: item.currency || state.currency || 'IDR',
+          originalPrice: Number(item.originalPrice) || 0,
+          originalSaved: Number(item.originalSaved) || 0,
+          price: Number(item.price) || 0,
+          saved: Number(item.saved) || 0,
+          imageUrl: item.imageUrl || '',
+          imageData: finalImg,
+          link: item.link || '',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          priority: Number(item.priority) || 1,
+          achieved: !!item.achieved,
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+        };
+      })
+    );
+
     const deletedArr = Array.from(state.deletedNoteIds || []);
+
 
     // 1. If public.wishlist_items PostgreSQL table exists, sync rows directly to table
     let tableUpsertOk = false;
@@ -1021,6 +1051,7 @@ const syncDataToBackend = async () => {
     const { data: updateRes, error } = await sb.auth.updateUser({
       data: {
         wishlist_items: cleanItems,
+        catalog_items: cleanCatalogItems,
         deleted_item_ids: deletedArr,
         raw_notepad: state.rawNotepadText || "",
         preferences: {
@@ -1035,11 +1066,13 @@ const syncDataToBackend = async () => {
     let metadataOk = !error;
     if (error) {
       console.warn('Supabase updateUser error:', error.message);
-      // Fallback lightweight retry
+      // Fallback lightweight retry — strip images to reduce payload size
       const lightweightItems = cleanItems.map(({ imageData, ...rest }) => rest);
+      const lightweightCatalog = cleanCatalogItems.map(({ imageData, ...rest }) => rest);
       const { error: retryErr } = await sb.auth.updateUser({
         data: {
           wishlist_items: lightweightItems,
+          catalog_items: lightweightCatalog,
           deleted_item_ids: deletedArr,
           raw_notepad: state.rawNotepadText || ""
         }
@@ -1052,9 +1085,10 @@ const syncDataToBackend = async () => {
       }
     }
 
-    // Also update locally cached copy
+    // Update locally cached copies
     const userId = state.currentUser.id;
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+    safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
 
     // Report success only when at least one cloud write path succeeded
     if (!tableUpsertOk && !metadataOk) {
@@ -1151,6 +1185,49 @@ const syncDataFromBackend = async (showFeedback = false) => {
 
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
 
+    // Restore catalog items (state.items) from cloud metadata
+    if (Array.isArray(metadata.catalog_items) && metadata.catalog_items.length > 0) {
+      const cloudCatalog = metadata.catalog_items;
+      const localCatalog = (state.items || []).filter(item =>
+        item && !['item-1', 'item-2', 'item-3'].includes(item.id)
+      );
+
+      // LWW merge for catalog items
+      const catalogMap = new Map();
+      cloudCatalog.forEach(item => {
+        if (!item || !item.id || state.deletedNoteIds.has(String(item.id))) return;
+        catalogMap.set(String(item.id), {
+          ...item,
+          id: String(item.id),
+          updatedAt: item.updatedAt || item.createdAt || new Date(0).toISOString()
+        });
+      });
+      localCatalog.forEach(localItem => {
+        if (!localItem || !localItem.id || state.deletedNoteIds.has(String(localItem.id))) return;
+        const id = String(localItem.id);
+        if (!catalogMap.has(id)) {
+          catalogMap.set(id, {
+            ...localItem,
+            id,
+            updatedAt: localItem.updatedAt || localItem.createdAt || new Date().toISOString()
+          });
+        } else {
+          const cloudItem = catalogMap.get(id);
+          const localTime = new Date(localItem.updatedAt || localItem.createdAt || 0).getTime();
+          const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+          if (localTime >= cloudTime) {
+            catalogMap.set(id, { ...localItem, id });
+          }
+        }
+      });
+
+      state.items = Array.from(catalogMap.values());
+      safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+    } else if ((state.items || []).length > 0) {
+      // Local has catalog items but cloud doesn't yet — push them up
+      safeSetLocalStorage(`wishlist_u_${userId}_items`, JSON.stringify(state.items));
+    }
+
     if (typeof metadata.raw_notepad === 'string') {
       state.rawNotepadText = metadata.raw_notepad;
       safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
@@ -1169,9 +1246,10 @@ const syncDataFromBackend = async (showFeedback = false) => {
     updateCurrencyUI();
     updateUserProfileUI();
 
-    const count = (state.notesItems || []).length;
+    const wishCount = (state.notesItems || []).length;
+    const catalogCount = (state.items || []).length;
     if (showFeedback) {
-      showToast(`Cloud synced: ${count} items loaded!`);
+      showToast(`Cloud synced: ${wishCount} wishlist + ${catalogCount} catalog items loaded!`);
     }
     return true;
   } catch (err) {
@@ -4072,6 +4150,9 @@ const initEventHandlers = () => {
   if (deleteConfirmBtn) {
     deleteConfirmBtn.addEventListener('click', () => {
       if (state.deleteId) {
+        // Track deletion so cloud sync removes the row from Supabase
+        if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
+        state.deletedNoteIds.add(String(state.deleteId));
         state.items = state.items.filter(item => item.id !== state.deleteId);
         saveItems();
         render();
