@@ -4223,10 +4223,11 @@ input#search-input:focus {
 }
 
 .modal-header h2 {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: #0F172A;
 }
 
 .modal-close,
@@ -4234,16 +4235,16 @@ input#search-input:focus {
 .close-btn {
   background: transparent;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  color: #71717A;
+  color: #64748B;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 150ms ease;
+  transition: all 140ms ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -4251,8 +4252,8 @@ input#search-input:focus {
 .modal-close:hover,
 .auth-modal-close:hover,
 .close-btn:hover {
-  color: #18181B;
-  background: #F4F4F6;
+  color: #0F172A;
+  background: #F1F5F9;
 }
 
 .modal-close:active,
@@ -4264,27 +4265,26 @@ input#search-input:focus {
 .modal-close svg,
 .auth-modal-close svg,
 .close-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .modal form, .modal-body {
-  padding: 20px 28px 28px;
+  padding: 18px 24px 24px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  color: #475569;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
 }
 
 /* Priority Options Selector */
