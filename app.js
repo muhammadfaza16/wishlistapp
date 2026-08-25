@@ -260,7 +260,7 @@ const renderItemsList = () => {
     container.innerHTML = `
       <div id="empty-state">
         <div class="empty-icon-badge">
-          <i data-lucide="sparkles"></i>
+          <i data-lucide="inbox"></i>
         </div>
         <h2>No wishlist items yet</h2>
         <p>Start tracking your aspirations, gear, and wishlist items by clicking Add below.</p>
