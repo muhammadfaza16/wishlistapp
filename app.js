@@ -772,9 +772,10 @@ const setActiveSession = (session) => {
 };
 
 const defaultNotesItems = [
-  { id: 'note-1', title: 'Keychron Q1 Max Keyboard', price: 3200000, currency: 'IDR', checked: false, group: 'Desk Setup Gear', priority: 1, createdAt: '2026-08-01T10:00:00.000Z' },
-  { id: 'note-2', title: 'BenQ Monitor Light Bar', price: 650000, currency: 'IDR', checked: true, group: 'Desk Setup Gear', priority: 2, createdAt: '2026-08-05T14:00:00.000Z' },
-  { id: 'note-3', title: 'Ergonomic Mesh Chair', price: 4500000, currency: 'IDR', checked: false, group: null, priority: 1, createdAt: '2026-08-10T09:00:00.000Z' }
+  { id: 'note-1', title: 'Keychron Q1 Max Wireless Keyboard', price: 3450000, currency: 'IDR', checked: false, group: 'Workspace & Setup', priority: 1, createdAt: '2026-08-01T10:00:00.000Z' },
+  { id: 'note-2', title: 'BenQ ScreenBar Halo Monitor Light', price: 2450000, currency: 'IDR', checked: true, group: 'Workspace & Setup', priority: 2, createdAt: '2026-08-05T14:00:00.000Z' },
+  { id: 'note-3', title: 'Sony WH-1000XM5 Headphones', price: 4999000, currency: 'IDR', checked: false, group: 'Audio & Music', priority: 1, createdAt: '2026-08-10T09:00:00.000Z' },
+  { id: 'note-4', title: 'Ergonomic Mesh Chair Herman Miller', price: 14500000, currency: 'IDR', checked: false, group: 'Workspace & Setup', priority: 3, createdAt: '2026-08-15T11:00:00.000Z' }
 ];
 
 const defaultItems = [
