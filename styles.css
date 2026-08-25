@@ -1468,8 +1468,8 @@ input, button, select, textarea {
 }
 
 .notes-sort-dropdown .sort-menu-item.active {
-  background: #18181B;
-  color: #FFFFFF;
+  background: #F4F4F5;
+  color: #18181B;
   font-weight: 600;
 }
 
