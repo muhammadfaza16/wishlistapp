@@ -975,6 +975,26 @@ const makePannable = (wrapperId, imgId, getPan, onPanChange) => {
   window.addEventListener('touchcancel', onPointerUp);
 };
 
+const populateModalGroupPills = (selectedGroup = '') => {
+  const container = document.getElementById('quick-note-group-pills-list');
+  if (!container) return;
+
+  const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
+  const otherPresets = CATEGORY_PRESETS.filter(p => !existingGroups.includes(p));
+  const allGroups = [...existingGroups, ...otherPresets.slice(0, 5)];
+
+  if (allGroups.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const currentVal = (selectedGroup || '').trim().toLowerCase();
+  container.innerHTML = allGroups.map(g => {
+    const isActive = g.toLowerCase() === currentVal;
+    return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`;
+  }).join('');
+};
+
 const openQuickNoteModal = (itemId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
@@ -1498,27 +1518,7 @@ const initEventHandlers = () => {
     });
   });
 
-  // Group Input & Pills Tray Logic
-  const populateModalGroupPills = (selectedGroup = '') => {
-    const container = document.getElementById('quick-note-group-pills-list');
-    if (!container) return;
-
-    const existingGroups = Array.from(new Set(state.items.map(i => i.group).filter(Boolean)));
-    const otherPresets = CATEGORY_PRESETS.filter(p => !existingGroups.includes(p));
-    const allGroups = [...existingGroups, ...otherPresets.slice(0, 5)];
-
-    if (allGroups.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
-
-    const currentVal = (selectedGroup || '').trim().toLowerCase();
-    container.innerHTML = allGroups.map(g => {
-      const isActive = g.toLowerCase() === currentVal;
-      return `<button type="button" class="group-pill-opt ${isActive ? 'active' : ''}" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`;
-    }).join('');
-  };
-
+  // Group Input & Pills Tray Interaction
   const groupInput = document.getElementById('quick-note-group-input');
   groupInput?.addEventListener('input', (e) => {
     populateModalGroupPills(e.target.value);
