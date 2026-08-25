@@ -982,6 +982,7 @@ const syncDataToBackend = async () => {
     const deletedArr = Array.from(state.deletedNoteIds || []);
 
     // 1. If public.wishlist_items PostgreSQL table exists, sync rows directly to table
+    let tableUpsertOk = false;
     try {
       const tableRows = cleanItems.map(item => ({
         id: String(item.id),
@@ -1000,7 +1001,13 @@ const syncDataToBackend = async () => {
 
       if (tableRows.length > 0) {
         const { error: upsertErr } = await sb.from('wishlist_items').upsert(tableRows);
-        if (upsertErr) console.warn('Supabase table upsert note:', upsertErr.message);
+        if (upsertErr) {
+          console.warn('Supabase table upsert note:', upsertErr.message);
+        } else {
+          tableUpsertOk = true;
+        }
+      } else {
+        tableUpsertOk = true; // nothing to upsert is fine
       }
 
       if (deletedArr.length > 0) {
@@ -1025,6 +1032,7 @@ const syncDataToBackend = async () => {
       }
     });
 
+    let metadataOk = !error;
     if (error) {
       console.warn('Supabase updateUser error:', error.message);
       // Fallback lightweight retry
@@ -1038,12 +1046,20 @@ const syncDataToBackend = async () => {
       });
       if (retryErr) {
         console.warn('Supabase fallback retry error:', retryErr.message);
+        metadataOk = false;
+      } else {
+        metadataOk = true;
       }
     }
 
     // Also update locally cached copy
     const userId = state.currentUser.id;
     safeSetLocalStorage(`wishlist_u_${userId}_notes`, JSON.stringify(state.notesItems));
+
+    // Report success only when at least one cloud write path succeeded
+    if (!tableUpsertOk && !metadataOk) {
+      return { success: false, error: 'Cloud write failed on all paths. Check your connection.' };
+    }
     return { success: true };
   } catch (err) {
     console.warn('Cloud sync error:', err.message);
@@ -2919,6 +2935,10 @@ const initEventHandlers = () => {
         return;
       }
 
+      // Stamp all imported items with the current time as updatedAt.
+      // This ensures they always win Last-Write-Wins on any remote device
+      // that already has older copies of the same items from a previous sync.
+      const importTimestamp = new Date().toISOString();
       const processedItems = await Promise.all(
         incomingItems.map(async (item, idx) => {
           const rawImg = item.imageData || item.imageUrl || null;
@@ -2933,8 +2953,8 @@ const initEventHandlers = () => {
             checked: !!(item.checked || item.achieved),
             link: item.link || null,
             imageData: cleanImg,
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString()
+            createdAt: item.createdAt || importTimestamp,
+            updatedAt: importTimestamp  // always use now so remote LWW picks up the import
           };
         })
       );
