@@ -2120,3 +2120,46 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// --- DEV AUTO-DETECT LIVE RELOAD ---
+(() => {
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(location.hostname) || location.port === '3000';
+  if (!isLocal || typeof EventSource === 'undefined') return;
+
+  let es = null;
+  let reconnectTimer = null;
+
+  function connect() {
+    es = new EventSource('/api/dev/live-reload');
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'css-reload') {
+          const links = document.querySelectorAll('link[rel="stylesheet"]');
+          links.forEach(link => {
+            if (link.href && link.href.includes('styles.css')) {
+              const url = new URL(link.href);
+              url.searchParams.set('t', Date.now());
+              link.href = url.toString();
+            }
+          });
+        } else if (data.type === 'reload') {
+          location.reload();
+        }
+      } catch (e) {}
+    };
+
+    es.onerror = () => {
+      es.close();
+      if (!reconnectTimer) {
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          connect();
+        }, 1000);
+      }
+    };
+  }
+
+  connect();
+})();

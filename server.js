@@ -525,10 +525,56 @@ const scrapeProduct = async (rawUrl) => {
   };
 };
 
+// --- DEV LIVE RELOAD WATCHER ---
+const liveReloadClients = new Set();
+
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  const watchFiles = ['index.html', 'styles.css', 'app.js'];
+  let reloadTimer = null;
+
+  watchFiles.forEach(file => {
+    const filePath = path.join(__dirname, file);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.watch(filePath, () => {
+          if (reloadTimer) clearTimeout(reloadTimer);
+          reloadTimer = setTimeout(() => {
+            const isCss = file.endsWith('.css');
+            const data = JSON.stringify({ type: isCss ? 'css-reload' : 'reload', file, timestamp: Date.now() });
+            for (const clientRes of liveReloadClients) {
+              try {
+                clientRes.write(`data: ${data}\n\n`);
+              } catch (e) {
+                liveReloadClients.delete(clientRes);
+              }
+            }
+          }, 80);
+        });
+      } catch (err) {}
+    }
+  });
+}
+
 // HTTP Request Handler
 const handler = async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let reqPath = parsedUrl.pathname;
+
+  // Live Reload SSE Endpoint (Local Dev)
+  if (reqPath === '/api/dev/live-reload') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.write('data: {"type":"connected"}\n\n');
+    liveReloadClients.add(res);
+    req.on('close', () => {
+      liveReloadClients.delete(res);
+    });
+    return;
+  }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
