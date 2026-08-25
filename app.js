@@ -223,13 +223,6 @@ const renderGroupedItemRow = (item) => {
 
       <div class="quick-note-right">
         <span class="reader-grouped-price" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
-        ${isEditMode ? `
-          <div class="quick-note-actions">
-            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
-              <i data-lucide="trash-2"></i>
-            </button>
-          </div>
-        ` : ''}
       </div>
     </div>
   `;
@@ -254,13 +247,6 @@ const renderStandaloneItemRow = (item) => {
 
       <div class="quick-note-right">
         <span class="quick-note-price" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
-        ${isEditMode ? `
-          <div class="quick-note-actions">
-            <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
-              <i data-lucide="trash-2"></i>
-            </button>
-          </div>
-        ` : ''}
       </div>
     </div>
   `;
