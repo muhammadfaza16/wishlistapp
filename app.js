@@ -173,7 +173,7 @@ const renderSummaryBar = () => {
   const totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
 
   const totalEl = document.getElementById('notes-total-value');
-  const countEl = document.getElementById('notes-items-count-value');
+  const countEl = document.getElementById('notes-items-count');
   const dropdownCountEl = document.getElementById('dropdown-notes-count');
 
   if (totalEl) totalEl.textContent = formatPrice(totalEst, state.currency);

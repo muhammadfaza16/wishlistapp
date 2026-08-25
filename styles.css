@@ -782,10 +782,14 @@ input, button, select, textarea {
 
 /* Notes View Layout */
 .notes-summary-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.notes-progress-container {
+  margin-bottom: 24px;
 }
 
 /* Clean Sub-Tabs Navigation */
@@ -1913,12 +1917,10 @@ input, button, select, textarea {
 }
 
 .reader-grouped-bullet {
-  font-size: 14px;
+  font-size: 13px;
   color: #A1A1AA;
   line-height: 1;
   flex-shrink: 0;
-  margin-right: 4px;
-  user-select: none;
 }
 
 .reader-grouped-title {
@@ -4831,58 +4833,6 @@ input#item-tags {
     display: flex;
     flex-direction: column;
     gap: 12px;
-  }
-
-  /* Ultra-Clean Mobile Wishlist Rows */
-  .clean-notes-card {
-    padding: 12px 10px;
-    border-radius: 14px;
-  }
-
-  .reader-group-block {
-    margin-top: 10px;
-    border-radius: 10px;
-  }
-
-  .reader-group-header {
-    padding: 9px 10px;
-  }
-
-  .reader-group-items {
-    padding: 0 10px;
-  }
-
-  .reader-grouped-row, .reader-standalone-row {
-    padding: 10px 4px;
-    gap: 8px;
-  }
-
-  .reader-grouped-title, .quick-note-title {
-    font-size: 13.5px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-
-  .reader-grouped-price, .quick-note-price {
-    font-size: 12.5px;
-    font-weight: 600;
-    padding-left: 6px;
-  }
-
-  .notes-summary-bar {
-    gap: 6px;
-  }
-
-  .stat-card {
-    padding: 10px 12px;
-  }
-
-  .stat-card .stat-label {
-    font-size: 9.5px;
-  }
-
-  .stat-card .stat-value {
-    font-size: 14px;
   }
 }
 

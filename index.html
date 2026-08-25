@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=305">
+  <link rel="stylesheet" href="styles.css?v=306">
 </head>
 <body>
   <div id="app">
@@ -86,20 +86,24 @@
     <!-- Main Item List View (Quick Notes) -->
     <div id="notes-view">
       <div class="notes-summary-bar">
-        <div class="stat-card" style="flex: 1;">
+        <div class="stat-card">
           <span class="stat-label">TOTAL ESTIMATED</span>
           <span class="stat-value" id="notes-total-value">Rp 0</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">TOTAL ITEMS</span>
-          <span class="stat-value" id="notes-items-count-value">0</span>
+          <span class="stat-value" id="notes-items-count">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">STATUS</span>
+          <span class="stat-value" id="notes-status-value">Active</span>
         </div>
       </div>
 
       <div class="clean-notes-card">
         <div class="notes-card-header">
           <div class="notes-header-left">
-            <span class="notes-card-title" id="notes-view-title">Wishlist</span>
+            <span class="notes-card-title" id="notes-view-title">Wishlist Notes</span>
             <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Back to view">
               <i data-lucide="arrow-left"></i>
               <span>Back</span>
@@ -107,7 +111,7 @@
           </div>
           <div class="notes-header-controls">
             <div class="notes-header-actions" id="notes-view-actions">
-              <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit wishlist">
+              <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit items">
                 <i data-lucide="edit-3"></i>
                 <span>Edit</span>
               </button>
@@ -118,7 +122,7 @@
                 <i data-lucide="check-square"></i>
                 <span>Select</span>
               </button>
-              <button type="button" id="main-add-note-btn" class="btn-clean-action-primary" title="Add Item">
+              <button type="button" id="main-add-note-btn" class="btn-clean-action-primary" title="Add Note Item">
                 <i data-lucide="plus"></i>
                 <span>Add</span>
               </button>
@@ -417,6 +421,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=305" defer></script>
+  <script src="app.js?v=306" defer></script>
 </body>
 </html>
