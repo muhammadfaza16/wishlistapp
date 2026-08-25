@@ -836,161 +836,19 @@ const defaultItems = [
 ];
 
 const loadScopedData = () => {
-  const userId = state.currentUser ? state.currentUser.id : 'guest';
-
-  const scopedItemsKey = `wishlist_u_${userId}_items`;
-  const scopedNotesKey = `wishlist_u_${userId}_notes`;
-  const scopedNotepadKey = `wishlist_u_${userId}_notepad`;
-  const scopedPrefsKey = `wishlist_u_${userId}_state`;
-
-  let storedItems = null;
-  let storedNotes = null;
-  let storedNotepad = null;
-  let storedPrefs = null;
-
-  try {
-    storedItems = localStorage.getItem(scopedItemsKey);
-    storedNotes = localStorage.getItem(scopedNotesKey);
-    storedNotepad = localStorage.getItem(scopedNotepadKey);
-    storedPrefs = localStorage.getItem(scopedPrefsKey);
-
-    // ONLY migrate legacy keys if current user is guest
-    if (userId === 'guest') {
-      if (storedItems === null && localStorage.getItem('wishlist_items') !== null) {
-        storedItems = localStorage.getItem('wishlist_items');
-        safeSetLocalStorage(scopedItemsKey, storedItems);
-        try { localStorage.removeItem('wishlist_items'); } catch (e) {}
-      }
-      if (storedNotes === null && localStorage.getItem('wishlist_notes_items') !== null) {
-        storedNotes = localStorage.getItem('wishlist_notes_items');
-        safeSetLocalStorage(scopedNotesKey, storedNotes);
-        try { localStorage.removeItem('wishlist_notes_items'); } catch (e) {}
-      }
-      if (storedNotepad === null && localStorage.getItem('wishlist_raw_notepad') !== null) {
-        storedNotepad = localStorage.getItem('wishlist_raw_notepad');
-        safeSetLocalStorage(scopedNotepadKey, storedNotepad);
-        try { localStorage.removeItem('wishlist_raw_notepad'); } catch (e) {}
-      }
-      if (storedPrefs === null && localStorage.getItem('wishlist_state') !== null) {
-        storedPrefs = localStorage.getItem('wishlist_state');
-        safeSetLocalStorage(scopedPrefsKey, storedPrefs);
-        try { localStorage.removeItem('wishlist_state'); } catch (e) {}
-      }
-    }
-  } catch (e) {
-    console.warn('localStorage read error:', e);
+  const isGuest = !state.currentUser || state.currentUser.isGuest;
+  if (!Array.isArray(state.notesItems) || state.notesItems.length === 0) {
+    state.notesItems = isGuest ? defaultNotesItems : [];
   }
-
-  // Items Sanitization
-  // If storedItems is null: guest gets defaultItems, registered user gets []
-  const fallbackItems = userId === 'guest' ? defaultItems : [];
-  if (storedItems !== null) {
-    try {
-      const parsed = JSON.parse(storedItems);
-      const list = Array.isArray(parsed) ? parsed : fallbackItems;
-      state.items = list.map(item => {
-        if (!item || typeof item !== 'object') return null;
-        let tags = [];
-        if (Array.isArray(item.tags)) {
-          tags = item.tags.filter(t => typeof t === 'string' && t.trim());
-        } else if (typeof item.tags === 'string' && item.tags) {
-          tags = item.tags.split(',').map(t => t.trim()).filter(Boolean);
-        }
-        return {
-          id: item.id || generateId(),
-          name: item.name || 'Untitled Wish',
-          brand: item.brand || '',
-          currency: item.currency || 'IDR',
-          originalPrice: Number(item.originalPrice) || Number(item.price) || 0,
-          originalSaved: Number(item.originalSaved) || Number(item.saved) || 0,
-          price: Number(item.price) || 0,
-          saved: Number(item.saved) || 0,
-          imageUrl: item.imageUrl || '',
-          imageData: item.imageData || null,
-          link: item.link || '',
-          tags: tags,
-          priority: Number(item.priority) || 1,
-          achieved: !!item.achieved,
-          createdAt: item.createdAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || new Date().toISOString()
-        };
-      }).filter(Boolean);
-    } catch {
-      state.items = fallbackItems;
-    }
-  } else {
-    state.items = fallbackItems;
+  if (!Array.isArray(state.items) || state.items.length === 0) {
+    state.items = isGuest ? defaultItems : [];
   }
-
-  // Notes Sanitization
-  // If storedNotes is null: guest gets defaultNotesItems, registered user gets []
-  const fallbackNotes = userId === 'guest' ? defaultNotesItems : [];
-  if (storedNotes !== null) {
-    try {
-      const raw = JSON.parse(storedNotes);
-      const groupMap = {};
-      if (Array.isArray(raw)) {
-        raw.filter(i => i && i.isGroup).forEach(g => { groupMap[g.id] = g.title; });
-        state.notesItems = raw.filter(i => i && !i.isGroup).map(i => ({
-          id: i.id || generateId(),
-          title: i.title || 'Untitled Note',
-          price: Number(i.price) || 0,
-          currency: i.currency || state.currency,
-          checked: !!i.checked,
-          group: (typeof i.group === 'string' && i.group.trim()) ? i.group.trim() : (i.parentId && groupMap[i.parentId]) || null,
-          link: i.link || '',
-          imageData: i.imageData || null,
-          imageUrl: i.imageUrl || '',
-          priority: Number(i.priority) || 2,
-          createdAt: i.createdAt || new Date().toISOString(),
-          updatedAt: i.updatedAt || i.createdAt || new Date().toISOString()
-        }));
-      } else {
-        state.notesItems = fallbackNotes;
-      }
-    } catch (e) {
-      state.notesItems = fallbackNotes;
-    }
-  } else {
-    state.notesItems = fallbackNotes;
+  if (typeof state.rawNotepadText !== 'string') {
+    state.rawNotepadText = "";
   }
-
-  // Raw Notepad
-  const fallbackNotepad = userId === 'guest' ? "Keychron Keyboard - 3200000\nMonitor Light Bar - 650000 [x]\nErgonomic Chair - 4500000" : "";
-  state.rawNotepadText = storedNotepad !== null ? storedNotepad : fallbackNotepad;
-
-  // Preferences
-  if (storedPrefs) {
-    try {
-      const prefs = JSON.parse(storedPrefs);
-      if (prefs && typeof prefs === 'object') {
-        state.view = prefs.view || 'grid';
-        state.sort = prefs.sort || 'priority';
-        state.currency = prefs.currency || 'IDR';
-        state.activeTab = prefs.activeTab || 'notes';
-        state.notesMode = prefs.notesMode || 'list';
-        state.notesViewMode = prefs.notesViewMode || 'view';
-        state.notesSortBy = prefs.notesSortBy || null;
-      }
-    } catch (e) {}
-  }
-
-  // Deleted IDs Sanitization
-  const storedDeleted = safeGetLocalStorage(`wishlist_u_${userId}_deleted_ids`);
-  if (storedDeleted) {
-    try {
-      const parsed = JSON.parse(storedDeleted);
-      if (Array.isArray(parsed)) {
-        state.deletedNoteIds = new Set(parsed.map(String));
-      }
-    } catch (e) {
-      state.deletedNoteIds = new Set();
-    }
-  } else {
+  if (!(state.deletedNoteIds instanceof Set)) {
     state.deletedNoteIds = new Set();
   }
-
-  // Guarantee runtime state data structures
   if (!(state.selectedNoteIds instanceof Set)) state.selectedNoteIds = new Set();
   if (!(state.collapsedGroups instanceof Set)) state.collapsedGroups = new Set();
   if (!(state.deletedNoteIds instanceof Set)) state.deletedNoteIds = new Set();
@@ -1224,10 +1082,6 @@ const syncDataToBackend = async () => {
       } catch (localApiErr) {}
     }
 
-    // Update locally cached copies
-    safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
-    safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
-
     setSyncStatusUI(pushSuccess ? 'synced' : 'synced');
     return { success: true };
   } catch (err) {
@@ -1378,11 +1232,6 @@ const syncDataFromBackend = async (showFeedback = false) => {
     if (fetchedPreferences.notesSortBy) state.notesSortBy = fetchedPreferences.notesSortBy;
   }
 
-  // Save to local storage cache
-  safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
-  safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
-  safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
-
   // Render UI
   render();
   renderNotesView();
@@ -1399,37 +1248,17 @@ const syncDataFromBackend = async (showFeedback = false) => {
   return pullSuccess;
 };
 
-const saveDeletedIds = () => {
-  const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_deleted_ids`, JSON.stringify(Array.from(state.deletedNoteIds || [])));
-};
+const saveDeletedIds = () => {};
 
 const saveItems = (immediate = true) => {
-  const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_items`, state.items);
-  saveDeletedIds();
   triggerSyncToBackend(immediate);
 };
 
 const saveNotes = (immediate = true) => {
-  const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_notes`, state.notesItems);
-  safeSetLocalStorage(`wishlist_u_${userId}_notepad`, state.rawNotepadText);
-  saveDeletedIds();
   triggerSyncToBackend(immediate);
 };
 
 const savePreferences = (immediate = true) => {
-  const userId = state.currentUser ? state.currentUser.id : 'guest';
-  safeSetLocalStorage(`wishlist_u_${userId}_state`, JSON.stringify({
-    view: state.view,
-    sort: state.sort,
-    currency: state.currency,
-    activeTab: state.activeTab,
-    notesMode: state.notesMode,
-    notesViewMode: state.notesViewMode || 'view',
-    notesSortBy: state.notesSortBy || null
-  }));
   triggerSyncToBackend(immediate);
 };
 
@@ -1586,8 +1415,6 @@ const registerUser = async (name, emailOrUsername, password) => {
 
   state.notesItems = initialItems;
   state.rawNotepadText = initialNotepad;
-  safeSetLocalStorage(`wishlist_u_${sessionUser.id}_notes`, initialItems);
-  safeSetLocalStorage(`wishlist_u_${sessionUser.id}_notepad`, initialNotepad);
 
   // Push initial items up to Supabase and SQLite
   await syncDataToBackend();
