@@ -109,12 +109,12 @@ input, button, select, textarea {
 .currency-prefix {
   font-size: 0.82em;
   font-weight: 450;
-  color: var(--text-tertiary);
+  color: #64748B;
   margin-right: 0.5px;
   vertical-align: baseline;
   letter-spacing: -0.01em;
   user-select: none;
-  opacity: 0.72;
+  opacity: 0.85;
 }
 
 .reader-grouped-row.checked .currency-prefix,
@@ -1262,9 +1262,9 @@ input, button, select, textarea {
 
 .quick-note-price {
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
-  color: #52525B;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
   background: transparent;
   border: none;
   padding: 0;
@@ -1995,9 +1995,9 @@ input, button, select, textarea {
 
 .reader-grouped-price {
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 550;
-  color: #64748B;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' on, 'zero' on, 'cv02' on, 'cv03' on, 'cv04' on;
@@ -2079,10 +2079,10 @@ input, button, select, textarea {
   box-shadow: none !important;
   padding: 0 !important;
   font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 550;
-  color: #475569;
-  letter-spacing: -0.015em;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   text-align: right;
   flex-shrink: 0;
