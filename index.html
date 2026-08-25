@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=343">
+  <link rel="stylesheet" href="styles.css?v=344">
 </head>
 <body>
   <div id="app">
@@ -335,11 +335,14 @@
         </button>
       </div>
       <form id="quick-note-form">
-        <div class="form-group">
-          <label for="quick-note-title-input" id="quick-note-title-label">Item Name</label>
-          <input type="text" id="quick-note-title-input" placeholder="e.g. Mechanical Keyboard" required autocomplete="off">
+        <!-- 1. Item Name -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="quick-note-title-input">Item Name</label>
+          <input type="text" id="quick-note-title-input" placeholder="What do you want to wish for?" required autocomplete="off">
         </div>
-        <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
+
+        <!-- 2. Price & Group (2-Column Row) -->
+        <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 12px;">
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
             <label for="quick-note-price-input">Price</label>
             <input type="number" id="quick-note-price-input" class="mono-input" placeholder="0" min="0" step="any" autocomplete="off">
@@ -347,83 +350,66 @@
           <div class="form-group" style="flex: 1; margin-bottom: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
               <label for="quick-note-group-input" style="margin-bottom: 0;">Group <span class="optional">(optional)</span></label>
-              <button type="button" id="quick-note-ungroup-btn" class="btn-text-subtle hidden" style="font-size: 11.5px; color: #DC2626; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline;">Remove from group</button>
+              <button type="button" id="quick-note-ungroup-btn" class="btn-text-subtle hidden" style="font-size: 11px; color: #DC2626; background: none; border: none; cursor: pointer; padding: 0;">Ungroup</button>
             </div>
-            <input type="text" id="quick-note-group-input" placeholder="e.g. Desk Setup" autocomplete="off" list="group-options-list">
+            <input type="text" id="quick-note-group-input" placeholder="e.g. Workspace" autocomplete="off" list="group-options-list">
           </div>
         </div>
-        <div class="form-group" style="margin-bottom: 16px;">
+
+        <!-- 3. Product Link & Auto-fill -->
+        <div class="form-group" style="margin-bottom: 12px;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-            <label for="quick-note-link-input" style="margin-bottom: 0;">Link / URL <span class="optional">(optional)</span></label>
-            <button type="button" id="quick-note-fetch-link-btn" class="btn-text-subtle" style="font-size: 11.5px; color: #18181B; background: #F4F4F5; border: 1px solid #E4E4E7; border-radius: 6px; cursor: pointer; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; transition: all 120ms ease;" title="Auto-detect product title, price & photo">
-              <i data-lucide="link" style="width: 11px; height: 11px;"></i>
-              <span id="quick-note-fetch-text">Auto-fill Details</span>
+            <label for="quick-note-link-input" style="margin-bottom: 0;">Product Link <span class="optional">(optional)</span></label>
+            <button type="button" id="quick-note-fetch-link-btn" class="btn-clean-action" style="height: 22px; font-size: 11px; padding: 0 7px; gap: 3px;" title="Auto-detect product details">
+              <i data-lucide="sparkles" style="width: 11px; height: 11px;"></i>
+              <span id="quick-note-fetch-text">Auto-fill</span>
             </button>
           </div>
-          <input type="text" id="quick-note-link-input" placeholder="e.g. Tokopedia, Shopee, Amazon, or website link..." autocomplete="off">
+          <input type="text" id="quick-note-link-input" placeholder="Paste Shopee, Tokopedia, or web URL..." autocomplete="off">
           <div id="quick-note-link-warning" class="input-warning-hint hidden"></div>
         </div>
-        <div class="form-group" style="margin-bottom: 16px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <label style="margin-bottom: 0;">Photo <span class="optional">(optional)</span></label>
-            <button type="button" id="quick-note-paste-btn" class="btn-paste-chip" title="Paste photo from clipboard">
-              <i data-lucide="clipboard" style="width: 12px; height: 12px;"></i>
-              <span>Paste Photo</span>
-            </button>
-          </div>
-          <div class="quick-note-upload-box" id="quick-note-upload-area">
-            <i data-lucide="image-plus" style="width: 18px; height: 18px; color: #71717A;"></i>
-            <span>Upload photo or tap to browse</span>
-            <input type="file" id="quick-note-image-upload" accept="image/*" style="display: none;">
-          </div>
-          <div id="quick-note-image-preview" class="quick-note-img-preview-card hidden">
-            <div class="pannable-image-wrapper can-pan" id="quick-note-edit-pan-wrapper">
-              <img id="quick-note-preview-img" alt="Preview" class="pannable-img" draggable="false">
-              <div class="img-controls-bar">
-                <button type="button" id="quick-note-img-fit-btn" class="img-action-pill" title="Toggle Fit Mode (Cover / Contain)">
-                  <i data-lucide="crop"></i>
-                  <span id="quick-note-img-fit-text">Cover</span>
-                </button>
-                <button type="button" id="quick-note-remove-image-btn" class="img-action-pill img-remove-pill" title="Remove photo">
-                  <i data-lucide="trash-2"></i>
-                </button>
+
+        <!-- 4. Photo & Priority (Compact Row) -->
+        <div class="form-row" style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 18px;">
+          <!-- Compact Photo Upload -->
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Photo <span class="optional">(optional)</span></label>
+            <div class="quick-note-compact-media">
+              <div class="compact-upload-box" id="quick-note-upload-area">
+                <i data-lucide="image-plus" style="width: 14px; height: 14px; color: #64748B;"></i>
+                <span>Add Photo</span>
+                <input type="file" id="quick-note-image-upload" accept="image/*" style="display: none;">
               </div>
-              <div class="img-drag-indicator" id="quick-note-edit-drag-hint">
-                <i data-lucide="move"></i>
-                <span>Drag to reposition</span>
+              <div id="quick-note-image-preview" class="compact-img-preview hidden">
+                <img id="quick-note-preview-img" alt="Preview" class="pannable-img" draggable="false">
+                <button type="button" id="quick-note-remove-image-btn" class="compact-img-remove-btn" title="Remove photo">
+                  <i data-lucide="x"></i>
+                </button>
               </div>
             </div>
           </div>
-        </div>
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label>Priority Level</label>
-          <div class="priority-options" id="quick-note-priority-options">
-            <button type="button" class="priority-btn" data-priority="1">
-              <span class="priority-badge">P1</span>
-              <span class="priority-label">High Priority</span>
-            </button>
-            <button type="button" class="priority-btn active" data-priority="2">
-              <span class="priority-badge">P2</span>
-              <span class="priority-label">Medium</span>
-            </button>
-            <button type="button" class="priority-btn" data-priority="3">
-              <span class="priority-badge">P3</span>
-              <span class="priority-label">Low</span>
-            </button>
+
+          <!-- Minimal Priority Segmented Selector -->
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Priority</label>
+            <div class="priority-segmented-switch" id="quick-note-priority-options">
+              <button type="button" class="priority-seg-btn" data-priority="1">P1 High</button>
+              <button type="button" class="priority-seg-btn active" data-priority="2">P2 Med</button>
+              <button type="button" class="priority-seg-btn" data-priority="3">P3 Low</button>
+            </div>
           </div>
         </div>
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="checkbox-inline-label" for="quick-note-checked-input">
-            <input type="checkbox" id="quick-note-checked-input">
-            <span>Mark as Completed / Acquired</span>
-          </label>
-        </div>
+
+        <!-- Hidden checkbox preserved for state/edit logic -->
+        <input type="checkbox" id="quick-note-checked-input" style="display: none;">
+
+        <!-- 5. Form Actions -->
         <div class="form-actions" style="display: flex; gap: 10px; align-items: center;">
-          <button type="button" id="quick-note-delete-btn" class="btn-danger hidden" style="padding: 10px 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+          <button type="button" id="quick-note-delete-btn" class="btn-danger hidden" style="height: 38px; padding: 0 14px; font-size: 12.5px; font-weight: 550; display: inline-flex; align-items: center; gap: 5px; border-radius: 8px;">
+            <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
             <span>Delete</span>
           </button>
-          <button type="submit" id="quick-note-submit-btn" class="btn-primary" style="flex: 1;">
+          <button type="submit" id="quick-note-submit-btn" class="btn-primary" style="flex: 1; height: 38px; font-size: 13px; font-weight: 600; border-radius: 8px;">
             <span>Save Item</span>
           </button>
         </div>
@@ -512,6 +498,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=343" defer></script>
+  <script src="app.js?v=344" defer></script>
 </body>
 </html>

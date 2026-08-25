@@ -1077,7 +1077,7 @@ const closeQuickNoteModal = () => {
 };
 
 const setModalPriority = (priority) => {
-  const btns = document.querySelectorAll('#quick-note-priority-options .priority-btn');
+  const btns = document.querySelectorAll('#quick-note-priority-options button');
   btns.forEach(btn => {
     const p = Number(btn.getAttribute('data-priority'));
     if (p === priority) btn.classList.add('active');
@@ -1494,7 +1494,7 @@ const initEventHandlers = () => {
     const price = parseFloat(document.getElementById('quick-note-price-input')?.value) || 0;
     const group = document.getElementById('quick-note-group-input')?.value.trim() || null;
     const link = document.getElementById('quick-note-link-input')?.value.trim() || null;
-    const activePriorityBtn = document.querySelector('#quick-note-priority-options .priority-btn.active');
+    const activePriorityBtn = document.querySelector('#quick-note-priority-options button.active');
     const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
     const checked = !!document.getElementById('quick-note-checked-input')?.checked;
 
@@ -1512,7 +1512,7 @@ const initEventHandlers = () => {
   });
 
   // Priority Options in Modal
-  document.querySelectorAll('#quick-note-priority-options .priority-btn')?.forEach(btn => {
+  document.querySelectorAll('#quick-note-priority-options button')?.forEach(btn => {
     btn.addEventListener('click', () => {
       setModalPriority(Number(btn.getAttribute('data-priority')));
     });
