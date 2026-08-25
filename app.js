@@ -22,6 +22,7 @@ const state = {
   selectedIds: new Set(),
   collapsedGroups: new Set(),
   sortBy: 'priority', // 'priority' | 'price' | 'title' | 'date'
+  sortOrder: 'asc',   // 'asc' | 'desc'
   currency: 'IDR',
   exchangeRate: 16000,
   activeModalItemId: null,
@@ -274,25 +275,62 @@ const renderSummaryBar = () => {
 
 const sortItems = (items) => {
   const list = [...items];
+  const isAsc = state.sortOrder === 'asc';
+
   list.sort((a, b) => {
     if (state.sortBy === 'priority') {
       const pA = Number(a.priority) || 2;
       const pB = Number(b.priority) || 2;
-      if (pA !== pB) return pA - pB;
+      if (pA !== pB) return isAsc ? pA - pB : pB - pA;
       return (Number(b.price) || 0) - (Number(a.price) || 0);
     }
     if (state.sortBy === 'price') {
-      return (Number(b.price) || 0) - (Number(a.price) || 0);
+      const priceA = Number(a.price) || 0;
+      const priceB = Number(b.price) || 0;
+      return isAsc ? priceA - priceB : priceB - priceA;
     }
     if (state.sortBy === 'title') {
-      return (a.title || '').localeCompare(b.title || '');
+      const titleA = (a.title || '').toLowerCase();
+      const titleB = (b.title || '').toLowerCase();
+      return isAsc ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
     }
     if (state.sortBy === 'date') {
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return isAsc ? dateA - dateB : dateB - dateA;
     }
     return 0;
   });
   return list;
+};
+
+const updateSortUI = () => {
+  const sort = state.sortBy;
+  const isAsc = state.sortOrder === 'asc';
+
+  document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
+    const itemSort = el.getAttribute('data-sort');
+    const isActive = itemSort === sort;
+    el.classList.toggle('active', isActive);
+
+    const iconEl = el.querySelector('.sort-dir-icon');
+    if (iconEl) {
+      if (isActive) {
+        iconEl.setAttribute('data-lucide', isAsc ? 'arrow-up' : 'arrow-down');
+        iconEl.style.opacity = '1';
+      } else {
+        iconEl.setAttribute('data-lucide', (itemSort === 'title' || itemSort === 'priority') ? 'arrow-up' : 'arrow-down');
+        iconEl.style.opacity = '0.25';
+      }
+    }
+  });
+
+  const sortLabel = document.getElementById('notes-sort-label');
+  if (sortLabel) {
+    const nameMap = { priority: 'Priority', price: 'Price', title: 'Title', date: 'Date' };
+    sortLabel.textContent = `${nameMap[sort] || 'Sort'} ${isAsc ? '↑' : '↓'}`;
+  }
+  safeCreateLucideIcons();
 };
 
 const renderGroupedItemRow = (item) => {
@@ -504,6 +542,7 @@ const render = () => {
   updateSelectionBar();
   updateAuthUI();
   updateFloatingBar();
+  updateSortUI();
 };
 
 // ==========================================
@@ -1037,14 +1076,13 @@ const initEventHandlers = () => {
     item.addEventListener('click', (e) => {
       const sort = item.getAttribute('data-sort');
       if (sort) {
-        state.sortBy = sort;
-        document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
-          if (el.getAttribute('data-sort') === sort) el.classList.add('active');
-          else el.classList.remove('active');
-        });
-        const labelSpan = item.querySelector('span');
-        const sortLabel = document.getElementById('notes-sort-label');
-        if (labelSpan && sortLabel) sortLabel.textContent = labelSpan.textContent;
+        if (state.sortBy === sort) {
+          state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sortBy = sort;
+          state.sortOrder = (sort === 'title' || sort === 'priority') ? 'asc' : 'desc';
+        }
+        updateSortUI();
         document.getElementById('notes-sort-menu')?.classList.add('hidden');
         renderItemsList();
       }

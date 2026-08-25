@@ -1466,14 +1466,16 @@ input, button, select, textarea {
   font-weight: 600;
 }
 
+.notes-sort-dropdown .sort-menu-item .sort-dir-icon,
 .notes-sort-dropdown .sort-menu-item .sort-check {
   width: 12px;
   height: 12px;
   color: #18181B;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 120ms ease, transform 150ms ease;
 }
 
+.notes-sort-dropdown .sort-menu-item.active .sort-dir-icon,
 .notes-sort-dropdown .sort-menu-item.active .sort-check {
   opacity: 1;
 }
