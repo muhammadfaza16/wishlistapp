@@ -488,11 +488,22 @@ const updateAuthUI = () => {
   safeCreateLucideIcons();
 };
 
+const updateFloatingBar = () => {
+  const floatingBar = document.getElementById('mobile-floating-bar');
+  if (!floatingBar) return;
+  if (state.viewMode === 'edit') {
+    floatingBar.classList.remove('hidden');
+  } else {
+    floatingBar.classList.add('hidden');
+  }
+};
+
 const render = () => {
   renderSummaryBar();
   renderItemsList();
   updateSelectionBar();
   updateAuthUI();
+  updateFloatingBar();
 };
 
 // ==========================================
