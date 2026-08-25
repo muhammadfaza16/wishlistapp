@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=303">
+  <link rel="stylesheet" href="styles.css?v=304">
 </head>
 <body>
   <div id="app">
@@ -86,68 +86,28 @@
     <!-- Main Item List View (Quick Notes) -->
     <div id="notes-view">
       <div class="notes-summary-bar">
-        <div class="stat-card">
+        <div class="stat-card" style="flex: 1;">
           <span class="stat-label">TOTAL ESTIMATED</span>
           <span class="stat-value" id="notes-total-value">Rp 0</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">CHECKED / ACQUIRED</span>
-          <span class="stat-value" id="notes-checked-value">Rp 0</span>
+          <span class="stat-label">TOTAL ITEMS</span>
+          <span class="stat-value" id="notes-items-count-value">0</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">REMAINING NEEDED</span>
-          <span class="stat-value" id="notes-remaining-value">Rp 0</span>
-        </div>
-      </div>
-
-      <div class="overall-progress notes-progress-container">
-        <div class="progress-bar-container">
-          <div class="progress-bar">
-            <div class="progress-fill" id="notes-progress-fill"></div>
-          </div>
-        </div>
-        <span class="progress-text mono-text" id="notes-progress-text">0%</span>
       </div>
 
       <div class="clean-notes-card">
         <div class="notes-card-header">
           <div class="notes-header-left">
-            <span class="notes-card-title" id="notes-view-title">Wishlist Notes</span>
+            <span class="notes-card-title" id="notes-view-title">Wishlist</span>
             <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Back to view">
               <i data-lucide="arrow-left"></i>
               <span>Back</span>
             </button>
           </div>
           <div class="notes-header-controls">
-            <!-- Sort Dropdown for Quick Notes -->
-            <div class="notes-sort-dropdown" id="notes-sort-dropdown">
-              <button type="button" class="btn-clean-action notes-sort-trigger" id="notes-sort-trigger" title="Sort items">
-                <i data-lucide="arrow-up-down"></i>
-                <span id="notes-sort-label">Sort</span>
-                <i data-lucide="chevron-down" class="sort-chevron"></i>
-              </button>
-              <div class="sort-dropdown-menu hidden" id="notes-sort-menu">
-                <button type="button" class="sort-menu-item" data-sort-category="title" data-sort="title">
-                  <span>Title</span>
-                  <i data-lucide="check" class="sort-check"></i>
-                </button>
-                <button type="button" class="sort-menu-item" data-sort-category="price" data-sort="price">
-                  <span>Price</span>
-                  <i data-lucide="check" class="sort-check"></i>
-                </button>
-                <button type="button" class="sort-menu-item" data-sort-category="date" data-sort="date">
-                  <span>Date</span>
-                  <i data-lucide="check" class="sort-check"></i>
-                </button>
-                <button type="button" class="sort-menu-item" data-sort-category="priority" data-sort="priority">
-                  <span>Priority</span>
-                  <i data-lucide="check" class="sort-check"></i>
-                </button>
-              </div>
-            </div>
-
             <div class="notes-header-actions" id="notes-view-actions">
-              <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit items">
+              <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit wishlist">
                 <i data-lucide="edit-3"></i>
                 <span>Edit</span>
               </button>
@@ -158,7 +118,7 @@
                 <i data-lucide="check-square"></i>
                 <span>Select</span>
               </button>
-              <button type="button" id="main-add-note-btn" class="btn-clean-action-primary" title="Add Note Item">
+              <button type="button" id="main-add-note-btn" class="btn-clean-action-primary" title="Add Item">
                 <i data-lucide="plus"></i>
                 <span>Add</span>
               </button>
@@ -288,11 +248,7 @@
         </div>
 
         <div class="preview-modal-actions">
-          <button type="button" id="quick-note-preview-toggle-check-btn" class="btn-preview-secondary" title="Toggle acquired status">
-            <i data-lucide="check-circle"></i>
-            <span id="preview-toggle-check-text">Mark as Acquired</span>
-          </button>
-          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
+          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" style="width: 100%;" title="Edit this item">
             <i data-lucide="edit-2"></i>
             <span>Edit Item</span>
           </button>
@@ -461,6 +417,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=303" defer></script>
+  <script src="app.js?v=304" defer></script>
 </body>
 </html>

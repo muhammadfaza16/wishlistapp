@@ -170,65 +170,27 @@ const api = {
 // ==========================================
 const renderSummaryBar = () => {
   const items = state.items;
-  let totalEst = 0;
-  let checkedEst = 0;
-
-  items.forEach(item => {
-    const price = Number(item.price) || 0;
-    totalEst += price;
-    if (item.checked) {
-      checkedEst += price;
-    }
-  });
-
-  const remainingEst = Math.max(0, totalEst - checkedEst);
-  const percentage = totalEst > 0 ? Math.round((checkedEst / totalEst) * 100) : 0;
+  const totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
 
   const totalEl = document.getElementById('notes-total-value');
-  const checkedEl = document.getElementById('notes-checked-value');
-  const remainEl = document.getElementById('notes-remaining-value');
-  const fillEl = document.getElementById('notes-progress-fill');
-  const textEl = document.getElementById('notes-progress-text');
-  const countEl = document.getElementById('dropdown-notes-count');
+  const countEl = document.getElementById('notes-items-count-value');
+  const dropdownCountEl = document.getElementById('dropdown-notes-count');
 
   if (totalEl) totalEl.textContent = formatPrice(totalEst, state.currency);
-  if (checkedEl) checkedEl.textContent = formatPrice(checkedEst, state.currency);
-  if (remainEl) remainEl.textContent = formatPrice(remainingEst, state.currency);
-  if (fillEl) fillEl.style.width = `${percentage}%`;
-  if (textEl) textEl.textContent = `${percentage}%`;
   if (countEl) countEl.textContent = items.length;
+  if (dropdownCountEl) dropdownCountEl.textContent = items.length;
 };
 
 const sortItems = (items) => {
-  const list = [...items];
-  list.sort((a, b) => {
-    if (state.sortBy === 'priority') {
-      const pA = Number(a.priority) || 2;
-      const pB = Number(b.priority) || 2;
-      if (pA !== pB) return pA - pB;
-      return (Number(b.price) || 0) - (Number(a.price) || 0);
-    }
-    if (state.sortBy === 'price') {
-      return (Number(b.price) || 0) - (Number(a.price) || 0);
-    }
-    if (state.sortBy === 'title') {
-      return (a.title || '').localeCompare(b.title || '');
-    }
-    if (state.sortBy === 'date') {
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    }
-    return 0;
-  });
-  return list;
+  return [...items];
 };
 
 const renderGroupedItemRow = (item) => {
-  const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
 
   return `
-    <div class="reader-row reader-grouped-row ${isChecked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="reader-row reader-grouped-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
       <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
@@ -257,12 +219,11 @@ const renderGroupedItemRow = (item) => {
 };
 
 const renderStandaloneItemRow = (item) => {
-  const isChecked = !!item.checked;
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
 
   return `
-    <div class="quick-note-row reader-standalone-row ${isChecked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="quick-note-row reader-standalone-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
       <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
@@ -333,7 +294,6 @@ const renderItemsList = () => {
     const sortedGroupItems = sortItems(groupItems);
     const isCollapsed = state.collapsedGroups.has(groupName);
     const totalGroupPrice = groupItems.reduce((acc, i) => acc + (Number(i.price) || 0), 0);
-    const checkedCount = groupItems.filter(i => i.checked).length;
     const isEditMode = state.viewMode === 'edit';
 
     html += `
@@ -343,7 +303,7 @@ const renderItemsList = () => {
             <i data-lucide="chevron-down" class="group-chevron-icon"></i>
             <i data-lucide="folder" class="group-folder-icon"></i>
             <span class="group-header-title">${escapeHtml(groupName)}</span>
-            <span class="group-badge-pill">${checkedCount}/${groupItems.length}</span>
+            <span class="group-badge-pill">${groupItems.length}</span>
           </div>
           <div class="group-header-right">
             <span class="group-header-total">${formatPrice(totalGroupPrice, state.currency)}</span>
@@ -729,21 +689,6 @@ const openPreviewModal = (itemId) => {
     if (imgBox) imgBox.classList.add('hidden');
   }
 
-  // Update Status Toggle Button
-  const toggleBtn = document.getElementById('quick-note-preview-toggle-check-btn');
-  const toggleText = document.getElementById('preview-toggle-check-text');
-  if (toggleBtn && toggleText) {
-    if (item.checked) {
-      toggleText.textContent = 'Mark as Wishlist';
-      toggleBtn.className = 'btn-preview-secondary';
-      toggleBtn.innerHTML = '<i data-lucide="rotate-ccw"></i> <span id="preview-toggle-check-text">Mark as Wishlist</span>';
-    } else {
-      toggleText.textContent = 'Mark as Acquired';
-      toggleBtn.className = 'btn-preview-primary';
-      toggleBtn.innerHTML = '<i data-lucide="check-circle"></i> <span id="preview-toggle-check-text">Mark as Acquired</span>';
-    }
-  }
-
   modal.classList.remove('hidden');
   safeCreateLucideIcons();
 };
@@ -925,28 +870,6 @@ const initEventHandlers = () => {
     document.getElementById('user-profile-dropdown')?.classList.toggle('hidden');
   });
 
-  // Sort Dropdown Trigger & Menu
-  document.getElementById('notes-sort-trigger')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('notes-sort-menu')?.classList.toggle('hidden');
-  });
-
-  document.querySelectorAll('#notes-sort-menu .sort-menu-item')?.forEach(item => {
-    item.addEventListener('click', (e) => {
-      const sort = item.getAttribute('data-sort');
-      if (sort) {
-        state.sortBy = sort;
-        document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
-          if (el.getAttribute('data-sort') === sort) el.classList.add('active');
-          else el.classList.remove('active');
-        });
-        document.getElementById('notes-sort-label').textContent = item.querySelector('span').textContent;
-        document.getElementById('notes-sort-menu')?.classList.add('hidden');
-        renderItemsList();
-      }
-    });
-  });
-
   // Add Item Buttons
   document.getElementById('main-add-note-btn')?.addEventListener('click', () => openQuickNoteModal(null));
   document.getElementById('mobile-add-btn')?.addEventListener('click', () => openQuickNoteModal(null));
@@ -954,17 +877,20 @@ const initEventHandlers = () => {
   // Edit Mode Toggle
   document.getElementById('notes-edit-mode-btn')?.addEventListener('click', () => {
     state.viewMode = 'edit';
+    document.getElementById('notes-view-title')?.classList.add('hidden');
+    document.getElementById('notes-back-to-view-btn')?.classList.remove('hidden');
     document.getElementById('notes-view-actions')?.classList.add('hidden');
     document.getElementById('notes-edit-actions')?.classList.remove('hidden');
-    document.getElementById('notes-back-to-view-btn')?.classList.remove('hidden');
+    render();
   });
 
   document.getElementById('notes-back-to-view-btn')?.addEventListener('click', () => {
     state.viewMode = 'view';
     state.isSelectMode = false;
+    document.getElementById('notes-view-title')?.classList.remove('hidden');
+    document.getElementById('notes-back-to-view-btn')?.classList.add('hidden');
     document.getElementById('notes-view-actions')?.classList.remove('hidden');
     document.getElementById('notes-edit-actions')?.classList.add('hidden');
-    document.getElementById('notes-back-to-view-btn')?.classList.add('hidden');
     render();
   });
 
@@ -1171,15 +1097,6 @@ const initEventHandlers = () => {
       const preset = chip.getAttribute('data-preset');
       const input = document.getElementById('group-name-input');
       if (input) input.value = preset;
-    }
-  });
-
-  // Preview Toggle Acquired Button
-  document.getElementById('quick-note-preview-toggle-check-btn')?.addEventListener('click', async () => {
-    const id = state.activePreviewItemId;
-    if (id) {
-      await toggleItemCheck(id);
-      openPreviewModal(id); // Refresh preview modal state
     }
   });
 
