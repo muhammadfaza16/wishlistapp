@@ -12,7 +12,19 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://rdsueqccskkhjnbbmpjm.s
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_z1xg-Bwxosn3rdzcFqwASw_S9Hr3Vuk';
 
 // Database Setup
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+let DB_PATH;
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  DB_PATH = path.join('/tmp', 'database.sqlite');
+  const sourceDb = path.join(__dirname, 'database.sqlite');
+  if (!fs.existsSync(DB_PATH) && fs.existsSync(sourceDb)) {
+    try {
+      fs.copyFileSync(sourceDb, DB_PATH);
+    } catch (e) {}
+  }
+} else {
+  DB_PATH = path.join(__dirname, 'database.sqlite');
+}
+
 const db = new DatabaseSync(DB_PATH);
 
 // Initialize relational schema
@@ -382,8 +394,8 @@ const scrapeProduct = async (rawUrl) => {
   };
 };
 
-// HTTP Server
-const server = http.createServer({ maxHeaderSize: 65536 }, async (req, res) => {
+// HTTP Request Handler
+const handler = async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let reqPath = parsedUrl.pathname;
 
@@ -747,8 +759,14 @@ const server = http.createServer({ maxHeaderSize: 65536 }, async (req, res) => {
       res.end(content);
     }
   });
-});
+};
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✓ Wishlist Server is running on http://0.0.0.0:${PORT}`);
-});
+// Start standalone HTTP server when not in Vercel serverless environment
+if (!process.env.VERCEL) {
+  const server = http.createServer({ maxHeaderSize: 65536 }, handler);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`✓ Wishlist Server is running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+module.exports = handler;
