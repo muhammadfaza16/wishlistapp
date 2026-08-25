@@ -1510,7 +1510,7 @@ const initEventHandlers = () => {
     const allGroups = Array.from(new Set([...existingGroups, ...CATEGORY_PRESETS]));
 
     let matched = allGroups;
-    if (filterText) {
+    if (filterText && filterText.trim()) {
       const q = filterText.trim().toLowerCase();
       matched = allGroups.filter(g => g.toLowerCase().includes(q));
     }
@@ -1532,7 +1532,8 @@ const initEventHandlers = () => {
     renderGroupPills(groupInput.value);
   });
 
-  groupInput?.addEventListener('click', () => {
+  groupInput?.addEventListener('click', (e) => {
+    e.stopPropagation();
     renderGroupPills(groupInput.value);
   });
 
@@ -1558,7 +1559,7 @@ const initEventHandlers = () => {
   groupPillsList?.addEventListener('click', handlePillSelect);
 
   // Dismiss group suggestions when clicking outside
-  document.addEventListener('pointerdown', (e) => {
+  document.addEventListener('click', (e) => {
     if (!e.target.closest('#quick-note-group-container')) {
       groupPopover?.classList.add('hidden');
     }
