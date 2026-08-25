@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=306">
+  <link rel="stylesheet" href="styles.css?v=307">
 </head>
 <body>
   <div id="app">
@@ -111,6 +111,33 @@
           </div>
           <div class="notes-header-controls">
             <div class="notes-header-actions" id="notes-view-actions">
+              <!-- Sort Dropdown for Quick Notes -->
+              <div class="notes-sort-dropdown" id="notes-sort-dropdown">
+                <button type="button" class="btn-clean-action notes-sort-trigger" id="notes-sort-trigger" title="Sort items">
+                  <i data-lucide="arrow-up-down"></i>
+                  <span id="notes-sort-label">Sort</span>
+                  <i data-lucide="chevron-down" class="sort-chevron"></i>
+                </button>
+                <div class="sort-dropdown-menu hidden" id="notes-sort-menu">
+                  <button type="button" class="sort-menu-item" data-sort="priority">
+                    <span>Priority</span>
+                    <i data-lucide="check" class="sort-check"></i>
+                  </button>
+                  <button type="button" class="sort-menu-item" data-sort="price">
+                    <span>Price</span>
+                    <i data-lucide="check" class="sort-check"></i>
+                  </button>
+                  <button type="button" class="sort-menu-item" data-sort="title">
+                    <span>Title</span>
+                    <i data-lucide="check" class="sort-check"></i>
+                  </button>
+                  <button type="button" class="sort-menu-item" data-sort="date">
+                    <span>Date</span>
+                    <i data-lucide="check" class="sort-check"></i>
+                  </button>
+                </div>
+              </div>
+
               <button type="button" id="notes-edit-mode-btn" class="btn-clean-action" title="Edit items">
                 <i data-lucide="edit-3"></i>
                 <span>Edit</span>
@@ -421,6 +448,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=306" defer></script>
+  <script src="app.js?v=307" defer></script>
 </body>
 </html>

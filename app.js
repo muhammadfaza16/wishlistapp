@@ -182,16 +182,36 @@ const renderSummaryBar = () => {
 };
 
 const sortItems = (items) => {
-  return [...items];
+  const list = [...items];
+  list.sort((a, b) => {
+    if (state.sortBy === 'priority') {
+      const pA = Number(a.priority) || 2;
+      const pB = Number(b.priority) || 2;
+      if (pA !== pB) return pA - pB;
+      return (Number(b.price) || 0) - (Number(a.price) || 0);
+    }
+    if (state.sortBy === 'price') {
+      return (Number(b.price) || 0) - (Number(a.price) || 0);
+    }
+    if (state.sortBy === 'title') {
+      return (a.title || '').localeCompare(b.title || '');
+    }
+    if (state.sortBy === 'date') {
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+    return 0;
+  });
+  return list;
 };
 
 const renderGroupedItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
+  const rowAction = isEditMode ? 'edit' : 'preview';
 
   return `
     <div class="reader-row reader-grouped-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
-      <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
+      <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         ` : `
@@ -202,12 +222,9 @@ const renderGroupedItemRow = (item) => {
       </div>
 
       <div class="quick-note-right">
-        <span class="reader-grouped-price" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
+        <span class="reader-grouped-price" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
         ${isEditMode ? `
           <div class="quick-note-actions">
-            <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
-              <i data-lucide="edit-2"></i>
-            </button>
             <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
               <i data-lucide="trash-2"></i>
             </button>
@@ -221,10 +238,11 @@ const renderGroupedItemRow = (item) => {
 const renderStandaloneItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
+  const rowAction = isEditMode ? 'edit' : 'preview';
 
   return `
     <div class="quick-note-row reader-standalone-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
-      <div class="reader-row-left" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
+      <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         ` : `
@@ -235,12 +253,9 @@ const renderStandaloneItemRow = (item) => {
       </div>
 
       <div class="quick-note-right">
-        <span class="quick-note-price" data-action="preview" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
+        <span class="quick-note-price" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">${formatPrice(item.price, item.currency || state.currency)}</span>
         ${isEditMode ? `
           <div class="quick-note-actions">
-            <button type="button" class="btn-icon-subtle" data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit Item">
-              <i data-lucide="edit-2"></i>
-            </button>
             <button type="button" class="btn-icon-subtle delete-btn" data-action="delete" data-id="${escapeHtml(item.id)}" title="Delete Item">
               <i data-lucide="trash-2"></i>
             </button>
@@ -868,6 +883,30 @@ const initEventHandlers = () => {
   document.getElementById('user-profile-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('user-profile-dropdown')?.classList.toggle('hidden');
+  });
+
+  // Sort Dropdown Trigger & Menu
+  document.getElementById('notes-sort-trigger')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('notes-sort-menu')?.classList.toggle('hidden');
+  });
+
+  document.querySelectorAll('#notes-sort-menu .sort-menu-item')?.forEach(item => {
+    item.addEventListener('click', (e) => {
+      const sort = item.getAttribute('data-sort');
+      if (sort) {
+        state.sortBy = sort;
+        document.querySelectorAll('#notes-sort-menu .sort-menu-item').forEach(el => {
+          if (el.getAttribute('data-sort') === sort) el.classList.add('active');
+          else el.classList.remove('active');
+        });
+        const labelSpan = item.querySelector('span');
+        const sortLabel = document.getElementById('notes-sort-label');
+        if (labelSpan && sortLabel) sortLabel.textContent = labelSpan.textContent;
+        document.getElementById('notes-sort-menu')?.classList.add('hidden');
+        renderItemsList();
+      }
+    });
   });
 
   // Add Item Buttons
