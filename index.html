@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=311">
+  <link rel="stylesheet" href="styles.css?v=313">
 </head>
 <body>
   <div id="app">
@@ -163,6 +163,9 @@
           <div class="notes-selection-actions">
             <button type="button" id="notes-select-all-btn" class="btn-selection-action" title="Select All / Deselect All" aria-label="Select All">
               <i data-lucide="check-check"></i>
+            </button>
+            <button type="button" id="notes-complete-selected-btn" class="btn-selection-action" disabled title="Complete / Incomplete selected" aria-label="Complete selected">
+              <i data-lucide="check-circle-2"></i>
             </button>
             <button type="button" id="notes-group-selected-btn" class="btn-selection-action btn-group-action" disabled title="Group selected items" aria-label="Group selected">
               <i data-lucide="folder-plus"></i>
@@ -364,6 +367,12 @@
             </button>
           </div>
         </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="checkbox-inline-label" for="quick-note-checked-input">
+            <input type="checkbox" id="quick-note-checked-input">
+            <span>Mark as Completed / Acquired</span>
+          </label>
+        </div>
         <div class="form-actions" style="display: flex; gap: 10px; align-items: center;">
           <button type="button" id="quick-note-delete-btn" class="btn-danger hidden" style="padding: 10px 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
             <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
@@ -448,6 +457,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=311" defer></script>
+  <script src="app.js?v=313" defer></script>
 </body>
 </html>

@@ -210,7 +210,7 @@ const renderGroupedItemRow = (item) => {
   const rowAction = isEditMode ? 'edit' : 'preview';
 
   return `
-    <div class="reader-row reader-grouped-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="reader-row reader-grouped-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
       <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
@@ -234,7 +234,7 @@ const renderStandaloneItemRow = (item) => {
   const rowAction = isEditMode ? 'edit' : 'preview';
 
   return `
-    <div class="quick-note-row reader-standalone-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
+    <div class="quick-note-row reader-standalone-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}">
       <div class="reader-row-left" data-action="${rowAction}" data-id="${escapeHtml(item.id)}" style="cursor: pointer;">
         ${state.isSelectMode ? `
           <input type="checkbox" class="quick-note-select-checkbox" data-action="toggle-select" data-id="${escapeHtml(item.id)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
@@ -343,6 +343,7 @@ const renderItemsList = () => {
 const updateSelectionBar = () => {
   const selectionBar = document.getElementById('notes-selection-bar');
   const selectedCountEl = document.getElementById('notes-selected-count');
+  const completeBtn = document.getElementById('notes-complete-selected-btn');
   const groupBtn = document.getElementById('notes-group-selected-btn');
   const ungroupBtn = document.getElementById('notes-ungroup-selected-btn');
   const deleteBtn = document.getElementById('notes-delete-selected-btn');
@@ -353,6 +354,7 @@ const updateSelectionBar = () => {
     selectionBar.classList.remove('hidden');
     const count = state.selectedIds.size;
     if (selectedCountEl) selectedCountEl.textContent = `${count} selected`;
+    if (completeBtn) completeBtn.disabled = count === 0;
     if (groupBtn) groupBtn.disabled = count === 0;
     if (ungroupBtn) ungroupBtn.disabled = count === 0;
     if (deleteBtn) deleteBtn.disabled = count === 0;
@@ -477,6 +479,33 @@ const ungroupSelectedItems = async () => {
   }
 };
 
+const completeSelectedItems = async () => {
+  const ids = Array.from(state.selectedIds);
+  if (ids.length === 0) return;
+
+  const selectedItems = state.items.filter(i => state.selectedIds.has(i.id));
+  const allChecked = selectedItems.every(i => i.checked);
+  const newCheckedState = !allChecked;
+
+  state.items.forEach(i => {
+    if (state.selectedIds.has(i.id)) {
+      i.checked = newCheckedState;
+    }
+  });
+
+  render();
+  showToast(newCheckedState ? `Completed ${ids.length} items` : `Marked ${ids.length} items as active`);
+
+  try {
+    await api.bulkOperation({
+      action: 'save_all',
+      items: state.items
+    });
+  } catch (err) {
+    console.warn('Failed to sync complete state', err);
+  }
+};
+
 const renameGroup = async (oldGroup, newGroup) => {
   const cleanNew = (newGroup || '').trim() || null;
   state.items.forEach(i => {
@@ -507,6 +536,7 @@ const saveItemFromModal = async (formData) => {
       group: formData.group,
       link: formData.link,
       priority: formData.priority,
+      checked: !!formData.checked,
       imageData: formData.imageData !== undefined ? formData.imageData : item.imageData,
       updatedAt: now
     });
@@ -530,7 +560,7 @@ const saveItemFromModal = async (formData) => {
       currency: state.currency,
       group: formData.group,
       priority: formData.priority,
-      checked: false,
+      checked: !!formData.checked,
       link: formData.link,
       imageData: formData.imageData || null,
       createdAt: now,
@@ -602,6 +632,9 @@ const openQuickNoteModal = (itemId = null) => {
 
     setModalPriority(item.priority || 2);
 
+    const checkedInput = document.getElementById('quick-note-checked-input');
+    if (checkedInput) checkedInput.checked = !!item.checked;
+
     if (item.imageData || item.imageUrl) {
       currentUploadedImage = item.imageData || item.imageUrl;
       if (previewImg) previewImg.src = currentUploadedImage;
@@ -617,6 +650,8 @@ const openQuickNoteModal = (itemId = null) => {
     if (priceInput) priceInput.value = '';
     if (groupInput) groupInput.value = '';
     if (linkInput) linkInput.value = '';
+    const checkedInput = document.getElementById('quick-note-checked-input');
+    if (checkedInput) checkedInput.checked = false;
     if (deleteBtn) deleteBtn.classList.add('hidden');
     if (ungroupBtn) ungroupBtn.classList.add('hidden');
     if (previewBox) previewBox.classList.add('hidden');
@@ -935,6 +970,11 @@ const initEventHandlers = () => {
     render();
   });
 
+  // Complete Selected
+  document.getElementById('notes-complete-selected-btn')?.addEventListener('click', () => {
+    if (state.selectedIds.size > 0) completeSelectedItems();
+  });
+
   // Group Selected
   document.getElementById('notes-group-selected-btn')?.addEventListener('click', () => {
     if (state.selectedIds.size > 0) openGroupModal();
@@ -963,6 +1003,7 @@ const initEventHandlers = () => {
     const link = document.getElementById('quick-note-link-input')?.value.trim() || null;
     const activePriorityBtn = document.querySelector('#quick-note-priority-options .priority-btn.active');
     const priority = activePriorityBtn ? Number(activePriorityBtn.getAttribute('data-priority')) : 2;
+    const checked = !!document.getElementById('quick-note-checked-input')?.checked;
 
     if (!title) return;
 
@@ -972,6 +1013,7 @@ const initEventHandlers = () => {
       group,
       link,
       priority,
+      checked,
       imageData: currentUploadedImage
     });
   });
