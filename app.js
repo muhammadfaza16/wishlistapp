@@ -22,7 +22,7 @@ const state = {
   isSelectMode: false,
   selectedIds: new Set(),
   collapsedGroups: new Set(),
-  sortBy: 'priority', // 'priority' | 'price' | 'title' | 'date'
+  sortBy: 'title', // 'priority' | 'price' | 'title' | 'date'
   sortOrder: 'asc',   // 'asc' | 'desc'
   currency: 'IDR',
   exchangeRate: 16000,
