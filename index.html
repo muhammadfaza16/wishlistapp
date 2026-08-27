@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=388">
+  <link rel="stylesheet" href="styles.css?v=390">
 </head>
 <body>
   <div id="app">
@@ -268,16 +268,38 @@
       <div class="modal-sheet-handle mobile-only"></div>
       
       <div class="preview-modal-top">
-        <div id="quick-note-preview-top-badge" class="preview-group-indicator"></div>
-        <button type="button" class="modal-close quick-note-preview-close" aria-label="Close modal">
-          <i data-lucide="x"></i>
-        </button>
+        <div class="preview-modal-top-left">
+          <div id="quick-note-preview-top-badge" class="preview-group-indicator"></div>
+          <span id="quick-note-preview-counter" class="preview-item-counter hidden"></span>
+        </div>
+        <div class="preview-modal-top-right">
+          <div id="quick-note-preview-top-nav" class="preview-top-nav-group hidden">
+            <button type="button" id="preview-top-nav-prev-btn" class="modal-nav-btn" title="Previous item (←)" aria-label="Previous item">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <button type="button" id="preview-top-nav-next-btn" class="modal-nav-btn" title="Next item (→)" aria-label="Next item">
+              <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+          <button type="button" class="modal-close quick-note-preview-close" aria-label="Close modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
       </div>
 
       <div class="preview-modal-body">
         <div id="quick-note-preview-image-container" class="preview-hero-img-box hidden">
           <div class="pannable-image-wrapper can-pan" id="quick-note-preview-pan-wrapper">
             <img id="quick-note-preview-modal-img" alt="Item Photo" class="pannable-img" draggable="false">
+            
+            <!-- Navigation Arrows over Image -->
+            <button type="button" id="preview-nav-prev-btn" class="preview-nav-arrow preview-nav-prev" aria-label="Previous item" title="Previous item (←)">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <button type="button" id="preview-nav-next-btn" class="preview-nav-arrow preview-nav-next" aria-label="Next item" title="Next item (→)">
+              <i data-lucide="chevron-right"></i>
+            </button>
+
             <div class="img-controls-bar">
               <button type="button" id="preview-img-fullscreen-btn" class="img-action-pill" title="Full Resolution">
                 <i data-lucide="maximize-2"></i>
@@ -372,6 +394,17 @@
             </button>
           </div>
           <input type="text" id="quick-note-link-input" class="modal-input" placeholder="Paste Shopee, Tokopedia, or web link..." autocomplete="off">
+          <!-- Duplicate Link Warning Banner -->
+          <div id="quick-note-link-duplicate-warning" class="modal-link-duplicate-warning hidden">
+            <div class="duplicate-warning-content">
+              <i data-lucide="alert-triangle" class="duplicate-warning-icon"></i>
+              <div class="duplicate-warning-info">
+                <span class="duplicate-warning-title">Link ini sudah ada di wishlist</span>
+                <span class="duplicate-warning-item-name" id="quick-note-duplicate-item-name"></span>
+              </div>
+            </div>
+            <button type="button" id="quick-note-view-duplicate-btn" class="duplicate-view-action-btn" title="Lihat item ini">Lihat Item</button>
+          </div>
         </div>
 
         <!-- 4. Photo & Priority in 2-Column Grid -->

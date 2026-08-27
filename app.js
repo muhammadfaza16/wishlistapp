@@ -196,6 +196,68 @@ const cleanProductTitle = (raw) => {
   return t;
 };
 
+const normalizeUrl = (rawUrl) => {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  let str = rawUrl.trim();
+  if (!str) return '';
+
+  try {
+    let parseable = str;
+    if (!/^https?:\/\//i.test(parseable)) {
+      parseable = 'https://' + parseable;
+    }
+
+    const parsed = new URL(parseable);
+    
+    // Normalize hostname: lowercase, strip www., m., and mobile. subdomains
+    let hostname = parsed.hostname.toLowerCase();
+    hostname = hostname.replace(/^(?:www\.|m\.|mobile\.)+/i, '');
+
+    // Normalize pathname: remove trailing slashes
+    let pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+
+    // List of tracking & unnecessary query parameters to strip
+    const ignoredParams = new Set([
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+      'spm', 'scm', 'pdp_ext_pid', 'src', 'source', 'ref', 'reference', 'aff_source',
+      'fbclid', 'gclid', 'dclid', 'msclkid', 'twclid',
+      'share', 'sid', '_kx', 'is_from_signup', 'af_click_lookback', 'deep_and_deferred',
+      'tokopedia_track_id', 'extparam', 'whid', 'sku_id', 'tracking_id'
+    ]);
+
+    const cleanParams = new URLSearchParams();
+    const sortedKeys = Array.from(parsed.searchParams.keys()).sort();
+    
+    for (const key of sortedKeys) {
+      const lowerKey = key.toLowerCase();
+      if (!ignoredParams.has(lowerKey) && !lowerKey.startsWith('utm_')) {
+        const val = parsed.searchParams.get(key);
+        if (val !== null) {
+          cleanParams.append(lowerKey, val);
+        }
+      }
+    }
+
+    const searchStr = cleanParams.toString();
+    return `${hostname}${pathname}${searchStr ? '?' + searchStr : ''}`.toLowerCase();
+  } catch (e) {
+    return str.toLowerCase().replace(/^https?:\/\//i, '').replace(/^(?:www\.|m\.|mobile\.)+/i, '').replace(/\/+$/, '');
+  }
+};
+
+const findDuplicateItemByLink = (url, excludeItemId = null) => {
+  if (!url || !state.items || !Array.isArray(state.items)) return null;
+  const normalizedTarget = normalizeUrl(url);
+  if (!normalizedTarget || normalizedTarget.length < 4) return null;
+
+  return state.items.find(item => {
+    if (!item.link) return false;
+    if (excludeItemId && String(item.id) === String(excludeItemId)) return false;
+    const normalizedExisting = normalizeUrl(item.link);
+    return normalizedExisting === normalizedTarget;
+  }) || null;
+};
+
 const escapeHtml = (str) => {
   if (typeof str !== 'string') return '';
   return str
@@ -1004,6 +1066,42 @@ const populateModalGroupPills = (selectedGroup = '', show = null) => {
   }
 };
 
+const checkModalLinkDuplicate = () => {
+  const linkInput = document.getElementById('quick-note-link-input');
+  const warningBox = document.getElementById('quick-note-link-duplicate-warning');
+  const itemNameEl = document.getElementById('quick-note-duplicate-item-name');
+  const viewBtn = document.getElementById('quick-note-view-duplicate-btn');
+
+  if (!linkInput || !warningBox) return null;
+
+  const rawUrl = linkInput.value.trim();
+  const duplicateItem = findDuplicateItemByLink(rawUrl, state.activeModalItemId);
+
+  if (duplicateItem) {
+    warningBox.classList.remove('hidden');
+    linkInput.classList.add('input-has-warning');
+    if (itemNameEl) {
+      itemNameEl.textContent = duplicateItem.title || 'Untitled Item';
+      itemNameEl.title = duplicateItem.title || 'Untitled Item';
+    }
+    if (viewBtn) {
+      viewBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = duplicateItem.id;
+        closeQuickNoteModal();
+        openPreviewModal(targetId);
+      };
+    }
+    safeCreateLucideIcons();
+    return duplicateItem;
+  } else {
+    warningBox.classList.add('hidden');
+    linkInput.classList.remove('input-has-warning');
+    return null;
+  }
+};
+
 const openQuickNoteModal = (itemId = null) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
@@ -1075,6 +1173,7 @@ const openQuickNoteModal = (itemId = null) => {
     setModalPriority(2);
   }
 
+  checkModalLinkDuplicate();
   modal.classList.remove('hidden');
   safeCreateLucideIcons();
   if (titleInput) titleInput.focus();
@@ -1085,6 +1184,10 @@ const closeQuickNoteModal = () => {
   if (modal) modal.classList.add('hidden');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
   if (deleteBtn) deleteBtn.classList.add('hidden');
+  const warningBox = document.getElementById('quick-note-link-duplicate-warning');
+  if (warningBox) warningBox.classList.add('hidden');
+  const linkInput = document.getElementById('quick-note-link-input');
+  if (linkInput) linkInput.classList.remove('input-has-warning');
   state.activeModalItemId = null;
   currentUploadedImage = null;
 };
@@ -1119,6 +1222,51 @@ const setModalPriority = (priority) => {
   if (trigger) trigger.classList.remove('active');
 };
 
+const getNavigableItems = () => {
+  if (!state.items || state.items.length === 0) return [];
+
+  const groupsMap = new Map();
+  const ungrouped = [];
+
+  state.items.forEach(item => {
+    const group = (item.group || '').trim();
+    if (group) {
+      if (!groupsMap.has(group)) groupsMap.set(group, []);
+      groupsMap.get(group).push(item);
+    } else {
+      ungrouped.push(item);
+    }
+  });
+
+  const ordered = [];
+  groupsMap.forEach((groupItems) => {
+    ordered.push(...sortItems(groupItems));
+  });
+  ordered.push(...sortItems(ungrouped));
+
+  return ordered;
+};
+
+const navigatePreviewItem = (direction) => {
+  const items = getNavigableItems();
+  if (items.length <= 1 || !state.activePreviewItemId) return;
+
+  const currentIndex = items.findIndex(i => i.id === state.activePreviewItemId);
+  if (currentIndex === -1) return;
+
+  let nextIndex = currentIndex + direction;
+  if (nextIndex < 0) {
+    nextIndex = items.length - 1; // loop to last
+  } else if (nextIndex >= items.length) {
+    nextIndex = 0; // loop to first
+  }
+
+  const nextItem = items[nextIndex];
+  if (nextItem) {
+    openPreviewModal(nextItem.id);
+  }
+};
+
 const openPreviewModal = (itemId) => {
   const item = state.items.find(i => i.id === itemId);
   if (!item) return;
@@ -1142,9 +1290,33 @@ const openPreviewModal = (itemId) => {
 
   const isChecked = item.checked === true || item.checked === 1;
 
-  // 1. Top Bar Group Indicator
+  // 1. Top Bar Group Indicator & Counter
   if (topBadge) {
     topBadge.textContent = item.group ? item.group.trim() : 'Wishlist Item';
+  }
+
+  const navigableItems = getNavigableItems();
+  const currentIndex = navigableItems.findIndex(i => i.id === itemId);
+  const totalCount = navigableItems.length;
+
+  const prevImgBtn = document.getElementById('preview-nav-prev-btn');
+  const nextImgBtn = document.getElementById('preview-nav-next-btn');
+  const topNav = document.getElementById('quick-note-preview-top-nav');
+  const counterEl = document.getElementById('quick-note-preview-counter');
+
+  if (totalCount > 1 && currentIndex !== -1) {
+    if (prevImgBtn) prevImgBtn.classList.remove('hidden');
+    if (nextImgBtn) nextImgBtn.classList.remove('hidden');
+    if (topNav) topNav.classList.remove('hidden');
+    if (counterEl) {
+      counterEl.textContent = `${currentIndex + 1} of ${totalCount}`;
+      counterEl.classList.remove('hidden');
+    }
+  } else {
+    if (prevImgBtn) prevImgBtn.classList.add('hidden');
+    if (nextImgBtn) nextImgBtn.classList.add('hidden');
+    if (topNav) topNav.classList.add('hidden');
+    if (counterEl) counterEl.classList.add('hidden');
   }
 
   // 2. Title & Price
@@ -1575,7 +1747,7 @@ const initEventHandlers = () => {
 
     if (!title) return;
 
-    saveItemFromModal({
+    const itemData = {
       title,
       price,
       group,
@@ -1583,7 +1755,21 @@ const initEventHandlers = () => {
       priority,
       checked,
       imageData: currentUploadedImage
-    });
+    };
+
+    // If link is duplicated, show confirmation modal before saving
+    const duplicateItem = findDuplicateItemByLink(link, state.activeModalItemId);
+    if (duplicateItem) {
+      openConfirmModal(
+        `Link ini sudah ada di wishlist untuk item "${duplicateItem.title || 'Untitled'}". Tetap simpan sebagai item baru?`,
+        () => {
+          saveItemFromModal(itemData);
+        }
+      );
+      return;
+    }
+
+    saveItemFromModal(itemData);
   });
 
   // Quick Note Modal Delete Button (in Edit Item mode)
@@ -1875,8 +2061,14 @@ const initEventHandlers = () => {
         fetchBtn.style.pointerEvents = 'auto';
       }
       if (fetchText) fetchText.textContent = 'Auto-fill Details';
+      checkModalLinkDuplicate();
     }
   };
+
+  // Real-time link duplicate checker on input
+  document.getElementById('quick-note-link-input')?.addEventListener('input', () => {
+    checkModalLinkDuplicate();
+  });
 
   // Trigger on manual button click
   document.getElementById('quick-note-fetch-link-btn')?.addEventListener('click', () => {
@@ -1886,6 +2078,7 @@ const initEventHandlers = () => {
       return;
     }
     triggerLinkScrape(url, true);
+    checkModalLinkDuplicate();
   });
 
   // Trigger automatically on paste
@@ -1894,6 +2087,7 @@ const initEventHandlers = () => {
     if (pasted && (pasted.startsWith('http://') || pasted.startsWith('https://') || pasted.includes('.com') || pasted.includes('.id') || pasted.includes('.link') || pasted.includes('.co'))) {
       setTimeout(() => triggerLinkScrape(pasted, false), 60);
     }
+    setTimeout(checkModalLinkDuplicate, 40);
   });
 
   // Trigger automatically on blur
@@ -1905,6 +2099,7 @@ const initEventHandlers = () => {
         triggerLinkScrape(url, false);
       }
     }
+    checkModalLinkDuplicate();
   });
 
   // Group Form Submit
@@ -2037,6 +2232,31 @@ const initEventHandlers = () => {
     if (id) openQuickNoteModal(id);
   });
 
+  // Preview Modal Prev & Next Navigation (Image & Top Bar)
+  document.getElementById('preview-nav-prev-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigatePreviewItem(-1);
+  });
+
+  document.getElementById('preview-nav-next-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigatePreviewItem(1);
+  });
+
+  document.getElementById('preview-top-nav-prev-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigatePreviewItem(-1);
+  });
+
+  document.getElementById('preview-top-nav-next-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigatePreviewItem(1);
+  });
+
   // Modal Close Buttons
   document.querySelectorAll('.modal-close, .modal-overlay')?.forEach(el => {
     el.addEventListener('click', (e) => {
@@ -2056,8 +2276,11 @@ const initEventHandlers = () => {
     m.addEventListener('click', e => e.stopPropagation());
   });
 
-  // Escape key handler
+  // Keyboard navigation & Escape key handler
   document.addEventListener('keydown', (e) => {
+    const previewModal = document.getElementById('quick-note-preview-modal');
+    const isPreviewOpen = previewModal && !previewModal.classList.contains('hidden');
+
     if (e.key === 'Escape') {
       closeQuickNoteModal();
       closePreviewModal();
@@ -2065,6 +2288,17 @@ const initEventHandlers = () => {
       closeConfirmModal();
       closeAuthModal();
       closeLightboxModal();
+    } else if (isPreviewOpen) {
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (activeTag !== 'input' && activeTag !== 'textarea') {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          navigatePreviewItem(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          navigatePreviewItem(1);
+        }
+      }
     }
   });
 
