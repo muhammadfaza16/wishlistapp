@@ -806,17 +806,30 @@ input, button, select, textarea {
   border-color: #09090B;
 }
 
-/* Notes View Layout */
 .notes-summary-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 10px;
   margin-bottom: 12px;
+  width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .notes-summary-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .notes-summary-bar .stat-card {
+    padding: 8px 7px;
+  }
+  .notes-summary-bar .stat-card .stat-label {
+    font-size: 8px;
+    letter-spacing: 0.02em;
+    margin-bottom: 3px;
+  }
+  .notes-summary-bar .stat-card .stat-value {
+    font-size: clamp(10.5px, 2.8vw, 13.5px);
   }
 }
 
@@ -3546,6 +3559,8 @@ input, button, select, textarea {
 
 .pannable-img.fit-contain {
   object-fit: contain !important;
+  object-position: center center !important;
+  margin: auto;
   background: #09090B;
 }
 
@@ -4007,9 +4022,8 @@ textarea#raw-notepad-input:focus {
   opacity: 0.85;
 }
 
-/* Priority Basket Card: Dark / Black Accent */
+/* Featured Dark Stat Card Accent */
 .stat-card-basket,
-.stat-card:first-child,
 .stat-card.stat-card-featured {
   background: #0F172A;
   border: 1px solid #1E293B;
@@ -4017,7 +4031,6 @@ textarea#raw-notepad-input:focus {
 }
 
 .stat-card-basket:hover,
-.stat-card:first-child:hover,
 .stat-card.stat-card-featured:hover {
   background: #1E293B;
   border-color: #334155;
@@ -4025,21 +4038,19 @@ textarea#raw-notepad-input:focus {
 }
 
 .stat-card-basket .stat-label,
-.stat-card:first-child .stat-label,
 .stat-card.stat-card-featured .stat-label {
   color: #94A3B8;
 }
 
 .stat-card-basket .stat-value,
-.stat-card:first-child .stat-value,
 .stat-card.stat-card-featured .stat-value {
   color: #FFFFFF;
 }
 
 .stat-card-basket .currency-prefix,
-.stat-card:first-child .currency-prefix,
 .stat-card.stat-card-featured .currency-prefix {
   color: #94A3B8;
+  opacity: 0.9;
 }
 
 .stat-card-header-flex {

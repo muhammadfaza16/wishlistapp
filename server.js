@@ -129,6 +129,26 @@ const syncItemToSupabase = async (item, action = 'upsert') => {
     const targetItemId = toUUID(item.id);
 
     if (action === 'upsert') {
+      let supaImageData = (item.image_data && item.image_data.length < 25000) ? item.image_data : (item.imageData && item.imageData.length < 25000 ? item.imageData : null);
+      const inBasketVal = !!(item.in_basket === 1 || item.in_basket === true || item.inBasket === true || item.inBasket === 1);
+
+      try {
+        let parsed = {};
+        if (supaImageData) {
+          if (typeof supaImageData === 'string') {
+            if (supaImageData.trim().startsWith('{')) {
+              parsed = JSON.parse(supaImageData);
+            } else {
+              parsed = { src: supaImageData };
+            }
+          } else if (typeof supaImageData === 'object') {
+            parsed = { ...supaImageData };
+          }
+        }
+        parsed.inBasket = inBasketVal;
+        supaImageData = JSON.stringify(parsed);
+      } catch (e) {}
+
       const row = {
         id: targetItemId,
         user_id: targetUserId,
@@ -139,7 +159,7 @@ const syncItemToSupabase = async (item, action = 'upsert') => {
         priority: Number(item.priority) || 2,
         checked: item.checked === 1 || item.checked === true,
         link: item.link || null,
-        image_data: (item.image_data && item.image_data.length < 25000) ? item.image_data : (item.imageData && item.imageData.length < 25000 ? item.imageData : null),
+        image_data: supaImageData,
         created_at: item.created_at || item.createdAt || new Date().toISOString(),
         updated_at: item.updated_at || item.updatedAt || new Date().toISOString()
       };
@@ -841,20 +861,47 @@ const handler = async (req, res) => {
           if (supaRes.ok) {
             const supaItems = await supaRes.json();
             if (Array.isArray(supaItems)) {
-              const items = supaItems.map(r => ({
-                id: r.id,
-                title: r.title,
-                price: Number(r.price) || 0,
-                currency: r.currency || 'IDR',
-                group: r.group || r.group_name || null,
-                priority: Number(r.priority) || 2,
-                checked: r.checked === true || r.checked === 1,
-                link: r.link || null,
-                imageData: r.image_data || null,
-                inBasket: r.in_basket === 1 || r.in_basket === true || r.inBasket === true,
-                createdAt: r.created_at,
-                updatedAt: r.updated_at
-              }));
+              // Read existing local SQLite rows to preserve local in_basket state if Supabase doesn't have it
+              let existingLocal = [];
+              try {
+                existingLocal = db.prepare('SELECT id, in_basket FROM items WHERE user_id = ?').all(user.id);
+              } catch (e) {}
+              const localBasketMap = new Map(existingLocal.map(r => [r.id, r.in_basket === 1]));
+
+              const items = supaItems.map(r => {
+                let inBasket = false;
+                if (r.in_basket !== undefined && r.in_basket !== null) {
+                  inBasket = r.in_basket === 1 || r.in_basket === true || r.inBasket === true;
+                } else if (r.image_data && typeof r.image_data === 'string' && r.image_data.trim().startsWith('{')) {
+                  try {
+                    const parsed = JSON.parse(r.image_data);
+                    if (parsed && parsed.inBasket !== undefined) {
+                      inBasket = !!parsed.inBasket;
+                    } else if (localBasketMap.has(r.id)) {
+                      inBasket = localBasketMap.get(r.id);
+                    }
+                  } catch (e) {
+                    if (localBasketMap.has(r.id)) inBasket = localBasketMap.get(r.id);
+                  }
+                } else if (localBasketMap.has(r.id)) {
+                  inBasket = localBasketMap.get(r.id);
+                }
+
+                return {
+                  id: r.id,
+                  title: r.title,
+                  price: Number(r.price) || 0,
+                  currency: r.currency || 'IDR',
+                  group: r.group || r.group_name || null,
+                  priority: Number(r.priority) || 2,
+                  checked: r.checked === true || r.checked === 1,
+                  link: r.link || null,
+                  imageData: r.image_data || null,
+                  inBasket,
+                  createdAt: r.created_at,
+                  updatedAt: r.updated_at
+                };
+              });
 
               // Sync to local SQLite cache
               try {

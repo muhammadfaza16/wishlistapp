@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=401">
+  <link rel="stylesheet" href="styles.css?v=418">
 </head>
 <body>
   <div id="app">
@@ -88,23 +88,16 @@
     <!-- Main Item List View (Quick Notes) -->
     <div id="notes-view">
       <div class="notes-summary-bar">
-        <div class="stat-card stat-card-basket" id="stat-card-basket-box">
-          <div class="stat-card-header-flex">
-            <span class="stat-label">Buy Priority</span>
-            <span class="stat-badge-pill" id="notes-basket-count">0 items</span>
-          </div>
-          <span class="stat-value" id="notes-basket-value"><span class="currency-prefix">Rp.</span>0</span>
-        </div>
         <div class="stat-card">
-          <span class="stat-label">Remaining Needed</span>
+          <span class="stat-label" id="notes-remaining-label">Remaining Needed</span>
           <span class="stat-value" id="notes-remaining-value"><span class="currency-prefix">Rp.</span>0</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">Estimated Total</span>
+          <span class="stat-label" id="notes-total-label">Estimated Total</span>
           <span class="stat-value" id="notes-total-value"><span class="currency-prefix">Rp.</span>0</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">Total Items</span>
+          <span class="stat-label" id="notes-count-label">Total Items</span>
           <span class="stat-value" id="notes-items-count">0</span>
         </div>
       </div>
@@ -140,9 +133,9 @@
         <div class="notes-card-header">
           <div class="notes-header-left">
             <span class="notes-card-title" id="notes-view-title">Wishlist Items</span>
-            <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Cancel edit">
-              <i data-lucide="x"></i>
-              <span>Cancel</span>
+            <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Done editing">
+              <i data-lucide="check"></i>
+              <span>Done</span>
             </button>
           </div>
           <div class="notes-header-controls">
@@ -301,14 +294,6 @@
           <span id="quick-note-preview-counter" class="preview-item-counter hidden"></span>
         </div>
         <div class="preview-modal-top-right">
-          <div id="quick-note-preview-top-nav" class="preview-top-nav-group hidden">
-            <button type="button" id="preview-top-nav-prev-btn" class="modal-nav-btn" title="Previous item (←)" aria-label="Previous item">
-              <i data-lucide="chevron-left"></i>
-            </button>
-            <button type="button" id="preview-top-nav-next-btn" class="modal-nav-btn" title="Next item (→)" aria-label="Next item">
-              <i data-lucide="chevron-right"></i>
-            </button>
-          </div>
           <button type="button" class="modal-close quick-note-preview-close" aria-label="Close modal">
             <i data-lucide="x"></i>
           </button>
@@ -588,6 +573,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=401" defer></script>
+  <script src="app.js?v=418" defer></script>
 </body>
 </html>

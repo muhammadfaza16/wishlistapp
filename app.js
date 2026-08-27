@@ -28,6 +28,7 @@ const state = {
   exchangeRate: 16000,
   activeModalItemId: null,
   activePreviewItemId: null,
+  previewReturnId: null, // Memoized return target for stacked modal actions
   activeRenamingGroup: null,
   activeGroupIcon: null,
   groupIcons: savedGroupIcons
@@ -391,19 +392,57 @@ const api = {
 // ==========================================
 const renderSummaryBar = () => {
   const items = state.items;
-  const totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
-  const remainingNeeded = items.filter(i => !i.checked).reduce((sum, i) => sum + (Number(i.price) || 0), 0);
-  const acquiredAmount = totalEst - remainingNeeded;
-  const percentage = totalEst > 0 ? Math.round((acquiredAmount / totalEst) * 100) : 0;
-
-  // Dedicated Priority Basket Statistics
   const allBasketItems = items.filter(i => i.inBasket || i.in_basket);
-  const unacquiredBasketItems = allBasketItems.filter(i => !i.checked);
-  const basketTotal = allBasketItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
-  const basketRemaining = unacquiredBasketItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+  const acquiredItems = items.filter(i => i.checked);
 
-  const basketValueEl = document.getElementById('notes-basket-value');
-  const basketCountEl = document.getElementById('notes-basket-count');
+  // Compute stats conditionally according to active tab
+  let remainingNeeded = 0;
+  let totalEst = 0;
+  let count = 0;
+  let percentage = 0;
+  let remainingLabel = 'Remaining Needed';
+  let totalLabel = 'Estimated Total';
+  let countLabel = 'Total Items';
+
+  if (state.activeFilter === 'basket') {
+    const unacquiredBasket = allBasketItems.filter(i => !i.checked);
+    remainingNeeded = unacquiredBasket.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    totalEst = allBasketItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    count = allBasketItems.length;
+    const acquiredBasketAmount = totalEst - remainingNeeded;
+    percentage = totalEst > 0 ? Math.round((acquiredBasketAmount / totalEst) * 100) : 0;
+
+    remainingLabel = 'Remaining Needed';
+    totalLabel = 'Estimated Total';
+    countLabel = 'Priority Items';
+  } else if (state.activeFilter === 'acquired') {
+    const totalAll = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    const acquiredTotal = acquiredItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    remainingNeeded = acquiredTotal;
+    totalEst = totalAll;
+    count = acquiredItems.length;
+    percentage = totalAll > 0 ? Math.round((acquiredTotal / totalAll) * 100) : 100;
+
+    remainingLabel = 'Total Acquired';
+    totalLabel = 'Estimated Total';
+    countLabel = 'Acquired Items';
+  } else {
+    // 'all'
+    remainingNeeded = items.filter(i => !i.checked).reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    totalEst = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+    count = items.length;
+    const acquiredAmount = totalEst - remainingNeeded;
+    percentage = totalEst > 0 ? Math.round((acquiredAmount / totalEst) * 100) : 0;
+
+    remainingLabel = 'Remaining Needed';
+    totalLabel = 'Estimated Total';
+    countLabel = 'Total Items';
+  }
+
+  const remainingLabelEl = document.getElementById('notes-remaining-label');
+  const totalLabelEl = document.getElementById('notes-total-label');
+  const countLabelEl = document.getElementById('notes-count-label');
+
   const totalEl = document.getElementById('notes-total-value');
   const remainingEl = document.getElementById('notes-remaining-value');
   const countEl = document.getElementById('notes-items-count');
@@ -411,11 +450,13 @@ const renderSummaryBar = () => {
   const progressFill = document.getElementById('notes-progress-fill');
   const progressText = document.getElementById('notes-progress-text');
 
-  if (basketValueEl) basketValueEl.innerHTML = formatPrice(basketRemaining > 0 ? basketRemaining : basketTotal, state.currency);
-  if (basketCountEl) basketCountEl.textContent = `${allBasketItems.length} ${allBasketItems.length === 1 ? 'item' : 'items'}`;
+  if (remainingLabelEl) remainingLabelEl.textContent = remainingLabel;
+  if (totalLabelEl) totalLabelEl.textContent = totalLabel;
+  if (countLabelEl) countLabelEl.textContent = countLabel;
+
   if (totalEl) totalEl.innerHTML = formatPrice(totalEst, state.currency);
   if (remainingEl) remainingEl.innerHTML = formatPrice(remainingNeeded, state.currency);
-  if (countEl) countEl.textContent = items.length;
+  if (countEl) countEl.textContent = count;
   if (dropdownCountEl) dropdownCountEl.textContent = items.length;
   if (progressFill) progressFill.style.width = `${percentage}%`;
   if (progressText) progressText.textContent = `${percentage}%`;
@@ -427,7 +468,7 @@ const renderSummaryBar = () => {
 
   if (badgeAll) badgeAll.textContent = items.length;
   if (badgeBasket) badgeBasket.textContent = allBasketItems.length;
-  if (badgeAcquired) badgeAcquired.textContent = items.filter(i => i.checked).length;
+  if (badgeAcquired) badgeAcquired.textContent = acquiredItems.length;
 
   document.querySelectorAll('.filter-pill-btn').forEach(btn => {
     const f = btn.getAttribute('data-filter');
@@ -1238,7 +1279,7 @@ const checkModalLinkDuplicate = () => {
   }
 };
 
-const openQuickNoteModal = (itemId = null) => {
+const openQuickNoteModal = (itemId = null, fromPreview = false) => {
   const modal = document.getElementById('quick-note-modal');
   const titleEl = document.getElementById('quick-note-modal-title');
   const titleInput = document.getElementById('quick-note-title-input');
@@ -1254,6 +1295,9 @@ const openQuickNoteModal = (itemId = null) => {
   if (!modal) return;
 
   state.activeModalItemId = itemId;
+  if (fromPreview || (itemId && state.activePreviewItemId === itemId)) {
+    state.previewReturnId = itemId;
+  }
   currentUploadedImage = null;
   currentImagePan = { x: 50, y: 50 };
   currentImageFit = 'cover';
@@ -1286,7 +1330,19 @@ const openQuickNoteModal = (itemId = null) => {
 
       if (previewImg) {
         previewImg.src = currentUploadedImage;
-        previewImg.style.objectPosition = `${currentImagePan.x}% ${currentImagePan.y}%`;
+        const fitText = document.getElementById('quick-note-img-fit-text');
+        const dragHint = document.getElementById('quick-note-edit-drag-hint');
+        if (currentImageFit === 'contain') {
+          previewImg.classList.add('fit-contain');
+          previewImg.style.objectPosition = '50% 50%';
+          if (fitText) fitText.textContent = 'Contain';
+          if (dragHint) dragHint.classList.add('hidden');
+        } else {
+          previewImg.classList.remove('fit-contain');
+          previewImg.style.objectPosition = `${currentImagePan.x}% ${currentImagePan.y}%`;
+          if (fitText) fitText.textContent = 'Cover';
+          if (dragHint) dragHint.classList.remove('hidden');
+        }
       }
       if (previewBox) previewBox.classList.remove('hidden');
       if (uploadArea) uploadArea.classList.add('hidden');
@@ -1315,7 +1371,7 @@ const openQuickNoteModal = (itemId = null) => {
   if (titleInput) titleInput.focus();
 };
 
-const closeQuickNoteModal = () => {
+const closeQuickNoteModal = (shouldReturnToPreview = true) => {
   const modal = document.getElementById('quick-note-modal');
   if (modal) modal.classList.add('hidden');
   const deleteBtn = document.getElementById('quick-note-delete-btn');
@@ -1326,6 +1382,12 @@ const closeQuickNoteModal = () => {
   if (linkInput) linkInput.classList.remove('input-has-warning');
   state.activeModalItemId = null;
   currentUploadedImage = null;
+
+  if (shouldReturnToPreview && state.previewReturnId) {
+    const returnId = state.previewReturnId;
+    state.previewReturnId = null;
+    openPreviewModal(returnId);
+  }
 };
 
 window.openQuickNoteModal = openQuickNoteModal;
@@ -1446,13 +1508,11 @@ const openPreviewModal = (itemId) => {
 
   const prevImgBtn = document.getElementById('preview-nav-prev-btn');
   const nextImgBtn = document.getElementById('preview-nav-next-btn');
-  const topNav = document.getElementById('quick-note-preview-top-nav');
   const counterEl = document.getElementById('quick-note-preview-counter');
 
   if (totalCount > 1 && currentIndex !== -1) {
     if (prevImgBtn) prevImgBtn.classList.remove('hidden');
     if (nextImgBtn) nextImgBtn.classList.remove('hidden');
-    if (topNav) topNav.classList.remove('hidden');
     if (counterEl) {
       counterEl.textContent = `${currentIndex + 1} of ${totalCount}`;
       counterEl.classList.remove('hidden');
@@ -1460,7 +1520,6 @@ const openPreviewModal = (itemId) => {
   } else {
     if (prevImgBtn) prevImgBtn.classList.add('hidden');
     if (nextImgBtn) nextImgBtn.classList.add('hidden');
-    if (topNav) topNav.classList.add('hidden');
     if (counterEl) counterEl.classList.add('hidden');
   }
 
@@ -1529,15 +1588,16 @@ const openPreviewModal = (itemId) => {
   if (src) {
     if (modalImg) {
       modalImg.src = src;
-      modalImg.style.objectPosition = `${pan.x}% ${pan.y}%`;
       const fitText = document.getElementById('preview-img-fit-text');
       const dragHint = document.getElementById('quick-note-preview-drag-hint');
       if (fit === 'contain') {
         modalImg.classList.add('fit-contain');
+        modalImg.style.objectPosition = '50% 50%';
         if (fitText) fitText.textContent = 'Contain';
         if (dragHint) dragHint.classList.add('hidden');
       } else {
         modalImg.classList.remove('fit-contain');
+        modalImg.style.objectPosition = `${pan.x}% ${pan.y}%`;
         if (fitText) fitText.textContent = 'Cover';
         if (dragHint) dragHint.classList.remove('hidden');
       }
@@ -1574,6 +1634,7 @@ const closePreviewModal = () => {
   const modal = document.getElementById('quick-note-preview-modal');
   if (modal) modal.classList.add('hidden');
   state.activePreviewItemId = null;
+  state.previewReturnId = null;
 };
 
 const openGroupModal = (presetGroup = '') => {
@@ -1958,7 +2019,9 @@ const initEventHandlers = () => {
     if (!itemId) return;
 
     openConfirmModal('Are you sure you want to delete this item?', async () => {
-      closeQuickNoteModal();
+      state.previewReturnId = null;
+      closeQuickNoteModal(false);
+      closePreviewModal();
       await deleteSingleItem(itemId);
     });
   });
@@ -2106,11 +2169,13 @@ const initEventHandlers = () => {
     if (currentImageFit === 'cover') {
       currentImageFit = 'contain';
       previewImg.classList.add('fit-contain');
+      previewImg.style.objectPosition = '50% 50%';
       if (fitText) fitText.textContent = 'Contain';
       if (dragHint) dragHint.classList.add('hidden');
     } else {
       currentImageFit = 'cover';
       previewImg.classList.remove('fit-contain');
+      previewImg.style.objectPosition = `${currentImagePan.x}% ${currentImagePan.y}%`;
       if (fitText) fitText.textContent = 'Cover';
       if (dragHint) dragHint.classList.remove('hidden');
     }
@@ -2132,10 +2197,12 @@ const initEventHandlers = () => {
     if (modalImg) {
       if (newFit === 'contain') {
         modalImg.classList.add('fit-contain');
+        modalImg.style.objectPosition = '50% 50%';
         if (fitText) fitText.textContent = 'Contain';
         if (dragHint) dragHint.classList.add('hidden');
       } else {
         modalImg.classList.remove('fit-contain');
+        modalImg.style.objectPosition = `${getImagePan(item).x}% ${getImagePan(item).y}%`;
         if (fitText) fitText.textContent = 'Cover';
         if (dragHint) dragHint.classList.remove('hidden');
       }
@@ -2409,11 +2476,13 @@ const initEventHandlers = () => {
     if (id) toggleItemBasket(id);
   });
 
-  // Preview Edit Button
+  // Preview Edit Button (Memoized return to preview)
   document.getElementById('quick-note-preview-edit-btn')?.addEventListener('click', () => {
     const id = state.activePreviewItemId;
-    closePreviewModal();
-    if (id) openQuickNoteModal(id);
+    state.previewReturnId = id;
+    const previewModal = document.getElementById('quick-note-preview-modal');
+    if (previewModal) previewModal.classList.add('hidden');
+    if (id) openQuickNoteModal(id, true);
   });
 
   // Preview Modal Prev & Next Navigation (Image & Top Bar)
@@ -2429,50 +2498,134 @@ const initEventHandlers = () => {
     navigatePreviewItem(1);
   });
 
-  document.getElementById('preview-top-nav-prev-btn')?.addEventListener('click', (e) => {
-    e.preventDefault();
+  // Layered / Memoized Modal Close Handlers (Targeted per modal)
+  // 1. Lightbox Modal
+  document.getElementById('lightbox-close-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    navigatePreviewItem(-1);
+    closeLightboxModal();
+  });
+  document.getElementById('image-lightbox-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'image-lightbox-modal' || e.target.closest('#lightbox-close-btn')) {
+      closeLightboxModal();
+    }
   });
 
-  document.getElementById('preview-top-nav-next-btn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigatePreviewItem(1);
-  });
-
-  // Modal Close Buttons
-  document.querySelectorAll('.modal-close, .modal-overlay')?.forEach(el => {
-    el.addEventListener('click', (e) => {
-      if (e.target === el || e.target.closest('.modal-close')) {
-        closeQuickNoteModal();
-        closePreviewModal();
-        closeGroupModal();
-        closeConfirmModal();
-        closeAuthModal();
-        closeLightboxModal();
-      }
+  // 2. Preview Modal
+  document.querySelectorAll('#quick-note-preview-modal .modal-close')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePreviewModal();
     });
   });
+  document.getElementById('quick-note-preview-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'quick-note-preview-modal') {
+      closePreviewModal();
+    }
+  });
 
-  // Prevent closing when clicking modal content
+  // 3. Quick Note Add / Edit Modal
+  document.querySelectorAll('#quick-note-modal .modal-close')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeQuickNoteModal(true);
+    });
+  });
+  document.getElementById('quick-note-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'quick-note-modal') {
+      closeQuickNoteModal(true);
+    }
+  });
+
+  // 4. Group Modal
+  document.querySelectorAll('#group-modal .modal-close')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeGroupModal();
+    });
+  });
+  document.getElementById('group-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'group-modal') {
+      closeGroupModal();
+    }
+  });
+
+  // 5. Confirm Modal
+  document.querySelectorAll('#confirm-modal .modal-close')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeConfirmModal();
+    });
+  });
+  document.getElementById('confirm-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'confirm-modal') {
+      closeConfirmModal();
+    }
+  });
+
+  // 6. Auth Modal
+  document.querySelectorAll('#auth-modal .modal-close')?.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAuthModal();
+    });
+  });
+  document.getElementById('auth-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'auth-modal') {
+      closeAuthModal();
+    }
+  });
+
+  // Prevent closing when clicking inner modal content
   document.querySelectorAll('.modal')?.forEach(m => {
     m.addEventListener('click', e => e.stopPropagation());
   });
 
-  // Keyboard navigation & Escape key handler
+  // Keyboard navigation & Layered Escape Key Handler
   document.addEventListener('keydown', (e) => {
+    const lightboxModal = document.getElementById('image-lightbox-modal');
+    const isLightboxOpen = lightboxModal && !lightboxModal.classList.contains('hidden');
+
+    const confirmModal = document.getElementById('confirm-modal');
+    const isConfirmOpen = confirmModal && !confirmModal.classList.contains('hidden');
+
+    const groupModal = document.getElementById('group-modal');
+    const isGroupOpen = groupModal && !groupModal.classList.contains('hidden');
+
+    const authModal = document.getElementById('auth-modal');
+    const isAuthOpen = authModal && !authModal.classList.contains('hidden');
+
+    const quickNoteModal = document.getElementById('quick-note-modal');
+    const isQuickNoteOpen = quickNoteModal && !quickNoteModal.classList.contains('hidden');
+
     const previewModal = document.getElementById('quick-note-preview-modal');
     const isPreviewOpen = previewModal && !previewModal.classList.contains('hidden');
 
     if (e.key === 'Escape') {
-      closeQuickNoteModal();
-      closePreviewModal();
-      closeGroupModal();
-      closeConfirmModal();
-      closeAuthModal();
-      closeLightboxModal();
-    } else if (isPreviewOpen) {
+      if (isLightboxOpen) {
+        closeLightboxModal();
+        return;
+      }
+      if (isConfirmOpen) {
+        closeConfirmModal();
+        return;
+      }
+      if (isGroupOpen) {
+        closeGroupModal();
+        return;
+      }
+      if (isAuthOpen) {
+        closeAuthModal();
+        return;
+      }
+      if (isQuickNoteOpen) {
+        closeQuickNoteModal(true);
+        return;
+      }
+      if (isPreviewOpen) {
+        closePreviewModal();
+        return;
+      }
+    } else if (isPreviewOpen && !isLightboxOpen && !isConfirmOpen && !isQuickNoteOpen) {
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
       if (activeTag !== 'input' && activeTag !== 'textarea') {
         if (e.key === 'ArrowLeft') {
@@ -2624,7 +2777,10 @@ const loadUserData = async () => {
   try {
     const res = await api.getItems();
     if (res && Array.isArray(res.items)) {
-      state.items = res.items;
+      state.items = res.items.map(it => ({
+        ...it,
+        inBasket: !!(it.inBasket || it.in_basket)
+      }));
     }
   } catch (err) {
     console.warn('Could not fetch items:', err.message);
