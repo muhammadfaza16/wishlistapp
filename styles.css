@@ -6011,11 +6011,6 @@ input#item-tags {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Floating Mobile Action Bar */
-#mobile-floating-bar {
-  display: none;
-}
-
 /* --------------------------------------------------------------------------
    13. ANIMATIONS
    -------------------------------------------------------------------------- */
@@ -6277,45 +6272,6 @@ input#item-tags {
     justify-content: flex-end;
   }
 
-  /* Floating Bottom Bar on Mobile: Right Edge FAB */
-  #mobile-floating-bar {
-    position: fixed;
-    bottom: 24px;
-    right: 20px;
-    left: auto;
-    width: auto;
-    height: auto;
-    z-index: 900;
-    pointer-events: none;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  #mobile-floating-bar .floating-primary-btn {
-    pointer-events: auto;
-    background: #09090B;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 16px rgba(9, 9, 11, 0.28);
-    cursor: pointer;
-    transition: transform 150ms ease, box-shadow 150ms ease;
-  }
-
-  .floating-primary-btn:active {
-    transform: scale(0.94);
-  }
-
-  .floating-primary-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
   /* Centered Floating Modals on Mobile */
   .modal-overlay {
     align-items: center;
@@ -6359,6 +6315,6 @@ input#item-tags {
 }
 
 /* Universal Hidden Override */
-.hidden, #mobile-floating-bar.hidden, .mobile-only.hidden, #catalog-view.hidden, #notes-view.hidden, #notes-list-mode.hidden, #notes-raw-mode.hidden {
+.hidden, .mobile-only.hidden, #catalog-view.hidden, #notes-view.hidden, #notes-list-mode.hidden, #notes-raw-mode.hidden {
   display: none !important;
 }

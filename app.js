@@ -799,22 +799,11 @@ const updateAuthUI = () => {
   safeCreateLucideIcons();
 };
 
-const updateFloatingBar = () => {
-  const floatingBar = document.getElementById('mobile-floating-bar');
-  if (!floatingBar) return;
-  if (state.viewMode === 'edit') {
-    floatingBar.classList.remove('hidden');
-  } else {
-    floatingBar.classList.add('hidden');
-  }
-};
-
 const render = () => {
   renderSummaryBar();
   renderItemsList();
   updateSelectionBar();
   updateAuthUI();
-  updateFloatingBar();
   updateSortUI();
 };
 
@@ -1897,7 +1886,6 @@ const initEventHandlers = () => {
 
   // Add Item Buttons
   document.getElementById('main-add-note-btn')?.addEventListener('click', () => openQuickNoteModal(null));
-  document.getElementById('mobile-add-btn')?.addEventListener('click', () => openQuickNoteModal(null));
 
   // Edit Mode Toggle
   document.getElementById('notes-edit-mode-btn')?.addEventListener('click', () => {
