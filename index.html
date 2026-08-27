@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=390">
+  <link rel="stylesheet" href="styles.css?v=400">
 </head>
 <body>
   <div id="app">
@@ -88,6 +88,13 @@
     <!-- Main Item List View (Quick Notes) -->
     <div id="notes-view">
       <div class="notes-summary-bar">
+        <div class="stat-card stat-card-basket" id="stat-card-basket-box">
+          <div class="stat-card-header-flex">
+            <span class="stat-label">Buy Priority</span>
+            <span class="stat-badge-pill" id="notes-basket-count">0 items</span>
+          </div>
+          <span class="stat-value" id="notes-basket-value"><span class="currency-prefix">Rp.</span>0</span>
+        </div>
         <div class="stat-card">
           <span class="stat-label">Remaining Needed</span>
           <span class="stat-value" id="notes-remaining-value"><span class="currency-prefix">Rp.</span>0</span>
@@ -111,10 +118,28 @@
         <span class="progress-text mono-text" id="notes-progress-text">0%</span>
       </div>
 
+      <!-- Priority & View Filter Tabs (Minimalist Pills) -->
+      <div class="notes-filter-bar" id="notes-filter-bar">
+        <button type="button" class="filter-pill-btn active" data-filter="all" id="filter-tab-all">
+          <span>All Items</span>
+          <span class="filter-count-badge" id="filter-badge-all">0</span>
+        </button>
+        <button type="button" class="filter-pill-btn basket-pill" data-filter="basket" id="filter-tab-basket" title="View Buy Priority Items">
+          <i data-lucide="shopping-bag" class="filter-icon"></i>
+          <span>Buy Priority</span>
+          <span class="filter-count-badge" id="filter-badge-basket">0</span>
+        </button>
+        <button type="button" class="filter-pill-btn" data-filter="acquired" id="filter-tab-acquired" title="View Acquired Items">
+          <i data-lucide="check-circle-2" class="filter-icon"></i>
+          <span>Acquired</span>
+          <span class="filter-count-badge" id="filter-badge-acquired">0</span>
+        </button>
+      </div>
+
       <div class="clean-notes-card">
         <div class="notes-card-header">
           <div class="notes-header-left">
-            <span class="notes-card-title" id="notes-view-title">Wishlist Notes</span>
+            <span class="notes-card-title" id="notes-view-title">Wishlist Items</span>
             <button type="button" id="notes-back-to-view-btn" class="btn-clean-action hidden" title="Cancel edit">
               <i data-lucide="x"></i>
               <span>Cancel</span>
@@ -173,6 +198,9 @@
           <div class="notes-selection-actions">
             <button type="button" id="notes-select-all-btn" class="btn-selection-action" title="Select All / Deselect All" aria-label="Select All">
               <i data-lucide="check-check"></i>
+            </button>
+            <button type="button" id="notes-basket-selected-btn" class="btn-selection-action" disabled title="Toggle Buy Priority" aria-label="Toggle Buy Priority">
+              <i data-lucide="shopping-bag"></i>
             </button>
             <button type="button" id="notes-complete-selected-btn" class="btn-selection-action" disabled title="Complete / Incomplete selected" aria-label="Complete selected">
               <i data-lucide="check-circle-2"></i>
@@ -341,14 +369,20 @@
         </div>
 
         <div class="preview-modal-actions">
-          <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
-            <i data-lucide="edit-2"></i>
-            <span>Edit Item</span>
+          <button type="button" id="quick-note-preview-basket-btn" class="btn-preview-basket" title="Add to Buy Priority">
+            <i data-lucide="shopping-bag" id="quick-note-preview-basket-icon"></i>
+            <span id="quick-note-preview-basket-text">Buy Priority</span>
           </button>
-          <a id="quick-note-preview-visit-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-preview-secondary hidden" title="Open Store Page">
-            <i data-lucide="external-link"></i>
-            <span>Open Link</span>
-          </a>
+          <div class="preview-modal-sub-actions">
+            <button type="button" id="quick-note-preview-edit-btn" class="btn-preview-primary" title="Edit this item">
+              <i data-lucide="edit-2"></i>
+              <span>Edit</span>
+            </button>
+            <a id="quick-note-preview-visit-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-preview-secondary hidden" title="Open Store Page">
+              <i data-lucide="external-link"></i>
+              <span>Open Link</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -554,6 +588,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=388" defer></script>
+  <script src="app.js?v=400" defer></script>
 </body>
 </html>

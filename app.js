@@ -18,6 +18,7 @@ const state = {
   items: [],
   currentUser: null, // { id, name, email, username }
   viewMode: 'view',  // 'view' | 'edit'
+  activeFilter: 'all', // 'all' | 'basket' | 'acquired'
   isSelectMode: false,
   selectedIds: new Set(),
   collapsedGroups: new Set(),
@@ -395,6 +396,14 @@ const renderSummaryBar = () => {
   const acquiredAmount = totalEst - remainingNeeded;
   const percentage = totalEst > 0 ? Math.round((acquiredAmount / totalEst) * 100) : 0;
 
+  // Dedicated Priority Basket Statistics
+  const allBasketItems = items.filter(i => i.inBasket || i.in_basket);
+  const unacquiredBasketItems = allBasketItems.filter(i => !i.checked);
+  const basketTotal = allBasketItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+  const basketRemaining = unacquiredBasketItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+
+  const basketValueEl = document.getElementById('notes-basket-value');
+  const basketCountEl = document.getElementById('notes-basket-count');
   const totalEl = document.getElementById('notes-total-value');
   const remainingEl = document.getElementById('notes-remaining-value');
   const countEl = document.getElementById('notes-items-count');
@@ -402,12 +411,28 @@ const renderSummaryBar = () => {
   const progressFill = document.getElementById('notes-progress-fill');
   const progressText = document.getElementById('notes-progress-text');
 
+  if (basketValueEl) basketValueEl.innerHTML = formatPrice(basketRemaining > 0 ? basketRemaining : basketTotal, state.currency);
+  if (basketCountEl) basketCountEl.textContent = `${allBasketItems.length} ${allBasketItems.length === 1 ? 'item' : 'items'}`;
   if (totalEl) totalEl.innerHTML = formatPrice(totalEst, state.currency);
   if (remainingEl) remainingEl.innerHTML = formatPrice(remainingNeeded, state.currency);
   if (countEl) countEl.textContent = items.length;
   if (dropdownCountEl) dropdownCountEl.textContent = items.length;
   if (progressFill) progressFill.style.width = `${percentage}%`;
   if (progressText) progressText.textContent = `${percentage}%`;
+
+  // Update Filter Tab Badges & Active State
+  const badgeAll = document.getElementById('filter-badge-all');
+  const badgeBasket = document.getElementById('filter-badge-basket');
+  const badgeAcquired = document.getElementById('filter-badge-acquired');
+
+  if (badgeAll) badgeAll.textContent = items.length;
+  if (badgeBasket) badgeBasket.textContent = allBasketItems.length;
+  if (badgeAcquired) badgeAcquired.textContent = items.filter(i => i.checked).length;
+
+  document.querySelectorAll('.filter-pill-btn').forEach(btn => {
+    const f = btn.getAttribute('data-filter');
+    btn.classList.toggle('active', f === state.activeFilter);
+  });
 };
 
 const sortItems = (items) => {
@@ -496,6 +521,7 @@ const renderGroupedItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
   const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
+  const isInBasket = item.inBasket || item.in_basket;
 
   return `
     <div class="reader-row reader-grouped-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
@@ -507,6 +533,7 @@ const renderGroupedItemRow = (item) => {
         `}
 
         <span class="reader-grouped-title">${escapeHtml(item.title || 'Untitled')}</span>
+        ${isInBasket ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
       </div>
 
       <div class="quick-note-right">
@@ -520,6 +547,7 @@ const renderStandaloneItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
   const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
+  const isInBasket = item.inBasket || item.in_basket;
 
   return `
     <div class="quick-note-row reader-standalone-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
@@ -531,6 +559,7 @@ const renderStandaloneItemRow = (item) => {
         `}
 
         <span class="quick-note-title">${escapeHtml(item.title || 'Untitled')}</span>
+        ${isInBasket ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
       </div>
 
       <div class="quick-note-right">
@@ -562,11 +591,53 @@ const renderItemsList = () => {
     return;
   }
 
+  // Filter items based on active tab
+  let displayItems = state.items;
+  if (state.activeFilter === 'basket') {
+    displayItems = state.items.filter(i => i.inBasket || i.in_basket);
+    if (displayItems.length === 0) {
+      container.innerHTML = `
+        <div id="empty-state">
+          <div class="empty-icon-badge">
+            <i data-lucide="shopping-bag"></i>
+          </div>
+          <h2>No priority items yet</h2>
+          <p>Add items you are planning to buy next into Buy Priority by clicking "Add to Buy Priority" in their detail modal.</p>
+          <button type="button" class="btn-empty-add" onclick="state.activeFilter = 'all'; render();">
+            <i data-lucide="arrow-left"></i>
+            <span>View All Items</span>
+          </button>
+        </div>
+      `;
+      safeCreateLucideIcons();
+      return;
+    }
+  } else if (state.activeFilter === 'acquired') {
+    displayItems = state.items.filter(i => i.checked);
+    if (displayItems.length === 0) {
+      container.innerHTML = `
+        <div id="empty-state">
+          <div class="empty-icon-badge">
+            <i data-lucide="check-circle-2"></i>
+          </div>
+          <h2>No acquired items yet</h2>
+          <p>Mark items as acquired when you complete your purchases.</p>
+          <button type="button" class="btn-empty-add" onclick="state.activeFilter = 'all'; render();">
+            <i data-lucide="arrow-left"></i>
+            <span>View All Items</span>
+          </button>
+        </div>
+      `;
+      safeCreateLucideIcons();
+      return;
+    }
+  }
+
   // Group items by group name
   const groupsMap = new Map();
   const ungrouped = [];
 
-  state.items.forEach(item => {
+  displayItems.forEach(item => {
     const group = (item.group || '').trim();
     if (group) {
       if (!groupsMap.has(group)) groupsMap.set(group, []);
@@ -633,6 +704,7 @@ const renderItemsList = () => {
 const updateSelectionBar = () => {
   const selectionBar = document.getElementById('notes-selection-bar');
   const selectedCountEl = document.getElementById('notes-selected-count');
+  const basketBtn = document.getElementById('notes-basket-selected-btn');
   const completeBtn = document.getElementById('notes-complete-selected-btn');
   const groupBtn = document.getElementById('notes-group-selected-btn');
   const ungroupBtn = document.getElementById('notes-ungroup-selected-btn');
@@ -644,6 +716,7 @@ const updateSelectionBar = () => {
     selectionBar.classList.remove('hidden');
     const count = state.selectedIds.size;
     if (selectedCountEl) selectedCountEl.textContent = `${count} selected`;
+    if (basketBtn) basketBtn.disabled = count === 0;
     if (completeBtn) completeBtn.disabled = count === 0;
     if (groupBtn) groupBtn.disabled = count === 0;
     if (ungroupBtn) ungroupBtn.disabled = count === 0;
@@ -723,6 +796,69 @@ const toggleItemCheck = async (itemId) => {
     item.checked = !item.checked;
     render();
     showToast('Failed to update status');
+  }
+};
+
+const toggleItemBasket = async (itemId) => {
+  const item = state.items.find(i => i.id === itemId);
+  if (!item) return;
+
+  const prevBasketState = !!(item.inBasket || item.in_basket);
+  item.inBasket = !prevBasketState;
+  item.updatedAt = new Date().toISOString();
+  render();
+
+  // If detail modal is open for this item, update its button state immediately
+  const basketBtn = document.getElementById('quick-note-preview-basket-btn');
+  const basketText = document.getElementById('quick-note-preview-basket-text');
+  const basketIcon = document.getElementById('quick-note-preview-basket-icon');
+  if (basketBtn && state.activePreviewItemId === itemId) {
+    if (item.inBasket) {
+      basketBtn.classList.add('in-basket');
+      if (basketText) basketText.textContent = 'In Buy Priority';
+      if (basketIcon) basketIcon.setAttribute('data-lucide', 'check');
+      basketBtn.title = 'Click to remove from Buy Priority';
+    } else {
+      basketBtn.classList.remove('in-basket');
+      if (basketText) basketText.textContent = 'Add to Buy Priority';
+      if (basketIcon) basketIcon.setAttribute('data-lucide', 'shopping-bag');
+      basketBtn.title = 'Add to Buy Priority';
+    }
+    safeCreateLucideIcons();
+  }
+
+  showToast(item.inBasket ? 'Added to Buy Priority' : 'Removed from Buy Priority');
+
+  try {
+    await api.updateItem(itemId, { inBasket: item.inBasket });
+  } catch (err) {
+    item.inBasket = prevBasketState;
+    render();
+    showToast('Failed to update priority status');
+  }
+};
+
+const toggleBasketSelectedItems = async () => {
+  const selected = state.items.filter(i => state.selectedIds.has(i.id));
+  if (selected.length === 0) return;
+
+  const allInBasket = selected.every(i => i.inBasket || i.in_basket);
+  const targetState = !allInBasket;
+
+  selected.forEach(i => {
+    i.inBasket = targetState;
+    i.updatedAt = new Date().toISOString();
+  });
+  render();
+  showToast(targetState ? `Added ${selected.length} items to Buy Priority` : `Removed ${selected.length} items from Buy Priority`);
+
+  try {
+    await api.bulkOperation({
+      action: 'save_all',
+      items: selected
+    });
+  } catch (err) {
+    showToast('Failed to update selected items');
   }
 };
 
@@ -1225,10 +1361,19 @@ const setModalPriority = (priority) => {
 const getNavigableItems = () => {
   if (!state.items || state.items.length === 0) return [];
 
+  let filtered = state.items;
+  if (state.activeFilter === 'basket') {
+    filtered = state.items.filter(i => i.inBasket || i.in_basket);
+  } else if (state.activeFilter === 'acquired') {
+    filtered = state.items.filter(i => i.checked);
+  }
+
+  if (filtered.length === 0) return [];
+
   const groupsMap = new Map();
   const ungrouped = [];
 
-  state.items.forEach(item => {
+  filtered.forEach(item => {
     const group = (item.group || '').trim();
     if (group) {
       if (!groupsMap.has(group)) groupsMap.set(group, []);
@@ -1400,6 +1545,25 @@ const openPreviewModal = (itemId) => {
     if (imgBox) imgBox.classList.remove('hidden');
   } else {
     if (imgBox) imgBox.classList.add('hidden');
+  }
+
+  // 8. Buy Priority Button State
+  const isInBasket = !!(item.inBasket || item.in_basket);
+  const basketBtn = document.getElementById('quick-note-preview-basket-btn');
+  const basketText = document.getElementById('quick-note-preview-basket-text');
+  const basketIcon = document.getElementById('quick-note-preview-basket-icon');
+  if (basketBtn) {
+    if (isInBasket) {
+      basketBtn.classList.add('in-basket');
+      if (basketText) basketText.textContent = 'In Buy Priority';
+      if (basketIcon) basketIcon.setAttribute('data-lucide', 'check');
+      basketBtn.title = 'Click to remove from Buy Priority';
+    } else {
+      basketBtn.classList.remove('in-basket');
+      if (basketText) basketText.textContent = 'Add to Buy Priority';
+      if (basketIcon) basketIcon.setAttribute('data-lucide', 'shopping-bag');
+      basketBtn.title = 'Add to Buy Priority';
+    }
   }
 
   modal.classList.remove('hidden');
@@ -1708,6 +1872,20 @@ const initEventHandlers = () => {
       state.items.forEach(i => state.selectedIds.add(i.id));
     }
     render();
+  });
+
+  // Basket Selected (Toggle Priority Basket in bulk)
+  document.getElementById('notes-basket-selected-btn')?.addEventListener('click', () => {
+    if (state.selectedIds.size > 0) toggleBasketSelectedItems();
+  });
+
+  // Filter Tabs (All / Priority Basket / Acquired)
+  document.querySelectorAll('.filter-pill-btn')?.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.getAttribute('data-filter') || 'all';
+      state.activeFilter = filter;
+      render();
+    });
   });
 
   // Complete Selected
@@ -2223,6 +2401,12 @@ const initEventHandlers = () => {
       document.querySelectorAll('#group-modal-presets .category-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
     }
+  });
+
+  // Preview Transfer to Basket Button
+  document.getElementById('quick-note-preview-basket-btn')?.addEventListener('click', () => {
+    const id = state.activePreviewItemId;
+    if (id) toggleItemBasket(id);
   });
 
   // Preview Edit Button

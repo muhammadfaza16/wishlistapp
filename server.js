@@ -60,6 +60,7 @@ db.exec(`
     checked INTEGER NOT NULL DEFAULT 0,
     link TEXT,
     image_data TEXT,
+    in_basket INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -69,6 +70,10 @@ db.exec(`
   INSERT OR IGNORE INTO users (id, name, email, username, password_hash, salt, created_at)
   VALUES ('guest', 'Guest User', 'guest@local', 'guest', '', '', '2026-01-01T00:00:00.000Z');
 `);
+
+try {
+  db.exec('ALTER TABLE items ADD COLUMN in_basket INTEGER NOT NULL DEFAULT 0;');
+} catch (e) {}
 
 // Ensure user row exists in SQLite to prevent any constraint failures
 const ensureUserRecord = (userId, user = null) => {
@@ -846,6 +851,7 @@ const handler = async (req, res) => {
                 checked: r.checked === true || r.checked === 1,
                 link: r.link || null,
                 imageData: r.image_data || null,
+                inBasket: r.in_basket === 1 || r.in_basket === true || r.inBasket === true,
                 createdAt: r.created_at,
                 updatedAt: r.updated_at
               }));
@@ -853,8 +859,8 @@ const handler = async (req, res) => {
               // Sync to local SQLite cache
               try {
                 const insertStmt = db.prepare(`
-                  INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     price = excluded.price,
@@ -864,6 +870,7 @@ const handler = async (req, res) => {
                     checked = excluded.checked,
                     link = excluded.link,
                     image_data = excluded.image_data,
+                    in_basket = excluded.in_basket,
                     updated_at = excluded.updated_at
                 `);
                 items.forEach(it => {
@@ -878,6 +885,7 @@ const handler = async (req, res) => {
                     it.checked ? 1 : 0,
                     it.link,
                     it.imageData,
+                    it.inBasket ? 1 : 0,
                     it.createdAt,
                     it.updatedAt
                   );
@@ -894,7 +902,7 @@ const handler = async (req, res) => {
 
       // 2. Fallback to Local SQLite (or Guest)
       let rows = db.prepare(`
-        SELECT id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at
+        SELECT id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at
         FROM items
         WHERE user_id = ?
         ORDER BY created_at ASC
@@ -903,23 +911,23 @@ const handler = async (req, res) => {
       // If guest has no items yet, seed default sample items
       if (rows.length === 0 && userId === 'guest') {
         const defaultSamples = [
-          { id: 'sample-1', user_id: 'guest', title: 'Keychron Q1 Max Wireless Keyboard', price: 3450000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 1, checked: 0, link: 'https://keychron.com', image_data: null },
-          { id: 'sample-2', user_id: 'guest', title: 'BenQ ScreenBar Halo Monitor Light', price: 2450000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 2, checked: 1, link: 'https://benq.com', image_data: null },
-          { id: 'sample-3', user_id: 'guest', title: 'Sony WH-1000XM5 Noise Canceling Headphones', price: 4999000, currency: 'IDR', group_name: 'Audio & Sound', priority: 1, checked: 0, link: 'https://sony.com', image_data: null },
-          { id: 'sample-4', user_id: 'guest', title: 'Ergonomic Mesh Chair Herman Miller', price: 14500000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 3, checked: 0, link: null, image_data: null }
+          { id: 'sample-1', user_id: 'guest', title: 'Keychron Q1 Max Wireless Keyboard', price: 3450000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 1, checked: 0, link: 'https://keychron.com', image_data: null, in_basket: 1 },
+          { id: 'sample-2', user_id: 'guest', title: 'BenQ ScreenBar Halo Monitor Light', price: 2450000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 2, checked: 1, link: 'https://benq.com', image_data: null, in_basket: 0 },
+          { id: 'sample-3', user_id: 'guest', title: 'Sony WH-1000XM5 Noise Canceling Headphones', price: 4999000, currency: 'IDR', group_name: 'Audio & Sound', priority: 1, checked: 0, link: 'https://sony.com', image_data: null, in_basket: 1 },
+          { id: 'sample-4', user_id: 'guest', title: 'Ergonomic Mesh Chair Herman Miller', price: 14500000, currency: 'IDR', group_name: 'Workspace & Setup', priority: 3, checked: 0, link: null, image_data: null, in_basket: 0 }
         ];
 
         const insertStmt = db.prepare(`
-          INSERT OR IGNORE INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR IGNORE INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const now = new Date().toISOString();
         defaultSamples.forEach(s => {
-          insertStmt.run(s.id, s.user_id, s.title, s.price, s.currency, s.group_name, s.priority, s.checked, s.link, s.image_data, now, now);
+          insertStmt.run(s.id, s.user_id, s.title, s.price, s.currency, s.group_name, s.priority, s.checked, s.link, s.image_data, s.in_basket || 0, now, now);
         });
 
         rows = db.prepare(`
-          SELECT id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at
+          SELECT id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at
           FROM items
           WHERE user_id = ?
           ORDER BY created_at ASC
@@ -936,6 +944,7 @@ const handler = async (req, res) => {
         checked: r.checked === 1,
         link: r.link || null,
         imageData: r.image_data || null,
+        inBasket: r.in_basket === 1 || r.inBasket === true,
         createdAt: r.created_at,
         updatedAt: r.updated_at
       }));
@@ -961,6 +970,7 @@ const handler = async (req, res) => {
       const groupName = body.group ? String(body.group).trim() : null;
       const priority = Number(body.priority) || 2;
       const checked = (body.checked === true || body.checked === 1) ? 1 : 0;
+      const inBasket = (body.inBasket === true || body.in_basket === 1 || body.in_basket === true) ? 1 : 0;
       const link = body.link ? String(body.link).trim() : null;
       const imageData = body.imageData || body.image_data || null;
       const now = new Date().toISOString();
@@ -968,8 +978,8 @@ const handler = async (req, res) => {
       const updatedAt = body.updatedAt || now;
 
       db.prepare(`
-        INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           title = excluded.title,
           price = excluded.price,
@@ -979,10 +989,11 @@ const handler = async (req, res) => {
           checked = excluded.checked,
           link = excluded.link,
           image_data = excluded.image_data,
+          in_basket = excluded.in_basket,
           updated_at = excluded.updated_at
-      `).run(id, userId, title, price, currency, groupName, priority, checked, link, imageData, createdAt, updatedAt);
+      `).run(id, userId, title, price, currency, groupName, priority, checked, link, imageData, inBasket, createdAt, updatedAt);
 
-      const newItem = { id, user_id: userId, title, price, currency, group: groupName, priority, checked: checked === 1, link, imageData, createdAt, updatedAt };
+      const newItem = { id, user_id: userId, title, price, currency, group: groupName, priority, checked: checked === 1, inBasket: inBasket === 1, link, imageData, createdAt, updatedAt };
       await syncItemToSupabase(newItem, 'upsert');
 
       return sendJson(res, 201, { success: true, item: newItem });
@@ -1028,6 +1039,7 @@ const handler = async (req, res) => {
                 checked: r.checked ? 1 : 0,
                 link: r.link,
                 image_data: r.image_data,
+                in_basket: r.in_basket ? 1 : 0,
                 created_at: r.created_at,
                 updated_at: r.updated_at
               };
@@ -1036,7 +1048,7 @@ const handler = async (req, res) => {
         } catch (e) {}
       }
 
-      if (!existing && body.title === undefined && body.checked === undefined && body.price === undefined) {
+      if (!existing && body.title === undefined && body.checked === undefined && body.price === undefined && body.inBasket === undefined && body.in_basket === undefined) {
         return sendJson(res, 404, { error: 'Item not found' });
       }
 
@@ -1047,13 +1059,14 @@ const handler = async (req, res) => {
       const groupName = body.group !== undefined ? (body.group ? String(body.group).trim() : null) : (existing ? existing.group_name : null);
       const priority = body.priority !== undefined ? Number(body.priority) : (existing ? existing.priority : 2);
       const checked = body.checked !== undefined ? (body.checked ? 1 : 0) : (existing ? existing.checked : 0);
+      const inBasket = body.inBasket !== undefined ? (body.inBasket ? 1 : 0) : (body.in_basket !== undefined ? (body.in_basket ? 1 : 0) : (existing ? (existing.in_basket ? 1 : 0) : 0));
       const link = body.link !== undefined ? (body.link ? String(body.link).trim() : null) : (existing ? existing.link : null);
       const imageData = body.imageData !== undefined ? body.imageData : (body.image_data !== undefined ? body.image_data : (existing ? existing.image_data : null));
       const createdAt = existing ? existing.created_at : (body.createdAt || now);
 
       db.prepare(`
-        INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           title = excluded.title,
           price = excluded.price,
@@ -1063,8 +1076,9 @@ const handler = async (req, res) => {
           checked = excluded.checked,
           link = excluded.link,
           image_data = excluded.image_data,
+          in_basket = excluded.in_basket,
           updated_at = excluded.updated_at
-      `).run(itemId, userId, title, price, currency, groupName, priority, checked, link, imageData, createdAt, now);
+      `).run(itemId, userId, title, price, currency, groupName, priority, checked, link, imageData, inBasket, createdAt, now);
 
       const updatedItem = {
         id: itemId,
@@ -1075,6 +1089,7 @@ const handler = async (req, res) => {
         group: groupName,
         priority,
         checked: checked === 1,
+        inBasket: inBasket === 1,
         link,
         imageData,
         createdAt,
@@ -1153,12 +1168,12 @@ const handler = async (req, res) => {
 
       if (Array.isArray(body.items)) {
         const insertStmt = db.prepare(`
-          INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO items (id, user_id, title, price, currency, group_name, priority, checked, link, image_data, in_basket, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             title = excluded.title, price = excluded.price, currency = excluded.currency,
             group_name = excluded.group_name, priority = excluded.priority, checked = excluded.checked,
-            link = excluded.link, image_data = excluded.image_data, updated_at = excluded.updated_at
+            link = excluded.link, image_data = excluded.image_data, in_basket = excluded.in_basket, updated_at = excluded.updated_at
         `);
 
         db.exec('BEGIN TRANSACTION');
@@ -1171,13 +1186,14 @@ const handler = async (req, res) => {
             const groupName = item.group ? String(item.group).trim() : null;
             const priority = Number(item.priority) || 2;
             const checked = (item.checked === true || item.checked === 1) ? 1 : 0;
+            const inBasket = (item.inBasket === true || item.in_basket === 1 || item.in_basket === true) ? 1 : 0;
             const link = item.link || null;
             const imageData = item.imageData || item.image_data || null;
             const createdAt = item.createdAt || item.created_at || now;
             const updatedAt = item.updatedAt || item.updated_at || now;
 
-            insertStmt.run(id, userId, title, price, currency, groupName, priority, checked, link, imageData, createdAt, updatedAt);
-            syncItemToSupabase({ id, user_id: userId, title, price, currency, group_name: groupName, priority, checked, link, image_data: imageData, created_at: createdAt, updated_at: updatedAt }, 'upsert');
+            insertStmt.run(id, userId, title, price, currency, groupName, priority, checked, link, imageData, inBasket, createdAt, updatedAt);
+            syncItemToSupabase({ id, user_id: userId, title, price, currency, group_name: groupName, priority, checked, link, image_data: imageData, in_basket: inBasket, created_at: createdAt, updated_at: updatedAt }, 'upsert');
           });
           db.exec('COMMIT');
         } catch (e) {

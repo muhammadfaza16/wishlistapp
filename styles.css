@@ -809,9 +809,89 @@ input, button, select, textarea {
 /* Notes View Layout */
 .notes-summary-bar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 12px;
+}
+
+@media (max-width: 768px) {
+  .notes-summary-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Priority Basket & View Filter Tabs (Minimalist Pills) */
+.notes-filter-bar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-pill-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #52525B;
+  background: #F4F4F6;
+  border: 1px solid #E5E5EA;
+  border-radius: 9999px;
+  padding: 4.5px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5.5px;
+  transition: all 130ms cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.filter-pill-btn:hover {
+  color: #18181B;
+  background: #E8E8ED;
+  border-color: #D4D4D8;
+}
+
+.filter-pill-btn:active {
+  transform: scale(0.97);
+}
+
+.filter-pill-btn.active {
+  background: #18181B;
+  color: #FFFFFF;
+  border-color: #18181B;
+  font-weight: 600;
+  box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.12);
+}
+
+.filter-icon {
+  width: 12.5px;
+  height: 12.5px;
+  flex-shrink: 0;
+}
+
+.filter-count-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5.5px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #71717A;
+  min-width: 15px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.filter-pill-btn.active .filter-count-badge {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+}
+
+.filter-pill-btn.basket-pill.active .filter-count-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #FCD34D;
 }
 
 .notes-progress-container {
@@ -2439,9 +2519,66 @@ input, button, select, textarea {
 
 .preview-modal-actions {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.btn-preview-basket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #F8FAFC;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 16px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 130ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  box-sizing: border-box;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.btn-preview-basket:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  transform: translateY(-0.5px);
+}
+
+.btn-preview-basket:active {
+  transform: scale(0.98);
+}
+
+.btn-preview-basket.in-basket {
+  background: #0F172A;
+  color: #FFFFFF;
+  border-color: #0F172A;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
+}
+
+.btn-preview-basket.in-basket:hover {
+  background: #1E293B;
+  border-color: #1E293B;
+}
+
+.btn-preview-basket.in-basket svg {
+  color: #FCD34D;
+}
+
+.preview-modal-sub-actions {
+  display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  width: 100%;
 }
 
 .btn-preview-primary {
@@ -2453,14 +2590,16 @@ input, button, select, textarea {
   color: var(--text-inverse);
   border: 1px solid var(--accent);
   border-radius: 8px;
-  height: 38px;
-  padding: 0 16px;
-  font-size: 13px;
+  height: 36px;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
   font-weight: 550;
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: all 120ms ease;
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   user-select: none;
   touch-action: manipulation;
@@ -2484,15 +2623,17 @@ input, button, select, textarea {
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  height: 38px;
-  padding: 0 16px;
-  font-size: 13px;
+  height: 36px;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
   text-decoration: none;
   transition: all 120ms ease;
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   user-select: none;
   touch-action: manipulation;
@@ -2509,7 +2650,8 @@ input, button, select, textarea {
 }
 
 .btn-preview-primary svg,
-.btn-preview-secondary svg {
+.btn-preview-secondary svg,
+.btn-preview-basket svg {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
@@ -3865,7 +4007,8 @@ textarea#raw-notepad-input:focus {
   opacity: 0.85;
 }
 
-/* First Stat Card: Dark / Black Accent */
+/* Priority Basket Card: Dark / Black Accent */
+.stat-card-basket,
 .stat-card:first-child,
 .stat-card.stat-card-featured {
   background: #0F172A;
@@ -3873,6 +4016,7 @@ textarea#raw-notepad-input:focus {
   box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.16), 0 2px 6px -1px rgba(15, 23, 42, 0.1);
 }
 
+.stat-card-basket:hover,
 .stat-card:first-child:hover,
 .stat-card.stat-card-featured:hover {
   background: #1E293B;
@@ -3880,19 +4024,63 @@ textarea#raw-notepad-input:focus {
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.25);
 }
 
+.stat-card-basket .stat-label,
 .stat-card:first-child .stat-label,
 .stat-card.stat-card-featured .stat-label {
   color: #94A3B8;
 }
 
+.stat-card-basket .stat-value,
 .stat-card:first-child .stat-value,
 .stat-card.stat-card-featured .stat-value {
   color: #FFFFFF;
 }
 
+.stat-card-basket .currency-prefix,
 .stat-card:first-child .currency-prefix,
 .stat-card.stat-card-featured .currency-prefix {
   color: #94A3B8;
+}
+
+.stat-card-header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.stat-badge-pill {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1.5px 5.5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #FCD34D;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* List Item Basket Badge */
+.reader-basket-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  background: #FEF3C7;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+  margin-left: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.reader-basket-badge svg {
+  width: 10px;
+  height: 10px;
 }
 
 /* Master Progress Bar */
