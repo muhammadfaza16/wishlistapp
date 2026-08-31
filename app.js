@@ -14,6 +14,11 @@ try {
   savedGroupIcons = JSON.parse(localStorage.getItem('wishlist_group_icons') || '{}');
 } catch (e) {}
 
+let savedImageFit = 'cover';
+try {
+  savedImageFit = localStorage.getItem('wishlist_img_fit') || 'cover';
+} catch (e) {}
+
 const state = {
   items: [],
   currentUser: null, // { id, name, email, username }
@@ -31,7 +36,8 @@ const state = {
   previewReturnId: null, // Memoized return target for stacked modal actions
   activeRenamingGroup: null,
   activeGroupIcon: null,
-  groupIcons: savedGroupIcons
+  groupIcons: savedGroupIcons,
+  imageFitMode: savedImageFit
 };
 
 const GROUP_MONO_ICONS = [
@@ -1572,7 +1578,7 @@ const openPreviewModal = (itemId) => {
   // 7. Image & Panning
   const src = getImageSrc(item);
   const pan = getImagePan(item);
-  const fit = getImageFit(item);
+  const fit = state.imageFitMode || getImageFit(item) || 'cover';
 
   if (src) {
     if (modalImg) {
@@ -2178,8 +2184,13 @@ const initEventHandlers = () => {
     const modalImg = document.getElementById('quick-note-preview-modal-img');
     const fitText = document.getElementById('preview-img-fit-text');
     const dragHint = document.getElementById('quick-note-preview-drag-hint');
-    const currentFit = getImageFit(item);
+    const currentFit = state.imageFitMode || getImageFit(item) || 'cover';
     const newFit = currentFit === 'cover' ? 'contain' : 'cover';
+
+    state.imageFitMode = newFit;
+    try {
+      localStorage.setItem('wishlist_img_fit', newFit);
+    } catch (err) {}
 
     item.imageFit = newFit;
     if (modalImg) {
