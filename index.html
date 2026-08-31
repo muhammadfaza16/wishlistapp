@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;550;600;650;700;800&family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=430">
+  <link rel="stylesheet" href="styles.css?v=436">
 </head>
 <body>
   <div id="app">
@@ -113,11 +113,11 @@
 
       <!-- Priority & View Filter Tabs (Minimalist Pills) -->
       <div class="notes-filter-bar" id="notes-filter-bar">
-        <button type="button" class="filter-pill-btn active" data-filter="all" id="filter-tab-all">
+        <button type="button" class="filter-pill-btn" data-filter="all" id="filter-tab-all">
           <span>All Items</span>
           <span class="filter-count-badge" id="filter-badge-all">0</span>
         </button>
-        <button type="button" class="filter-pill-btn basket-pill" data-filter="basket" id="filter-tab-basket" title="View Buy Priority Items">
+        <button type="button" class="filter-pill-btn basket-pill active" data-filter="basket" id="filter-tab-basket" title="View Buy Priority Items">
           <i data-lucide="shopping-bag" class="filter-icon"></i>
           <span>Buy Priority</span>
           <span class="filter-count-badge" id="filter-badge-basket">0</span>
@@ -566,6 +566,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="app.js?v=430" defer></script>
+  <script src="app.js?v=436" defer></script>
 </body>
 </html>

@@ -18,7 +18,7 @@ const state = {
   items: [],
   currentUser: null, // { id, name, email, username }
   viewMode: 'view',  // 'view' | 'edit'
-  activeFilter: 'all', // 'all' | 'basket' | 'acquired'
+  activeFilter: 'basket', // 'all' | 'basket' | 'acquired'
   isSelectMode: false,
   selectedIds: new Set(),
   collapsedGroups: new Set(),
@@ -562,7 +562,7 @@ const renderGroupedItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
   const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
-  const isInBasket = item.inBasket || item.in_basket;
+  const showBasketBadge = state.activeFilter === 'all' && (item.inBasket || item.in_basket);
 
   return `
     <div class="reader-row reader-grouped-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
@@ -574,7 +574,7 @@ const renderGroupedItemRow = (item) => {
         `}
 
         <span class="reader-grouped-title">${escapeHtml(item.title || 'Untitled')}</span>
-        ${isInBasket ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
+        ${showBasketBadge ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
       </div>
 
       <div class="quick-note-right">
@@ -588,7 +588,7 @@ const renderStandaloneItemRow = (item) => {
   const isSelected = state.selectedIds.has(item.id);
   const isEditMode = state.viewMode === 'edit';
   const rowAction = state.isSelectMode ? 'toggle-select' : (isEditMode ? 'edit' : 'preview');
-  const isInBasket = item.inBasket || item.in_basket;
+  const showBasketBadge = state.activeFilter === 'all' && (item.inBasket || item.in_basket);
 
   return `
     <div class="quick-note-row reader-standalone-row ${item.checked ? 'checked' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(item.id)}" data-action="${state.isSelectMode ? 'toggle-select' : ''}">
@@ -600,7 +600,7 @@ const renderStandaloneItemRow = (item) => {
         `}
 
         <span class="quick-note-title">${escapeHtml(item.title || 'Untitled')}</span>
-        ${isInBasket ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
+        ${showBasketBadge ? `<span class="reader-basket-badge" title="Buy Priority Item"><i data-lucide="shopping-bag"></i></span>` : ''}
       </div>
 
       <div class="quick-note-right">
